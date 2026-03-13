@@ -1,0 +1,2414 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>نظام إدارة المختبر الطبي - MedLab Pro</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;900&family=Tajawal:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --primary: #00d4ff;
+  --primary-dark: #0099bb;
+  --secondary: #7b2fff;
+  --accent: #00ff9d;
+  --danger: #ff4d6d;
+  --warning: #ffd60a;
+  --success: #00f593;
+  --bg-dark: #04080f;
+  --bg-card: rgba(255,255,255,0.04);
+  --bg-glass: rgba(255,255,255,0.07);
+  --border-glass: rgba(0,212,255,0.2);
+  --text-primary: #e8f4ff;
+  --text-secondary: rgba(232,244,255,0.6);
+  --shadow-glow: 0 0 30px rgba(0,212,255,0.15);
+  --shadow-card: 0 8px 32px rgba(0,0,0,0.4);
+  --transition: all 0.3s cubic-bezier(0.4,0,0.2,1);
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  font-family: 'Cairo', sans-serif;
+  background: var(--bg-dark);
+  color: var(--text-primary);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Background animated */
+body::before {
+  content:'';
+  position: fixed;
+  top:0; left:0; right:0; bottom:0;
+  background:
+    radial-gradient(ellipse at 20% 20%, rgba(0,212,255,0.08) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 80%, rgba(123,47,255,0.08) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 50%, rgba(0,255,157,0.03) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Grid overlay */
+body::after {
+  content:'';
+  position: fixed;
+  top:0; left:0; right:0; bottom:0;
+  background-image:
+    linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px);
+  background-size: 50px 50px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ===== LAYOUT ===== */
+.app-wrapper { display:flex; min-height:100vh; position:relative; z-index:1; }
+
+/* ===== SIDEBAR ===== */
+.sidebar {
+  width: 280px;
+  min-height: 100vh;
+  background: rgba(4,8,15,0.95);
+  backdrop-filter: blur(20px);
+  border-left: 1px solid var(--border-glass);
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 100;
+  transition: var(--transition);
+  overflow-y: auto;
+}
+
+.sidebar-logo {
+  padding: 24px 20px;
+  border-bottom: 1px solid var(--border-glass);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.logo-icon {
+  width: 48px; height: 48px;
+  background: linear-gradient(135deg, var(--primary), var(--secondary));
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  box-shadow: 0 0 20px rgba(0,212,255,0.4);
+  flex-shrink: 0;
+}
+
+.logo-text h1 { font-size: 16px; font-weight: 700; color: var(--primary); letter-spacing:1px; }
+.logo-text p { font-size: 11px; color: var(--text-secondary); }
+
+.nav-section { padding: 16px 12px 8px; }
+.nav-section-title {
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--text-secondary);
+  padding: 0 8px;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: var(--transition);
+  margin-bottom: 2px;
+  color: var(--text-secondary);
+  font-size: 13.5px;
+  font-weight: 500;
+  position: relative;
+  overflow: hidden;
+}
+
+.nav-item:hover {
+  background: var(--bg-glass);
+  color: var(--text-primary);
+}
+
+.nav-item.active {
+  background: linear-gradient(135deg, rgba(0,212,255,0.15), rgba(123,47,255,0.1));
+  color: var(--primary);
+  border: 1px solid rgba(0,212,255,0.2);
+}
+
+.nav-item.active::before {
+  content:'';
+  position:absolute;
+  right:0; top:0; bottom:0;
+  width:3px;
+  background: linear-gradient(180deg, var(--primary), var(--secondary));
+  border-radius: 2px 0 0 2px;
+}
+
+.nav-icon { font-size: 16px; width: 20px; text-align:center; }
+.nav-badge {
+  margin-right: auto;
+  background: var(--danger);
+  color: white;
+  font-size: 10px;
+  padding: 2px 7px;
+  border-radius: 20px;
+  font-weight: 700;
+}
+
+.sidebar-footer {
+  margin-top: auto;
+  padding: 16px;
+  border-top: 1px solid var(--border-glass);
+}
+
+.lab-info-card {
+  background: linear-gradient(135deg, rgba(0,212,255,0.1), rgba(123,47,255,0.1));
+  border: 1px solid var(--border-glass);
+  border-radius: 12px;
+  padding: 14px;
+}
+
+.lab-info-card h4 { font-size: 12px; color: var(--primary); margin-bottom: 4px; }
+.lab-info-card p { font-size: 11px; color: var(--text-secondary); }
+
+/* ===== MAIN CONTENT ===== */
+.main-content {
+  flex: 1;
+  margin-right: 280px;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ===== HEADER ===== */
+.top-header {
+  background: rgba(4,8,15,0.8);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border-glass);
+  padding: 16px 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+
+.header-left { display:flex; align-items:center; gap:16px; }
+
+.page-title { font-size: 20px; font-weight: 700; color: var(--text-primary); }
+.page-breadcrumb { font-size: 12px; color: var(--text-secondary); margin-top:2px; }
+
+.header-right { display:flex; align-items:center; gap:12px; }
+
+.header-btn {
+  width: 40px; height: 40px;
+  border-radius: 10px;
+  border: 1px solid var(--border-glass);
+  background: var(--bg-glass);
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  transition: var(--transition);
+  position: relative;
+}
+
+.header-btn:hover { background: rgba(0,212,255,0.1); color: var(--primary); border-color: var(--primary); }
+
+.notif-dot {
+  position:absolute;
+  top: 6px; right: 6px;
+  width: 8px; height: 8px;
+  background: var(--danger);
+  border-radius: 50%;
+  border: 2px solid var(--bg-dark);
+}
+
+.search-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-glass);
+  border: 1px solid var(--border-glass);
+  border-radius: 10px;
+  padding: 8px 14px;
+  width: 260px;
+  transition: var(--transition);
+}
+
+.search-bar:focus-within { border-color: var(--primary); box-shadow: 0 0 15px rgba(0,212,255,0.1); }
+.search-bar input {
+  background: none;
+  border: none;
+  outline: none;
+  color: var(--text-primary);
+  font-family: 'Cairo', sans-serif;
+  font-size: 13px;
+  width: 100%;
+}
+.search-bar input::placeholder { color: var(--text-secondary); }
+.search-bar span { color: var(--text-secondary); font-size: 14px; }
+
+.user-avatar {
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary), var(--secondary));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  cursor: pointer;
+  box-shadow: 0 0 15px rgba(0,212,255,0.3);
+}
+
+/* ===== PAGE CONTENT ===== */
+.page-content { padding: 28px; flex:1; }
+.page-section { display:none; }
+.page-section.active { display:block; }
+
+/* ===== STATS CARDS ===== */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+  margin-bottom: 28px;
+}
+
+.stat-card {
+  background: var(--bg-glass);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--border-glass);
+  border-radius: 16px;
+  padding: 20px;
+  position: relative;
+  overflow: hidden;
+  transition: var(--transition);
+  cursor: default;
+}
+
+.stat-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-glow);
+  border-color: rgba(0,212,255,0.4);
+}
+
+.stat-card::before {
+  content:'';
+  position:absolute;
+  top:0; right:0;
+  width: 80px; height: 80px;
+  background: radial-gradient(circle, var(--card-color, rgba(0,212,255,0.2)) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.stat-label { font-size: 12px; color: var(--text-secondary); margin-bottom: 10px; }
+.stat-value { font-size: 28px; font-weight: 900; color: var(--text-primary); line-height: 1; }
+.stat-sub { font-size: 11px; margin-top: 8px; display:flex; align-items:center; gap:4px; }
+.stat-up { color: var(--success); }
+.stat-down { color: var(--danger); }
+.stat-icon {
+  position: absolute;
+  left: 20px; top: 20px;
+  font-size: 28px;
+  opacity: 0.3;
+}
+
+/* ===== GLASS CARD ===== */
+.glass-card {
+  background: var(--bg-glass);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--border-glass);
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.card-header {
+  padding: 18px 22px;
+  border-bottom: 1px solid var(--border-glass);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.card-title { font-size: 15px; font-weight: 700; display:flex; align-items:center; gap:8px; }
+.card-actions { display:flex; gap:8px; }
+
+.card-body { padding: 22px; }
+
+/* ===== BUTTONS ===== */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 18px;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  font-family: 'Cairo', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  transition: var(--transition);
+  white-space: nowrap;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  color: #000;
+  box-shadow: 0 4px 15px rgba(0,212,255,0.3);
+}
+.btn-primary:hover { box-shadow: 0 6px 25px rgba(0,212,255,0.5); transform:translateY(-1px); }
+
+.btn-secondary {
+  background: var(--bg-glass);
+  color: var(--text-primary);
+  border: 1px solid var(--border-glass);
+}
+.btn-secondary:hover { background: rgba(0,212,255,0.1); border-color: var(--primary); color: var(--primary); }
+
+.btn-success {
+  background: linear-gradient(135deg, var(--success), #00c470);
+  color: #000;
+  box-shadow: 0 4px 15px rgba(0,245,147,0.3);
+}
+
+.btn-danger {
+  background: linear-gradient(135deg, var(--danger), #cc2244);
+  color: #fff;
+}
+
+.btn-warning {
+  background: linear-gradient(135deg, var(--warning), #e6b800);
+  color: #000;
+}
+
+.btn-sm { padding: 6px 12px; font-size: 12px; }
+.btn-lg { padding: 12px 28px; font-size: 15px; }
+.btn-icon { padding: 8px; width:36px; height:36px; justify-content:center; }
+
+/* ===== FORM ELEMENTS ===== */
+.form-group { margin-bottom: 18px; }
+.form-label { font-size: 13px; font-weight: 600; color: var(--text-secondary); margin-bottom: 7px; display:block; }
+.form-label .req { color: var(--danger); }
+
+.form-control {
+  width: 100%;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--border-glass);
+  border-radius: 10px;
+  padding: 10px 14px;
+  color: var(--text-primary);
+  font-family: 'Cairo', sans-serif;
+  font-size: 13px;
+  outline: none;
+  transition: var(--transition);
+}
+
+.form-control:focus {
+  border-color: var(--primary);
+  background: rgba(0,212,255,0.05);
+  box-shadow: 0 0 15px rgba(0,212,255,0.1);
+}
+
+.form-control::placeholder { color: var(--text-secondary); }
+.form-control option { background: #0a1628; }
+
+.form-row { display: grid; gap: 16px; }
+.form-row-2 { grid-template-columns: 1fr 1fr; }
+.form-row-3 { grid-template-columns: 1fr 1fr 1fr; }
+.form-row-4 { grid-template-columns: repeat(4, 1fr); }
+
+/* ===== TABLE ===== */
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.data-table thead tr {
+  background: rgba(0,212,255,0.06);
+  border-bottom: 2px solid var(--border-glass);
+}
+
+.data-table th {
+  padding: 13px 16px;
+  text-align: right;
+  font-weight: 700;
+  color: var(--primary);
+  font-size: 12px;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.data-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  color: var(--text-secondary);
+  vertical-align: middle;
+}
+
+.data-table tr:hover td { background: rgba(0,212,255,0.03); color: var(--text-primary); }
+
+/* ===== BADGES ===== */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.badge-success { background: rgba(0,245,147,0.15); color: var(--success); border: 1px solid rgba(0,245,147,0.3); }
+.badge-warning { background: rgba(255,214,10,0.15); color: var(--warning); border: 1px solid rgba(255,214,10,0.3); }
+.badge-danger { background: rgba(255,77,109,0.15); color: var(--danger); border: 1px solid rgba(255,77,109,0.3); }
+.badge-primary { background: rgba(0,212,255,0.15); color: var(--primary); border: 1px solid rgba(0,212,255,0.3); }
+.badge-secondary { background: rgba(123,47,255,0.15); color: #a78bfa; border: 1px solid rgba(123,47,255,0.3); }
+
+/* ===== GRID LAYOUT ===== */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+
+/* ===== MODAL ===== */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.8);
+  backdrop-filter: blur(5px);
+  z-index: 1000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.modal-overlay.open { display: flex; animation: fadeIn 0.2s ease; }
+
+@keyframes fadeIn { from{opacity:0} to{opacity:1} }
+@keyframes slideUp { from{transform:translateY(30px);opacity:0} to{transform:none;opacity:1} }
+
+.modal {
+  background: #080f1e;
+  border: 1px solid var(--border-glass);
+  border-radius: 20px;
+  width: 100%;
+  max-width: 700px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 25px 80px rgba(0,0,0,0.8), 0 0 40px rgba(0,212,255,0.1);
+  animation: slideUp 0.3s ease;
+}
+
+.modal-header {
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border-glass);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  background: #080f1e;
+  z-index: 10;
+}
+
+.modal-title { font-size: 16px; font-weight: 700; display:flex; align-items:center; gap:8px; }
+
+.modal-close {
+  width: 36px; height: 36px;
+  border-radius: 8px;
+  border: 1px solid var(--border-glass);
+  background: var(--bg-glass);
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  transition: var(--transition);
+}
+.modal-close:hover { background: rgba(255,77,109,0.2); color: var(--danger); border-color: var(--danger); }
+
+.modal-body { padding: 24px; }
+.modal-footer { padding: 16px 24px; border-top: 1px solid var(--border-glass); display:flex; justify-content:flex-end; gap:10px; }
+
+/* ===== TABS ===== */
+.tabs { display:flex; gap:4px; background: rgba(255,255,255,0.04); border-radius: 12px; padding: 4px; }
+.tab {
+  padding: 9px 18px;
+  border-radius: 9px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  transition: var(--transition);
+  border: none;
+  background: none;
+  font-family: 'Cairo', sans-serif;
+  white-space: nowrap;
+}
+.tab.active { background: linear-gradient(135deg, rgba(0,212,255,0.2), rgba(123,47,255,0.15)); color: var(--primary); }
+.tab:hover:not(.active) { color: var(--text-primary); }
+
+/* ===== PROGRESS ===== */
+.progress-bar {
+  height: 6px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  border-radius: 10px;
+  background: linear-gradient(90deg, var(--primary), var(--secondary));
+  transition: width 1s ease;
+}
+
+/* ===== PATIENT ID CARD ===== */
+.patient-card-preview {
+  background: linear-gradient(135deg, #0a1628, #0d1f3c);
+  border: 1px solid var(--border-glass);
+  border-radius: 16px;
+  padding: 20px;
+  position: relative;
+  overflow: hidden;
+}
+
+.patient-card-preview::before {
+  content:'';
+  position:absolute;
+  top:-30px; left:-30px;
+  width:150px; height:150px;
+  background: radial-gradient(circle, rgba(0,212,255,0.15) 0%, transparent 70%);
+}
+
+/* ===== PRINT RESULT ===== */
+#print-area {
+  display: none;
+  font-family: 'Cairo', sans-serif;
+  direction: rtl;
+}
+
+@media print {
+  body > *:not(#print-area) { display: none !important; }
+  #print-area { display: block !important; }
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+}
+
+.print-header {
+  background: linear-gradient(135deg, #003366, #0066cc);
+  color: white;
+  padding: 20px 30px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.print-lab-name { font-size: 22px; font-weight: 900; }
+.print-lab-info { font-size: 11px; opacity: 0.85; margin-top: 4px; }
+.print-logo { font-size: 40px; }
+
+.print-patient-info {
+  background: #f0f7ff;
+  border: 2px solid #cce0ff;
+  margin: 16px 30px;
+  padding: 14px 18px;
+  border-radius: 10px;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+.print-info-item label { font-size: 10px; color: #666; font-weight: 700; display:block; }
+.print-info-item span { font-size: 13px; color: #000; font-weight: 600; }
+
+.print-title {
+  text-align: center;
+  font-size: 16px;
+  font-weight: 900;
+  color: #003366;
+  margin: 10px 30px;
+  padding: 8px;
+  border-bottom: 2px solid #003366;
+  letter-spacing: 1px;
+}
+
+.print-table {
+  width: calc(100% - 60px);
+  margin: 0 30px;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.print-table th {
+  background: #003366;
+  color: white;
+  padding: 9px 12px;
+  text-align: right;
+  font-weight: 700;
+}
+
+.print-table td {
+  padding: 8px 12px;
+  border: 1px solid #dde;
+  color: #111;
+}
+
+.print-table tr:nth-child(even) td { background: #f5f8ff; }
+
+.print-result-abnormal { color: #cc0000; font-weight: 700; }
+.print-result-normal { color: #006600; }
+
+.print-footer {
+  margin: 20px 30px 0;
+  padding: 14px 0 0;
+  border-top: 2px solid #003366;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  font-size: 11px;
+  color: #555;
+}
+
+.print-signature { text-align: center; }
+.print-signature-line { width: 120px; border-top: 1px solid #333; margin: 40px auto 4px; }
+
+.print-barcode { text-align: left; font-size: 10px; }
+.barcode-lines { font-size: 24px; letter-spacing: -2px; color: #000; }
+
+/* ===== NOTIFICATIONS ===== */
+.notification-panel {
+  position: fixed;
+  left: 20px;
+  bottom: 20px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.notif {
+  background: #0a1628;
+  border: 1px solid var(--border-glass);
+  border-radius: 12px;
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 280px;
+  box-shadow: var(--shadow-card);
+  animation: notifSlide 0.3s ease;
+  pointer-events: all;
+}
+
+@keyframes notifSlide { from{transform:translateX(-100%);opacity:0} to{transform:none;opacity:1} }
+
+.notif-icon { font-size: 20px; }
+.notif-text h4 { font-size: 13px; font-weight: 700; }
+.notif-text p { font-size: 11px; color: var(--text-secondary); margin-top:2px; }
+
+/* ===== DASHBOARD CHARTS (CSS only) ===== */
+.mini-chart { display:flex; align-items:flex-end; gap:4px; height:50px; }
+.mini-bar {
+  flex:1;
+  background: linear-gradient(180deg, var(--primary), var(--secondary));
+  border-radius: 3px 3px 0 0;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+.mini-bar:hover { opacity: 1; }
+
+/* ===== SCROLLBAR ===== */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(0,212,255,0.3); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--primary); }
+
+/* ===== ANIMATIONS ===== */
+.fade-in { animation: fadeInUp 0.4s ease both; }
+@keyframes fadeInUp { from{transform:translateY(20px);opacity:0} to{transform:none;opacity:1} }
+
+.pulse { animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+
+.glow-text { color: var(--primary); text-shadow: 0 0 20px rgba(0,212,255,0.5); }
+
+/* ===== SPECIAL COMPONENTS ===== */
+.status-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.status-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  animation: pulse 2s infinite;
+}
+.status-dot.online { background: var(--success); }
+.status-dot.pending { background: var(--warning); }
+.status-dot.offline { background: var(--danger); }
+
+.avatar {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.timeline { display:flex; flex-direction:column; gap:0; }
+.timeline-item {
+  display: flex;
+  gap: 14px;
+  padding-bottom: 20px;
+  position: relative;
+}
+.timeline-item::before {
+  content:'';
+  position:absolute;
+  right: 17px; top: 30px; bottom: 0;
+  width: 2px;
+  background: var(--border-glass);
+}
+.timeline-item:last-child::before { display:none; }
+.timeline-dot {
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  background: var(--bg-glass);
+  border: 2px solid var(--border-glass);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+.timeline-content { flex:1; }
+.timeline-content h4 { font-size: 13px; font-weight: 700; }
+.timeline-content p { font-size: 12px; color: var(--text-secondary); margin-top:3px; }
+
+/* ===== RESULT VALUES ===== */
+.result-value { display:flex; flex-direction:column; align-items:flex-start; gap:3px; }
+.result-num { font-size: 16px; font-weight: 900; }
+.result-num.high { color: var(--danger); }
+.result-num.low { color: var(--warning); }
+.result-num.normal { color: var(--success); }
+.result-range { font-size: 10px; color: var(--text-secondary); }
+.result-unit { font-size: 10px; color: var(--text-secondary); }
+
+/* ===== MINI RANGE BAR ===== */
+.range-visual { display:flex; align-items:center; gap:8px; }
+.range-bar {
+  width: 80px; height: 6px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 3px;
+  position: relative;
+}
+.range-fill { height:100%; border-radius:3px; position:absolute; top:0; }
+.range-marker {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: white;
+  border: 2px solid var(--primary);
+  position: absolute;
+  top: -2px;
+  transform: translateX(-50%);
+}
+
+/* ===== SEARCH RESULTS ===== */
+.search-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  width: 100%;
+  background: #0a1628;
+  border: 1px solid var(--border-glass);
+  border-radius: 12px;
+  margin-top: 8px;
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+  z-index: 200;
+  display: none;
+}
+.search-wrapper { position:relative; }
+.search-wrapper:focus-within .search-dropdown { display:block; }
+
+.search-item {
+  padding: 10px 14px;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  cursor:pointer;
+  transition:var(--transition);
+  font-size:13px;
+}
+.search-item:hover { background: rgba(0,212,255,0.08); }
+
+/* ===== TOGGLE ===== */
+.toggle {
+  width: 44px; height: 24px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 12px;
+  position: relative;
+  cursor: pointer;
+  transition: var(--transition);
+  border: 1px solid var(--border-glass);
+}
+.toggle.on { background: linear-gradient(90deg, var(--primary), var(--primary-dark)); }
+.toggle-thumb {
+  width: 18px; height: 18px;
+  background: white;
+  border-radius: 50%;
+  position: absolute;
+  top: 2px; right: 2px;
+  transition: var(--transition);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+.toggle.on .toggle-thumb { right: calc(100% - 20px); }
+
+/* PAGE TRANSITIONS */
+.page-section { animation: fadeInUp 0.3s ease both; }
+
+/* NUMBER COUNTER ANIMATION */
+@keyframes countUp { from { opacity:0; transform:scale(0.8); } to { opacity:1; transform:scale(1); } }
+.stat-value { animation: countUp 0.5s ease both; }
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 1400px) {
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .form-row-4 { grid-template-columns: repeat(2, 1fr); }
+}
+</style>
+</head>
+<body>
+
+<!-- Print Area -->
+<div id="print-area">
+  <div class="print-header">
+    <div>
+      <div class="print-lab-name" id="pr-labname">مختبر النور الطبي</div>
+      <div class="print-lab-info" id="pr-labinfo">الرياض - شارع الملك فهد | هاتف: 0112345678 | ترخيص رقم: 12345</div>
+    </div>
+    <div class="print-logo">🔬</div>
+  </div>
+
+  <div class="print-title">نتائج التحاليل المخبرية</div>
+
+  <div class="print-patient-info">
+    <div class="print-info-item"><label>اسم المريض</label><span id="pr-name">-</span></div>
+    <div class="print-info-item"><label>رقم الملف</label><span id="pr-id">-</span></div>
+    <div class="print-info-item"><label>العمر / الجنس</label><span id="pr-age">-</span></div>
+    <div class="print-info-item"><label>الطبيب المحول</label><span id="pr-doctor">-</span></div>
+    <div class="print-info-item"><label>تاريخ الطلب</label><span id="pr-date">-</span></div>
+    <div class="print-info-item"><label>تاريخ الطباعة</label><span id="pr-print-date">-</span></div>
+    <div class="print-info-item"><label>رقم الطلب</label><span id="pr-req">-</span></div>
+    <div class="print-info-item"><label>نوع العينة</label><span id="pr-sample">-</span></div>
+  </div>
+
+  <table class="print-table" id="pr-results-table">
+    <thead>
+      <tr>
+        <th>الفحص</th>
+        <th>النتيجة</th>
+        <th>الوحدة</th>
+        <th>المرجع الطبيعي</th>
+        <th>التفسير</th>
+      </tr>
+    </thead>
+    <tbody id="pr-results-body"></tbody>
+  </table>
+
+  <div class="print-footer">
+    <div class="print-barcode">
+      <div class="barcode-lines">||||| ||| || |||||</div>
+      <div id="pr-barcode">RQ-00000</div>
+    </div>
+    <div style="font-size:10px; color:#666; text-align:center; max-width:300px;">
+      هذه النتائج للاستخدام الطبي فقط. يرجى مراجعة الطبيب لتفسير النتائج.
+      <br>النتائج صالحة لمدة 30 يوماً من تاريخ الفحص.
+    </div>
+    <div class="print-signature">
+      <div class="print-signature-line"></div>
+      <div id="pr-tech">اخصائي المختبر</div>
+      <div style="font-size:9px; margin-top:2px;" id="pr-techname">-</div>
+    </div>
+  </div>
+</div>
+
+<!-- Main App -->
+<div class="app-wrapper">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon">🔬</div>
+      <div class="logo-text">
+        <h1>MedLab Pro</h1>
+        <p>نظام إدارة المختبر</p>
+      </div>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-section-title">الرئيسية</div>
+      <div class="nav-item active" onclick="navigate('dashboard')">
+        <span class="nav-icon">📊</span> لوحة التحكم
+      </div>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-section-title">إدارة المرضى</div>
+      <div class="nav-item" onclick="navigate('patients')">
+        <span class="nav-icon">👥</span> المرضى
+        <span class="nav-badge">142</span>
+      </div>
+      <div class="nav-item" onclick="navigate('new-patient')">
+        <span class="nav-icon">➕</span> مريض جديد
+      </div>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-section-title">التحاليل والنتائج</div>
+      <div class="nav-item" onclick="navigate('requests')">
+        <span class="nav-icon">📋</span> طلبات التحاليل
+        <span class="nav-badge" style="background:var(--warning);color:#000">7</span>
+      </div>
+      <div class="nav-item" onclick="navigate('results')">
+        <span class="nav-icon">🧪</span> إدخال النتائج
+      </div>
+      <div class="nav-item" onclick="navigate('print')">
+        <span class="nav-icon">🖨️</span> طباعة النتائج
+      </div>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-section-title">المالية</div>
+      <div class="nav-item" onclick="navigate('invoices')">
+        <span class="nav-icon">💰</span> الفواتير
+      </div>
+      <div class="nav-item" onclick="navigate('payments')">
+        <span class="nav-icon">💳</span> المدفوعات
+      </div>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-section-title">الكتالوج</div>
+      <div class="nav-item" onclick="navigate('tests')">
+        <span class="nav-icon">🔬</span> قائمة التحاليل
+      </div>
+      <div class="nav-item" onclick="navigate('packages')">
+        <span class="nav-icon">📦</span> الباقات الطبية
+      </div>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-section-title">الإدارة</div>
+      <div class="nav-item" onclick="navigate('doctors')">
+        <span class="nav-icon">👨‍⚕️</span> الأطباء المحولون
+      </div>
+      <div class="nav-item" onclick="navigate('staff')">
+        <span class="nav-icon">👤</span> الموظفون
+      </div>
+      <div class="nav-item" onclick="navigate('inventory')">
+        <span class="nav-icon">📦</span> المخزون والكواشف
+      </div>
+      <div class="nav-item" onclick="navigate('equipment')">
+        <span class="nav-icon">⚙️</span> الأجهزة
+      </div>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-section-title">التقارير</div>
+      <div class="nav-item" onclick="navigate('reports')">
+        <span class="nav-icon">📈</span> التقارير والإحصاء
+      </div>
+      <div class="nav-item" onclick="navigate('quality')">
+        <span class="nav-icon">✅</span> ضبط الجودة
+      </div>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-section-title">النظام</div>
+      <div class="nav-item" onclick="navigate('settings')">
+        <span class="nav-icon">⚙️</span> الإعدادات
+      </div>
+      <div class="nav-item" onclick="navigate('backup')">
+        <span class="nav-icon">💾</span> النسخ الاحتياطي
+      </div>
+    </div>
+
+    <div class="sidebar-footer">
+      <div class="lab-info-card">
+        <h4>🏥 مختبر النور الطبي</h4>
+        <p>د. أحمد الشمري | مدير المختبر</p>
+        <div style="display:flex; align-items:center; gap:6px; margin-top:8px;">
+          <div class="status-indicator">
+            <div class="status-dot online"></div>
+            <span style="font-size:11px; color:var(--success)">النظام متصل</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main-content">
+
+    <!-- HEADER -->
+    <div class="top-header">
+      <div class="header-left">
+        <div>
+          <div class="page-title" id="page-title">لوحة التحكم</div>
+          <div class="page-breadcrumb" id="page-breadcrumb">الرئيسية / لوحة التحكم</div>
+        </div>
+      </div>
+      <div class="header-right">
+        <div class="search-wrapper">
+          <div class="search-bar">
+            <span>🔍</span>
+            <input type="text" placeholder="ابحث عن مريض، طلب، تحليل..." id="main-search" oninput="handleSearch(this.value)">
+          </div>
+          <div class="search-dropdown" id="search-dd">
+            <div class="search-item">👤 أحمد محمد - MR-1001</div>
+            <div class="search-item">👤 فاطمة علي - MR-1002</div>
+            <div class="search-item">🧪 تحليل دم كامل - CBC</div>
+          </div>
+        </div>
+        <button class="header-btn" onclick="showNotif('معلومة', 'هذا النظام تجريبي للعرض')">
+          🔔
+          <div class="notif-dot"></div>
+        </button>
+        <button class="header-btn" onclick="navigate('settings')">⚙️</button>
+        <div class="user-avatar">👨‍⚕️</div>
+      </div>
+    </div>
+
+    <!-- PAGE CONTENT -->
+    <div class="page-content">
+
+      <!-- ===== DASHBOARD ===== -->
+      <div class="page-section active" id="sec-dashboard">
+        <div class="stats-grid fade-in">
+          <div class="stat-card" style="--card-color:rgba(0,212,255,0.2)">
+            <div class="stat-label">إجمالي المرضى اليوم</div>
+            <div class="stat-value glow-text">47</div>
+            <div class="stat-sub stat-up">↑ 12% عن أمس</div>
+            <div class="stat-icon">👥</div>
+          </div>
+          <div class="stat-card" style="--card-color:rgba(0,245,147,0.2)">
+            <div class="stat-label">التحاليل المنجزة</div>
+            <div class="stat-value" style="color:var(--success)">183</div>
+            <div class="stat-sub stat-up">↑ 8% هذا الأسبوع</div>
+            <div class="stat-icon">🧪</div>
+          </div>
+          <div class="stat-card" style="--card-color:rgba(255,214,10,0.2)">
+            <div class="stat-label">في الانتظار</div>
+            <div class="stat-value" style="color:var(--warning)">7</div>
+            <div class="stat-sub">طلبات معلقة</div>
+            <div class="stat-icon">⏳</div>
+          </div>
+          <div class="stat-card" style="--card-color:rgba(123,47,255,0.2)">
+            <div class="stat-label">إيرادات اليوم</div>
+            <div class="stat-value" style="color:#a78bfa">3,240</div>
+            <div class="stat-sub stat-up">↑ ريال سعودي</div>
+            <div class="stat-icon">💰</div>
+          </div>
+        </div>
+
+        <div class="grid-2" style="margin-bottom:24px">
+          <div class="glass-card fade-in">
+            <div class="card-header">
+              <div class="card-title">📋 آخر الطلبات</div>
+              <button class="btn btn-sm btn-secondary" onclick="navigate('requests')">عرض الكل</button>
+            </div>
+            <div style="overflow-x:auto">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>رقم الطلب</th>
+                    <th>المريض</th>
+                    <th>التحاليل</th>
+                    <th>الحالة</th>
+                    <th>الوقت</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><span class="badge badge-primary">RQ-1047</span></td>
+                    <td>أحمد محمد علي</td>
+                    <td>CBC, HbA1c, CMP</td>
+                    <td><span class="badge badge-success">✅ مكتمل</span></td>
+                    <td>09:30</td>
+                  </tr>
+                  <tr>
+                    <td><span class="badge badge-primary">RQ-1048</span></td>
+                    <td>فاطمة أحمد</td>
+                    <td>TSH, T4, T3</td>
+                    <td><span class="badge badge-warning">⏳ جاري</span></td>
+                    <td>10:15</td>
+                  </tr>
+                  <tr>
+                    <td><span class="badge badge-primary">RQ-1049</span></td>
+                    <td>خالد عبدالله</td>
+                    <td>Lipid Panel, Glucose</td>
+                    <td><span class="badge badge-warning">⏳ جاري</span></td>
+                    <td>10:45</td>
+                  </tr>
+                  <tr>
+                    <td><span class="badge badge-primary">RQ-1050</span></td>
+                    <td>سارة الزهراني</td>
+                    <td>CBC, CRP, ESR</td>
+                    <td><span class="badge badge-danger">🔴 معلق</span></td>
+                    <td>11:00</td>
+                  </tr>
+                  <tr>
+                    <td><span class="badge badge-primary">RQ-1051</span></td>
+                    <td>محمد السبيعي</td>
+                    <td>LFT, KFT</td>
+                    <td><span class="badge badge-success">✅ مكتمل</span></td>
+                    <td>11:20</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="glass-card fade-in">
+            <div class="card-header">
+              <div class="card-title">📊 إحصائيات الأسبوع</div>
+            </div>
+            <div class="card-body">
+              <div style="margin-bottom:20px">
+                <div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:12px">
+                  <span>تحليل الدم الكامل (CBC)</span><span style="color:var(--primary)">89%</span>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" style="width:89%"></div></div>
+              </div>
+              <div style="margin-bottom:20px">
+                <div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:12px">
+                  <span>وظائف الكلى (KFT)</span><span style="color:var(--success)">72%</span>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" style="width:72%;background:linear-gradient(90deg,var(--success),#00a870)"></div></div>
+              </div>
+              <div style="margin-bottom:20px">
+                <div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:12px">
+                  <span>السكر التراكمي (HbA1c)</span><span style="color:var(--warning)">61%</span>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" style="width:61%;background:linear-gradient(90deg,var(--warning),#e6b800)"></div></div>
+              </div>
+              <div style="margin-bottom:20px">
+                <div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:12px">
+                  <span>وظائف الغدة الدرقية (TSH)</span><span style="color:#a78bfa">45%</span>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" style="width:45%;background:linear-gradient(90deg,var(--secondary),#5a1fd1)"></div></div>
+              </div>
+              <div style="margin-top:24px">
+                <div style="font-size:12px;color:var(--text-secondary);margin-bottom:10px">توزيع التحاليل - آخر 7 أيام</div>
+                <div class="mini-chart">
+                  <div class="mini-bar" style="height:40%"></div>
+                  <div class="mini-bar" style="height:65%"></div>
+                  <div class="mini-bar" style="height:45%"></div>
+                  <div class="mini-bar" style="height:80%"></div>
+                  <div class="mini-bar" style="height:60%"></div>
+                  <div class="mini-bar" style="height:90%"></div>
+                  <div class="mini-bar" style="height:70%"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="glass-card fade-in">
+            <div class="card-header">
+              <div class="card-title">⏱️ سجل الأنشطة اليوم</div>
+            </div>
+            <div class="card-body">
+              <div class="timeline">
+                <div class="timeline-item">
+                  <div class="timeline-dot" style="border-color:var(--success);color:var(--success)">✅</div>
+                  <div class="timeline-content">
+                    <h4>طباعة نتائج أحمد محمد</h4>
+                    <p>RQ-1047 | 09:45 | بواسطة: فهد العتيبي</p>
+                  </div>
+                </div>
+                <div class="timeline-item">
+                  <div class="timeline-dot" style="border-color:var(--primary);color:var(--primary)">🧪</div>
+                  <div class="timeline-content">
+                    <h4>إدخال نتيجة TSH - فاطمة أحمد</h4>
+                    <p>RQ-1048 | 10:30</p>
+                  </div>
+                </div>
+                <div class="timeline-item">
+                  <div class="timeline-dot" style="border-color:var(--warning);color:var(--warning)">⚠️</div>
+                  <div class="timeline-content">
+                    <h4>تنبيه: نتيجة حرجة - خالد عبدالله</h4>
+                    <p>مستوى سكر حرج: 450 mg/dL | 11:00</p>
+                  </div>
+                </div>
+                <div class="timeline-item">
+                  <div class="timeline-dot" style="border-color:var(--secondary);color:#a78bfa)">👤</div>
+                  <div class="timeline-content">
+                    <h4>تسجيل مريض جديد</h4>
+                    <p>سارة الزهراني - MR-1142 | 11:10</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="glass-card fade-in">
+            <div class="card-header">
+              <div class="card-title">🔔 التنبيهات الحرجة</div>
+              <span class="badge badge-danger pulse">3 حرجة</span>
+            </div>
+            <div class="card-body">
+              <div style="display:flex;flex-direction:column;gap:12px">
+                <div style="background:rgba(255,77,109,0.1);border:1px solid rgba(255,77,109,0.3);border-radius:10px;padding:12px">
+                  <div style="display:flex;justify-content:space-between;align-items:center">
+                    <div>
+                      <div style="font-size:13px;font-weight:700;color:var(--danger)">⚠️ نتيجة حرجة - سكر الدم</div>
+                      <div style="font-size:11px;color:var(--text-secondary);margin-top:3px">خالد عبدالله | Glucose: 450 mg/dL</div>
+                    </div>
+                    <button class="btn btn-sm btn-danger">تنبيه الطبيب</button>
+                  </div>
+                </div>
+                <div style="background:rgba(255,214,10,0.1);border:1px solid rgba(255,214,10,0.3);border-radius:10px;padding:12px">
+                  <div style="display:flex;justify-content:space-between;align-items:center">
+                    <div>
+                      <div style="font-size:13px;font-weight:700;color:var(--warning)">📉 نتيجة منخفضة - هيموجلوبين</div>
+                      <div style="font-size:11px;color:var(--text-secondary);margin-top:3px">سارة الزهراني | Hb: 6.2 g/dL</div>
+                    </div>
+                    <button class="btn btn-sm btn-warning">مراجعة</button>
+                  </div>
+                </div>
+                <div style="background:rgba(0,212,255,0.1);border:1px solid rgba(0,212,255,0.2);border-radius:10px;padding:12px">
+                  <div style="display:flex;justify-content:space-between;align-items:center">
+                    <div>
+                      <div style="font-size:13px;font-weight:700;color:var(--primary)">🔔 إشعار - كاشف على وشك النفاد</div>
+                      <div style="font-size:11px;color:var(--text-secondary);margin-top:3px">كاشف HbA1c | متبقي: 12 اختبار</div>
+                    </div>
+                    <button class="btn btn-sm btn-secondary">طلب شراء</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== PATIENTS ===== -->
+      <div class="page-section" id="sec-patients">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">
+          <div class="tabs">
+            <button class="tab active">جميع المرضى</button>
+            <button class="tab">اليوم</button>
+            <button class="tab">هذا الأسبوع</button>
+            <button class="tab">المرضى الحرجين</button>
+          </div>
+          <div style="display:flex;gap:10px">
+            <button class="btn btn-secondary">📥 استيراد</button>
+            <button class="btn btn-primary" onclick="openModal('modal-new-patient')">➕ مريض جديد</button>
+          </div>
+        </div>
+
+        <div class="glass-card">
+          <div class="card-header">
+            <div class="card-title">👥 قائمة المرضى <span class="badge badge-primary" style="margin-right:8px">142 مريض</span></div>
+            <div style="display:flex;gap:8px">
+              <select class="form-control" style="width:auto;padding:7px 12px;font-size:12px">
+                <option>كل الفصائل</option>
+                <option>A+</option><option>B+</option><option>O+</option><option>AB+</option>
+              </select>
+              <input class="form-control" style="width:200px;padding:7px 12px;font-size:12px" placeholder="🔍 ابحث عن مريض...">
+            </div>
+          </div>
+          <div style="overflow-x:auto">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>رقم الملف</th>
+                  <th>اسم المريض</th>
+                  <th>العمر</th>
+                  <th>الجنس</th>
+                  <th>فصيلة الدم</th>
+                  <th>الهاتف</th>
+                  <th>آخر زيارة</th>
+                  <th>الحالة</th>
+                  <th>الإجراءات</th>
+                </tr>
+              </thead>
+              <tbody id="patients-tbody">
+              </tbody>
+            </table>
+          </div>
+          <div style="padding:16px 22px;display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--border-glass)">
+            <div style="font-size:12px;color:var(--text-secondary)">عرض 1-10 من 142</div>
+            <div style="display:flex;gap:6px">
+              <button class="btn btn-sm btn-secondary">السابق</button>
+              <button class="btn btn-sm btn-primary">1</button>
+              <button class="btn btn-sm btn-secondary">2</button>
+              <button class="btn btn-sm btn-secondary">3</button>
+              <button class="btn btn-sm btn-secondary">التالي</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== NEW PATIENT ===== -->
+      <div class="page-section" id="sec-new-patient">
+        <div class="glass-card" style="max-width:900px;margin:0 auto">
+          <div class="card-header">
+            <div class="card-title">👤 تسجيل مريض جديد</div>
+            <button class="btn btn-secondary btn-sm" onclick="navigate('patients')">← عودة</button>
+          </div>
+          <div class="card-body">
+            <div style="background:rgba(0,212,255,0.05);border:1px solid var(--border-glass);border-radius:12px;padding:16px;margin-bottom:24px">
+              <div style="font-size:12px;color:var(--primary);font-weight:700;margin-bottom:12px">📋 البيانات الأساسية</div>
+              <div class="form-row form-row-3">
+                <div class="form-group">
+                  <label class="form-label">الاسم الكامل <span class="req">*</span></label>
+                  <input class="form-control" placeholder="أدخل الاسم الكامل" id="np-name">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">رقم الهوية / الإقامة</label>
+                  <input class="form-control" placeholder="1xxxxxxxxx">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">تاريخ الميلاد</label>
+                  <input class="form-control" type="date">
+                </div>
+              </div>
+              <div class="form-row form-row-4">
+                <div class="form-group">
+                  <label class="form-label">الجنس <span class="req">*</span></label>
+                  <select class="form-control" id="np-gender">
+                    <option>ذكر</option><option>أنثى</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">فصيلة الدم</label>
+                  <select class="form-control" id="np-blood">
+                    <option>غير معروف</option>
+                    <option>A+</option><option>A-</option>
+                    <option>B+</option><option>B-</option>
+                    <option>O+</option><option>O-</option>
+                    <option>AB+</option><option>AB-</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">الجنسية</label>
+                  <select class="form-control">
+                    <option>سعودي</option><option>مقيم</option><option>زائر</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">الحالة الاجتماعية</label>
+                  <select class="form-control">
+                    <option>أعزب</option><option>متزوج</option><option>مطلق</option><option>أرمل</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div style="background:rgba(0,212,255,0.05);border:1px solid var(--border-glass);border-radius:12px;padding:16px;margin-bottom:24px">
+              <div style="font-size:12px;color:var(--primary);font-weight:700;margin-bottom:12px">📞 معلومات التواصل</div>
+              <div class="form-row form-row-3">
+                <div class="form-group">
+                  <label class="form-label">رقم الهاتف <span class="req">*</span></label>
+                  <input class="form-control" placeholder="05xxxxxxxx" id="np-phone">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">هاتف آخر</label>
+                  <input class="form-control" placeholder="05xxxxxxxx">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">البريد الإلكتروني</label>
+                  <input class="form-control" type="email" placeholder="email@example.com">
+                </div>
+              </div>
+              <div class="form-row form-row-2">
+                <div class="form-group">
+                  <label class="form-label">المدينة</label>
+                  <select class="form-control">
+                    <option>الرياض</option><option>جدة</option><option>مكة المكرمة</option>
+                    <option>المدينة المنورة</option><option>الدمام</option><option>أخرى</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">العنوان</label>
+                  <input class="form-control" placeholder="الحي، الشارع...">
+                </div>
+              </div>
+            </div>
+
+            <div style="background:rgba(0,212,255,0.05);border:1px solid var(--border-glass);border-radius:12px;padding:16px;margin-bottom:24px">
+              <div style="font-size:12px;color:var(--primary);font-weight:700;margin-bottom:12px">🏥 المعلومات الطبية</div>
+              <div class="form-row form-row-3">
+                <div class="form-group">
+                  <label class="form-label">الطبيب المحول</label>
+                  <select class="form-control" id="np-doctor">
+                    <option>-- اختر الطبيب --</option>
+                    <option>د. محمد الأحمري</option>
+                    <option>د. عبدالله الغامدي</option>
+                    <option>د. فيصل الحربي</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">نوع التأمين</label>
+                  <select class="form-control" id="np-insurance">
+                    <option>بدون تأمين (نقدي)</option>
+                    <option>بوبا</option><option>ميدغلف</option>
+                    <option>تعاونية</option><option>أخرى</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">رقم التأمين</label>
+                  <input class="form-control" placeholder="رقم وثيقة التأمين">
+                </div>
+              </div>
+              <div class="form-row form-row-2">
+                <div class="form-group">
+                  <label class="form-label">الأمراض المزمنة</label>
+                  <div style="display:flex;flex-wrap:wrap;gap:8px;padding:10px;background:rgba(255,255,255,0.03);border:1px solid var(--border-glass);border-radius:10px">
+                    <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px"><input type="checkbox"> سكري</label>
+                    <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px"><input type="checkbox"> ضغط دم</label>
+                    <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px"><input type="checkbox"> قلب</label>
+                    <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px"><input type="checkbox"> كلى</label>
+                    <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px"><input type="checkbox"> غدة درقية</label>
+                    <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px"><input type="checkbox"> كبد</label>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">الحساسية من أدوية</label>
+                  <input class="form-control" placeholder="اذكر الأدوية إن وجدت...">
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">ملاحظات</label>
+                <textarea class="form-control" rows="3" placeholder="أي معلومات إضافية..."></textarea>
+              </div>
+            </div>
+
+            <div style="display:flex;justify-content:flex-end;gap:12px">
+              <button class="btn btn-secondary" onclick="navigate('patients')">إلغاء</button>
+              <button class="btn btn-primary btn-lg" onclick="savePatient()">💾 حفظ وتسجيل المريض</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== REQUESTS ===== -->
+      <div class="page-section" id="sec-requests">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">
+          <div class="tabs">
+            <button class="tab active">جميع الطلبات</button>
+            <button class="tab">معلقة (7)</button>
+            <button class="tab">جارية</button>
+            <button class="tab">مكتملة</button>
+          </div>
+          <button class="btn btn-primary" onclick="openModal('modal-new-request')">➕ طلب جديد</button>
+        </div>
+
+        <div class="glass-card">
+          <div class="card-header">
+            <div class="card-title">📋 طلبات التحاليل</div>
+            <div style="display:flex;gap:8px">
+              <input class="form-control" style="width:200px;padding:7px 12px;font-size:12px" placeholder="🔍 بحث...">
+              <input class="form-control" type="date" style="width:150px;padding:7px 12px;font-size:12px">
+            </div>
+          </div>
+          <div style="overflow-x:auto">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>رقم الطلب</th>
+                  <th>المريض</th>
+                  <th>التحاليل المطلوبة</th>
+                  <th>الطبيب</th>
+                  <th>نوع العينة</th>
+                  <th>الأولوية</th>
+                  <th>الحالة</th>
+                  <th>الإجراءات</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><span class="badge badge-primary">RQ-1047</span></td>
+                  <td>أحمد محمد علي</td>
+                  <td>CBC, HbA1c, CMP (6 اختبارات)</td>
+                  <td>د. محمد الأحمري</td>
+                  <td>دم وريدي</td>
+                  <td><span class="badge badge-danger">🔴 عاجل</span></td>
+                  <td><span class="badge badge-success">✅ مكتمل</span></td>
+                  <td>
+                    <div style="display:flex;gap:6px">
+                      <button class="btn btn-sm btn-primary" onclick="navigate('results')">نتائج</button>
+                      <button class="btn btn-sm btn-success" onclick="quickPrint('RQ-1047','أحمد محمد علي')">🖨️</button>
+                    </div>
+                  </td>
+                </tr>
+                <tr>
+                  <td><span class="badge badge-primary">RQ-1048</span></td>
+                  <td>فاطمة أحمد</td>
+                  <td>TSH, Free T4, Free T3</td>
+                  <td>د. عبدالله الغامدي</td>
+                  <td>دم وريدي</td>
+                  <td><span class="badge badge-warning">🟡 عادي</span></td>
+                  <td><span class="badge badge-warning">⏳ جاري</span></td>
+                  <td>
+                    <div style="display:flex;gap:6px">
+                      <button class="btn btn-sm btn-primary" onclick="navigate('results')">إدخال</button>
+                    </div>
+                  </td>
+                </tr>
+                <tr>
+                  <td><span class="badge badge-primary">RQ-1049</span></td>
+                  <td>خالد عبدالله</td>
+                  <td>Lipid Panel, Glucose, HbA1c</td>
+                  <td>د. فيصل الحربي</td>
+                  <td>دم وريدي</td>
+                  <td><span class="badge badge-danger">🔴 حرج</span></td>
+                  <td><span class="badge badge-warning">⏳ جاري</span></td>
+                  <td>
+                    <div style="display:flex;gap:6px">
+                      <button class="btn btn-sm btn-primary" onclick="navigate('results')">إدخال</button>
+                    </div>
+                  </td>
+                </tr>
+                <tr>
+                  <td><span class="badge badge-primary">RQ-1050</span></td>
+                  <td>سارة الزهراني</td>
+                  <td>CBC, CRP, ESR, Ferritin</td>
+                  <td>د. محمد الأحمري</td>
+                  <td>دم وريدي</td>
+                  <td><span class="badge badge-warning">🟡 عادي</span></td>
+                  <td><span class="badge badge-danger">⌛ معلق</span></td>
+                  <td>
+                    <div style="display:flex;gap:6px">
+                      <button class="btn btn-sm btn-secondary">تعديل</button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== RESULTS ENTRY ===== -->
+      <div class="page-section" id="sec-results">
+        <div class="glass-card" style="max-width:1000px;margin:0 auto">
+          <div class="card-header">
+            <div class="card-title">🧪 إدخال نتائج التحاليل</div>
+          </div>
+          <div class="card-body">
+            <!-- Patient lookup -->
+            <div style="background:rgba(0,212,255,0.05);border:1px solid var(--border-glass);border-radius:12px;padding:16px;margin-bottom:20px">
+              <div class="form-row form-row-2">
+                <div class="form-group" style="margin-bottom:0">
+                  <label class="form-label">رقم الطلب / اسم المريض</label>
+                  <input class="form-control" placeholder="🔍 ابحث برقم الطلب أو اسم المريض..." id="result-search" value="RQ-1047 - أحمد محمد علي">
+                </div>
+                <div class="form-group" style="margin-bottom:0;display:flex;align-items:flex-end">
+                  <button class="btn btn-primary" onclick="loadResults()">تحميل الطلب</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Patient info bar -->
+            <div id="result-patient-bar" style="background:linear-gradient(135deg,rgba(0,212,255,0.08),rgba(123,47,255,0.05));border:1px solid var(--border-glass);border-radius:12px;padding:14px 18px;margin-bottom:20px;display:grid;grid-template-columns:repeat(5,1fr);gap:12px">
+              <div><div style="font-size:10px;color:var(--text-secondary)">المريض</div><div style="font-size:14px;font-weight:700">أحمد محمد علي</div></div>
+              <div><div style="font-size:10px;color:var(--text-secondary)">رقم الملف</div><div style="font-size:14px;font-weight:700">MR-1001</div></div>
+              <div><div style="font-size:10px;color:var(--text-secondary)">العمر/الجنس</div><div style="font-size:14px;font-weight:700">45 سنة / ذكر</div></div>
+              <div><div style="font-size:10px;color:var(--text-secondary)">الطبيب</div><div style="font-size:14px;font-weight:700">د. محمد الأحمري</div></div>
+              <div><div style="font-size:10px;color:var(--text-secondary)">نوع العينة</div><div style="font-size:14px;font-weight:700">دم وريدي</div></div>
+            </div>
+
+            <!-- Results table -->
+            <div style="overflow-x:auto;margin-bottom:20px">
+              <table class="data-table" id="results-entry-table">
+                <thead>
+                  <tr>
+                    <th>الفحص</th>
+                    <th>النتيجة</th>
+                    <th>الوحدة</th>
+                    <th>المرجع الطبيعي</th>
+                    <th>التفسير</th>
+                    <th>ملاحظة</th>
+                  </tr>
+                </thead>
+                <tbody id="results-entry-tbody">
+                </tbody>
+              </table>
+            </div>
+
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <div style="display:flex;gap:10px">
+                <div class="form-group" style="margin-bottom:0">
+                  <label class="form-label" style="display:block;margin-bottom:4px">اخصائي المختبر</label>
+                  <input class="form-control" value="فهد العتيبي" style="width:200px" id="res-tech">
+                </div>
+              </div>
+              <div style="display:flex;gap:10px">
+                <button class="btn btn-secondary">حفظ مسودة</button>
+                <button class="btn btn-success" onclick="finalizeResults()">✅ تأكيد النتائج</button>
+                <button class="btn btn-primary" onclick="openPrintPreview()">🖨️ حفظ وطباعة</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== PRINT ===== -->
+      <div class="page-section" id="sec-print">
+        <div class="grid-2">
+          <div class="glass-card">
+            <div class="card-header">
+              <div class="card-title">🖨️ طباعة نتائج</div>
+            </div>
+            <div class="card-body">
+              <div class="form-group">
+                <label class="form-label">ابحث عن مريض/طلب</label>
+                <input class="form-control" placeholder="اسم المريض أو رقم الطلب...">
+              </div>
+              <div style="display:flex;flex-direction:column;gap:10px">
+                <div style="background:var(--bg-glass);border:1px solid var(--border-glass);border-radius:10px;padding:14px;display:flex;justify-content:space-between;align-items:center;cursor:pointer" onclick="openPrintPreview()">
+                  <div>
+                    <div style="font-size:14px;font-weight:700">أحمد محمد علي</div>
+                    <div style="font-size:11px;color:var(--text-secondary)">RQ-1047 | CBC, HbA1c, CMP | اليوم 09:30</div>
+                  </div>
+                  <div style="display:flex;gap:8px">
+                    <span class="badge badge-success">مكتمل</span>
+                    <button class="btn btn-sm btn-primary" onclick="event.stopPropagation();openPrintPreview()">🖨️ طباعة</button>
+                  </div>
+                </div>
+                <div style="background:var(--bg-glass);border:1px solid var(--border-glass);border-radius:10px;padding:14px;display:flex;justify-content:space-between;align-items:center">
+                  <div>
+                    <div style="font-size:14px;font-weight:700">محمد السبيعي</div>
+                    <div style="font-size:11px;color:var(--text-secondary)">RQ-1051 | LFT, KFT | اليوم 11:20</div>
+                  </div>
+                  <div style="display:flex;gap:8px">
+                    <span class="badge badge-success">مكتمل</span>
+                    <button class="btn btn-sm btn-primary">🖨️ طباعة</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="glass-card">
+            <div class="card-header">
+              <div class="card-title">⚙️ خيارات الطباعة</div>
+            </div>
+            <div class="card-body">
+              <div style="display:flex;flex-direction:column;gap:16px">
+                <div style="display:flex;justify-content:space-between;align-items:center">
+                  <div>
+                    <div style="font-size:13px;font-weight:600">شعار المختبر</div>
+                    <div style="font-size:11px;color:var(--text-secondary)">عرض شعار المختبر في التقرير</div>
+                  </div>
+                  <div class="toggle on" onclick="this.classList.toggle('on')"><div class="toggle-thumb"></div></div>
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center">
+                  <div>
+                    <div style="font-size:13px;font-weight:600">الباركود</div>
+                    <div style="font-size:11px;color:var(--text-secondary)">إضافة باركود لرقم الطلب</div>
+                  </div>
+                  <div class="toggle on" onclick="this.classList.toggle('on')"><div class="toggle-thumb"></div></div>
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center">
+                  <div>
+                    <div style="font-size:13px;font-weight:600">إبراز القيم الشاذة</div>
+                    <div style="font-size:11px;color:var(--text-secondary)">تلوين النتائج خارج المدى الطبيعي</div>
+                  </div>
+                  <div class="toggle on" onclick="this.classList.toggle('on')"><div class="toggle-thumb"></div></div>
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center">
+                  <div>
+                    <div style="font-size:13px;font-weight:600">التوقيع الرقمي</div>
+                    <div style="font-size:11px;color:var(--text-secondary)">إضافة توقيع الأخصائي</div>
+                  </div>
+                  <div class="toggle" onclick="this.classList.toggle('on')"><div class="toggle-thumb"></div></div>
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center">
+                  <div>
+                    <div style="font-size:13px;font-weight:600">إرسال واتساب/بريد</div>
+                    <div style="font-size:11px;color:var(--text-secondary)">إرسال النتيجة للمريض</div>
+                  </div>
+                  <div class="toggle" onclick="this.classList.toggle('on')"><div class="toggle-thumb"></div></div>
+                </div>
+                <div class="form-group" style="margin-bottom:0">
+                  <label class="form-label">حجم الخط</label>
+                  <select class="form-control">
+                    <option>متوسط (12pt)</option>
+                    <option>صغير (10pt)</option>
+                    <option>كبير (14pt)</option>
+                  </select>
+                </div>
+                <button class="btn btn-primary btn-lg" onclick="openPrintPreview()">👁️ معاينة وطباعة</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== INVOICES ===== -->
+      <div class="page-section" id="sec-invoices">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">
+          <div class="tabs">
+            <button class="tab active">جميع الفواتير</button>
+            <button class="tab">مدفوعة</button>
+            <button class="tab">معلقة</button>
+          </div>
+          <button class="btn btn-primary" onclick="openModal('modal-new-invoice')">➕ فاتورة جديدة</button>
+        </div>
+        <div class="glass-card">
+          <div class="card-header">
+            <div class="card-title">💰 الفواتير والمدفوعات</div>
+          </div>
+          <div style="overflow-x:auto">
+            <table class="data-table">
+              <thead>
+                <tr><th>رقم الفاتورة</th><th>المريض</th><th>التاريخ</th><th>المبلغ</th><th>التأمين</th><th>المتبقي</th><th>الحالة</th><th>إجراء</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>INV-2047</td>
+                  <td>أحمد محمد علي</td>
+                  <td>اليوم</td>
+                  <td style="color:var(--primary);font-weight:700">350 ر.س</td>
+                  <td>-</td>
+                  <td>-</td>
+                  <td><span class="badge badge-success">مدفوعة</span></td>
+                  <td><button class="btn btn-sm btn-secondary">🖨️ طباعة</button></td>
+                </tr>
+                <tr>
+                  <td>INV-2048</td>
+                  <td>فاطمة أحمد</td>
+                  <td>اليوم</td>
+                  <td style="color:var(--primary);font-weight:700">180 ر.س</td>
+                  <td>بوبا</td>
+                  <td style="color:var(--warning)">50 ر.س</td>
+                  <td><span class="badge badge-warning">جزئية</span></td>
+                  <td><button class="btn btn-sm btn-primary">استلام</button></td>
+                </tr>
+                <tr>
+                  <td>INV-2049</td>
+                  <td>خالد عبدالله</td>
+                  <td>اليوم</td>
+                  <td style="color:var(--primary);font-weight:700">420 ر.س</td>
+                  <td>تعاونية</td>
+                  <td style="color:var(--danger)">420 ر.س</td>
+                  <td><span class="badge badge-danger">معلقة</span></td>
+                  <td><button class="btn btn-sm btn-primary">استلام</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== TESTS ===== -->
+      <div class="page-section" id="sec-tests">
+        <div style="display:flex;justify-content:space-between;margin-bottom:24px">
+          <div class="tabs">
+            <button class="tab active">جميع التحاليل</button>
+            <button class="tab">هيماتولوجي</button>
+            <button class="tab">كيمياء</button>
+            <button class="tab">هرمونات</button>
+            <button class="tab">ميكروبيولوجي</button>
+          </div>
+          <button class="btn btn-primary" onclick="openModal('modal-new-test')">➕ تحليل جديد</button>
+        </div>
+        <div class="glass-card">
+          <div class="card-header">
+            <div class="card-title">🔬 قائمة التحاليل المتاحة</div>
+            <span class="badge badge-primary">87 تحليل</span>
+          </div>
+          <div style="overflow-x:auto">
+            <table class="data-table">
+              <thead>
+                <tr><th>الكود</th><th>اسم التحليل</th><th>القسم</th><th>العينة</th><th>وقت التقرير</th><th>السعر</th><th>حالة</th><th>إجراء</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>001</td><td>تحليل دم كامل (CBC)</td><td>هيماتولوجي</td><td>EDTA</td><td>2 ساعة</td><td>80 ر.س</td><td><span class="badge badge-success">نشط</span></td><td><button class="btn btn-sm btn-secondary">تعديل</button></td></tr>
+                <tr><td>002</td><td>سكر الدم الصيامي</td><td>كيمياء</td><td>Plain</td><td>1 ساعة</td><td>40 ر.س</td><td><span class="badge badge-success">نشط</span></td><td><button class="btn btn-sm btn-secondary">تعديل</button></td></tr>
+                <tr><td>003</td><td>السكر التراكمي (HbA1c)</td><td>هيماتولوجي</td><td>EDTA</td><td>3 ساعات</td><td>120 ر.س</td><td><span class="badge badge-success">نشط</span></td><td><button class="btn btn-sm btn-secondary">تعديل</button></td></tr>
+                <tr><td>004</td><td>وظائف الكلى (KFT)</td><td>كيمياء</td><td>Plain</td><td>2 ساعة</td><td>150 ر.س</td><td><span class="badge badge-success">نشط</span></td><td><button class="btn btn-sm btn-secondary">تعديل</button></td></tr>
+                <tr><td>005</td><td>وظائف الكبد (LFT)</td><td>كيمياء</td><td>Plain</td><td>2 ساعة</td><td>150 ر.س</td><td><span class="badge badge-success">نشط</span></td><td><button class="btn btn-sm btn-secondary">تعديل</button></td></tr>
+                <tr><td>006</td><td>هرمون الغدة الدرقية (TSH)</td><td>هرمونات</td><td>Plain</td><td>4 ساعات</td><td>100 ر.س</td><td><span class="badge badge-success">نشط</span></td><td><button class="btn btn-sm btn-secondary">تعديل</button></td></tr>
+                <tr><td>007</td><td>بروتين سي التفاعلي (CRP)</td><td>إناعة</td><td>Plain</td><td>2 ساعة</td><td>60 ر.س</td><td><span class="badge badge-success">نشط</span></td><td><button class="btn btn-sm btn-secondary">تعديل</button></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== REPORTS ===== -->
+      <div class="page-section" id="sec-reports">
+        <div class="stats-grid" style="margin-bottom:24px">
+          <div class="stat-card"><div class="stat-label">إجمالي هذا الشهر</div><div class="stat-value glow-text">1,247</div><div class="stat-sub">تحليل منجز</div><div class="stat-icon">🧪</div></div>
+          <div class="stat-card"><div class="stat-label">إيرادات الشهر</div><div class="stat-value" style="color:var(--success)">48,320</div><div class="stat-sub">ريال سعودي</div><div class="stat-icon">💰</div></div>
+          <div class="stat-card"><div class="stat-label">متوسط الانتظار</div><div class="stat-value" style="color:var(--warning)">2.4h</div><div class="stat-sub">وقت التقرير</div><div class="stat-icon">⏱️</div></div>
+          <div class="stat-card"><div class="stat-label">رضا المرضى</div><div class="stat-value" style="color:#a78bfa">94%</div><div class="stat-sub">معدل الرضا</div><div class="stat-icon">⭐</div></div>
+        </div>
+        <div class="grid-2">
+          <div class="glass-card">
+            <div class="card-header"><div class="card-title">📊 أكثر التحاليل طلباً</div></div>
+            <div class="card-body">
+              <div style="display:flex;flex-direction:column;gap:14px">
+                <div><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px"><span>CBC - دم كامل</span><span>312 طلب</span></div><div class="progress-bar"><div class="progress-fill" style="width:92%"></div></div></div>
+                <div><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px"><span>HbA1c - سكر تراكمي</span><span>247 طلب</span></div><div class="progress-bar"><div class="progress-fill" style="width:73%;background:linear-gradient(90deg,var(--success),#00a870)"></div></div></div>
+                <div><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px"><span>TSH - هرمون الغدة</span><span>198 طلب</span></div><div class="progress-bar"><div class="progress-fill" style="width:58%;background:linear-gradient(90deg,var(--secondary),#5a1fd1)"></div></div></div>
+                <div><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px"><span>Lipid Panel - دهون</span><span>165 طلب</span></div><div class="progress-bar"><div class="progress-fill" style="width:49%;background:linear-gradient(90deg,var(--warning),#e6b800)"></div></div></div>
+                <div><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px"><span>LFT - وظائف الكبد</span><span>142 طلب</span></div><div class="progress-bar"><div class="progress-fill" style="width:42%;background:linear-gradient(90deg,var(--danger),#cc2244)"></div></div></div>
+              </div>
+            </div>
+          </div>
+          <div class="glass-card">
+            <div class="card-header"><div class="card-title">📅 التقارير المتاحة</div></div>
+            <div class="card-body">
+              <div style="display:flex;flex-direction:column;gap:10px">
+                <button class="btn btn-secondary" style="justify-content:flex-start;width:100%">📊 تقرير المرضى الشهري</button>
+                <button class="btn btn-secondary" style="justify-content:flex-start;width:100%">💰 تقرير الإيرادات والمصاريف</button>
+                <button class="btn btn-secondary" style="justify-content:flex-start;width:100%">🧪 تقرير التحاليل المنجزة</button>
+                <button class="btn btn-secondary" style="justify-content:flex-start;width:100%">👨‍⚕️ تقرير الأطباء المحولين</button>
+                <button class="btn btn-secondary" style="justify-content:flex-start;width:100%">⚠️ تقرير النتائج الحرجة</button>
+                <button class="btn btn-secondary" style="justify-content:flex-start;width:100%">📦 تقرير المخزون والكواشف</button>
+                <button class="btn btn-primary btn-lg" style="width:100%;margin-top:8px">📥 تصدير تقرير شامل</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== SETTINGS ===== -->
+      <div class="page-section" id="sec-settings">
+        <div class="grid-2">
+          <div class="glass-card">
+            <div class="card-header"><div class="card-title">🏥 بيانات المختبر</div></div>
+            <div class="card-body">
+              <div class="form-group"><label class="form-label">اسم المختبر</label><input class="form-control" value="مختبر النور الطبي" id="set-labname"></div>
+              <div class="form-group"><label class="form-label">رقم الترخيص</label><input class="form-control" value="12345"></div>
+              <div class="form-group"><label class="form-label">العنوان</label><input class="form-control" value="الرياض - شارع الملك فهد"></div>
+              <div class="form-group"><label class="form-label">رقم الهاتف</label><input class="form-control" value="0112345678"></div>
+              <div class="form-group"><label class="form-label">البريد الإلكتروني</label><input class="form-control" value="lab@noor.med"></div>
+              <div class="form-group"><label class="form-label">مدير المختبر / الاخصائي</label><input class="form-control" value="د. أحمد الشمري" id="set-director"></div>
+              <button class="btn btn-primary" onclick="saveSettings()">💾 حفظ الإعدادات</button>
+            </div>
+          </div>
+          <div class="glass-card">
+            <div class="card-header"><div class="card-title">⚙️ إعدادات النظام</div></div>
+            <div class="card-body">
+              <div style="display:flex;flex-direction:column;gap:18px">
+                <div style="display:flex;justify-content:space-between;align-items:center">
+                  <div><div style="font-size:13px;font-weight:600">إرسال النتائج تلقائياً</div><div style="font-size:11px;color:var(--text-secondary)">إرسال للمريض عند الاكتمال</div></div>
+                  <div class="toggle on" onclick="this.classList.toggle('on')"><div class="toggle-thumb"></div></div>
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center">
+                  <div><div style="font-size:13px;font-weight:600">تنبيه النتائج الحرجة</div><div style="font-size:11px;color:var(--text-secondary)">تنبيه فوري عند اكتشاف قيم حرجة</div></div>
+                  <div class="toggle on" onclick="this.classList.toggle('on')"><div class="toggle-thumb"></div></div>
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center">
+                  <div><div style="font-size:13px;font-weight:600">ترقيم تلقائي للملفات</div><div style="font-size:11px;color:var(--text-secondary)">رقم ملف تلقائي للمرضى الجدد</div></div>
+                  <div class="toggle on" onclick="this.classList.toggle('on')"><div class="toggle-thumb"></div></div>
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center">
+                  <div><div style="font-size:13px;font-weight:600">الوضع الليلي</div><div style="font-size:11px;color:var(--text-secondary)">تشغيل/إيقاف</div></div>
+                  <div class="toggle on" onclick="this.classList.toggle('on')"><div class="toggle-thumb"></div></div>
+                </div>
+                <div class="form-group"><label class="form-label">لغة واجهة النظام</label><select class="form-control"><option>العربية</option><option>English</option></select></div>
+                <div class="form-group"><label class="form-label">العملة</label><select class="form-control"><option>ريال سعودي (ر.س)</option><option>دولار أمريكي ($)</option></select></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Other sections (inventory, doctors, staff, packages, quality, equipment, payments, backup) -->
+      <div class="page-section" id="sec-payments">
+        <div class="glass-card"><div class="card-header"><div class="card-title">💳 المدفوعات</div></div><div class="card-body"><p style="color:var(--text-secondary)">سجل المدفوعات والمعاملات المالية</p></div></div>
+      </div>
+      <div class="page-section" id="sec-packages">
+        <div class="glass-card"><div class="card-header"><div class="card-title">📦 الباقات الطبية</div><button class="btn btn-primary">➕ باقة جديدة</button></div>
+        <div class="card-body">
+          <div class="grid-3">
+            <div style="background:linear-gradient(135deg,rgba(0,212,255,0.1),rgba(123,47,255,0.05));border:1px solid var(--border-glass);border-radius:14px;padding:20px;text-align:center">
+              <div style="font-size:24px;margin-bottom:10px">🩸</div>
+              <div style="font-size:15px;font-weight:700;margin-bottom:6px">باقة فحص الدم الشامل</div>
+              <div style="font-size:12px;color:var(--text-secondary);margin-bottom:14px">CBC + CMP + Lipid Panel + HbA1c + LFT + KFT</div>
+              <div style="font-size:22px;font-weight:900;color:var(--primary);margin-bottom:12px">380 ر.س</div>
+              <div style="font-size:11px;color:var(--success)">وفر 120 ر.س (24%)</div>
+            </div>
+            <div style="background:linear-gradient(135deg,rgba(0,245,147,0.1),rgba(0,212,255,0.05));border:1px solid rgba(0,245,147,0.2);border-radius:14px;padding:20px;text-align:center">
+              <div style="font-size:24px;margin-bottom:10px">🫀</div>
+              <div style="font-size:15px;font-weight:700;margin-bottom:6px">باقة أمراض القلب</div>
+              <div style="font-size:12px;color:var(--text-secondary);margin-bottom:14px">Lipid Panel + Troponin + CK-MB + BNP</div>
+              <div style="font-size:22px;font-weight:900;color:var(--success);margin-bottom:12px">290 ر.س</div>
+              <div style="font-size:11px;color:var(--success)">وفر 80 ر.س (22%)</div>
+            </div>
+            <div style="background:linear-gradient(135deg,rgba(123,47,255,0.1),rgba(255,77,109,0.05));border:1px solid rgba(123,47,255,0.2);border-radius:14px;padding:20px;text-align:center">
+              <div style="font-size:24px;margin-bottom:10px">🏃</div>
+              <div style="font-size:15px;font-weight:700;margin-bottom:6px">باقة الفحص الرياضي</div>
+              <div style="font-size:12px;color:var(--text-secondary);margin-bottom:14px">CBC + Ferritin + Vit D + Vit B12 + Testosterone</div>
+              <div style="font-size:22px;font-weight:900;color:#a78bfa;margin-bottom:12px">420 ر.س</div>
+              <div style="font-size:11px;color:var(--success)">وفر 100 ر.س (19%)</div>
+            </div>
+          </div>
+        </div></div>
+      </div>
+      <div class="page-section" id="sec-doctors"><div class="glass-card"><div class="card-header"><div class="card-title">👨‍⚕️ الأطباء المحولون</div><button class="btn btn-primary">➕ إضافة طبيب</button></div><div class="card-body"><p style="color:var(--text-secondary)">قائمة الأطباء المرتبطين بالمختبر</p></div></div></div>
+      <div class="page-section" id="sec-staff"><div class="glass-card"><div class="card-header"><div class="card-title">👤 الموظفون</div><button class="btn btn-primary">➕ موظف جديد</button></div><div class="card-body"><p style="color:var(--text-secondary)">إدارة موظفي المختبر والصلاحيات</p></div></div></div>
+      <div class="page-section" id="sec-inventory"><div class="glass-card"><div class="card-header"><div class="card-title">📦 المخزون والكواشف</div><button class="btn btn-primary">➕ إضافة مادة</button></div><div class="card-body"><p style="color:var(--text-secondary)">متابعة الكواشف والمواد المستهلكة</p></div></div></div>
+      <div class="page-section" id="sec-equipment"><div class="glass-card"><div class="card-header"><div class="card-title">⚙️ الأجهزة</div></div><div class="card-body"><p style="color:var(--text-secondary)">سجل الأجهزة والصيانة الدورية</p></div></div></div>
+      <div class="page-section" id="sec-quality"><div class="glass-card"><div class="card-header"><div class="card-title">✅ ضبط الجودة</div></div><div class="card-body"><p style="color:var(--text-secondary)">سجلات ضبط الجودة وبرامج المقارنة</p></div></div></div>
+      <div class="page-section" id="sec-backup"><div class="glass-card"><div class="card-header"><div class="card-title">💾 النسخ الاحتياطي</div></div><div class="card-body">
+        <div style="display:flex;flex-direction:column;gap:12px;max-width:400px">
+          <button class="btn btn-primary btn-lg">💾 نسخ احتياطي الآن</button>
+          <button class="btn btn-secondary">📂 استعادة نسخة احتياطية</button>
+          <button class="btn btn-secondary">☁️ رفع للسحابة</button>
+        </div>
+      </div></div></div>
+
+    </div><!-- end page-content -->
+  </div><!-- end main-content -->
+</div><!-- end app-wrapper -->
+
+<!-- ===== MODALS ===== -->
+
+<!-- Print Preview Modal -->
+<div class="modal-overlay" id="modal-print-preview">
+  <div class="modal" style="max-width:800px">
+    <div class="modal-header">
+      <div class="modal-title">🖨️ معاينة نتيجة التحليل</div>
+      <button class="modal-close" onclick="closeModal('modal-print-preview')">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="print-preview-area" style="background:white;color:#000;padding:0;border-radius:10px;overflow:hidden;font-family:'Cairo',sans-serif;direction:rtl">
+        <!-- filled by JS -->
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-print-preview')">إغلاق</button>
+      <button class="btn btn-success" onclick="sendWhatsApp()">📱 إرسال واتساب</button>
+      <button class="btn btn-primary btn-lg" onclick="doPrint()">🖨️ طباعة الآن</button>
+    </div>
+  </div>
+</div>
+
+<!-- New Patient Modal -->
+<div class="modal-overlay" id="modal-new-patient">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">➕ تسجيل مريض جديد (سريع)</div>
+      <button class="modal-close" onclick="closeModal('modal-new-patient')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row form-row-2">
+        <div class="form-group"><label class="form-label">الاسم الكامل <span class="req">*</span></label><input class="form-control" placeholder="أدخل الاسم" id="qp-name"></div>
+        <div class="form-group"><label class="form-label">رقم الهاتف <span class="req">*</span></label><input class="form-control" placeholder="05xxxxxxxx"></div>
+        <div class="form-group"><label class="form-label">العمر</label><input class="form-control" type="number" placeholder="العمر بالسنوات"></div>
+        <div class="form-group"><label class="form-label">الجنس</label><select class="form-control"><option>ذكر</option><option>أنثى</option></select></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-new-patient')">إلغاء</button>
+      <button class="btn btn-primary" onclick="quickSavePatient()">💾 حفظ</button>
+    </div>
+  </div>
+</div>
+
+<!-- New Request Modal -->
+<div class="modal-overlay" id="modal-new-request">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">📋 طلب تحاليل جديد</div>
+      <button class="modal-close" onclick="closeModal('modal-new-request')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group"><label class="form-label">المريض <span class="req">*</span></label><input class="form-control" placeholder="ابحث عن المريض..."></div>
+      <div class="form-row form-row-2">
+        <div class="form-group"><label class="form-label">الطبيب المحول</label><select class="form-control"><option>-- اختر --</option><option>د. محمد الأحمري</option><option>د. عبدالله الغامدي</option></select></div>
+        <div class="form-group"><label class="form-label">الأولوية</label><select class="form-control"><option>عادي</option><option>عاجل</option><option>حرج</option></select></div>
+      </div>
+      <div class="form-group"><label class="form-label">التحاليل المطلوبة</label>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;padding:12px;background:rgba(255,255,255,0.03);border:1px solid var(--border-glass);border-radius:10px">
+          <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px"><input type="checkbox"> CBC</label>
+          <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px"><input type="checkbox"> HbA1c</label>
+          <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px"><input type="checkbox"> Glucose</label>
+          <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px"><input type="checkbox"> TSH</label>
+          <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px"><input type="checkbox"> Lipid Panel</label>
+          <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px"><input type="checkbox"> LFT</label>
+          <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px"><input type="checkbox"> KFT</label>
+          <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px"><input type="checkbox"> CRP</label>
+          <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px"><input type="checkbox"> Vitamin D</label>
+          <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px"><input type="checkbox"> Ferritin</label>
+        </div>
+      </div>
+      <div class="form-group"><label class="form-label">ملاحظات</label><textarea class="form-control" rows="2" placeholder="..."></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-new-request')">إلغاء</button>
+      <button class="btn btn-primary" onclick="saveRequest()">✅ إنشاء الطلب</button>
+    </div>
+  </div>
+</div>
+
+<!-- New Test Modal -->
+<div class="modal-overlay" id="modal-new-test">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">🔬 إضافة تحليل جديد</div><button class="modal-close" onclick="closeModal('modal-new-test')">×</button></div>
+    <div class="modal-body">
+      <div class="form-row form-row-2">
+        <div class="form-group"><label class="form-label">اسم التحليل بالعربي</label><input class="form-control" placeholder="مثال: تحليل الدم الكامل"></div>
+        <div class="form-group"><label class="form-label">اسم التحليل بالإنجليزي</label><input class="form-control" placeholder="CBC, HbA1c..."></div>
+        <div class="form-group"><label class="form-label">القسم</label><select class="form-control"><option>هيماتولوجي</option><option>كيمياء</option><option>هرمونات</option><option>إناعة</option></select></div>
+        <div class="form-group"><label class="form-label">نوع العينة</label><select class="form-control"><option>EDTA</option><option>Plain</option><option>Citrate</option><option>بول</option><option>براز</option></select></div>
+        <div class="form-group"><label class="form-label">الوحدة</label><input class="form-control" placeholder="g/dL, mg/dL, IU/L..."></div>
+        <div class="form-group"><label class="form-label">السعر (ر.س)</label><input class="form-control" type="number" placeholder="0"></div>
+      </div>
+      <div style="font-size:12px;font-weight:700;color:var(--primary);margin:16px 0 10px">القيم المرجعية الطبيعية</div>
+      <div class="form-row form-row-3">
+        <div class="form-group"><label class="form-label">الحد الأدنى</label><input class="form-control" type="number" placeholder="0"></div>
+        <div class="form-group"><label class="form-label">الحد الأقصى</label><input class="form-control" type="number" placeholder="0"></div>
+        <div class="form-group"><label class="form-label">وقت التقرير</label><select class="form-control"><option>1 ساعة</option><option>2 ساعة</option><option>4 ساعات</option><option>يوم كامل</option></select></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-new-test')">إلغاء</button>
+      <button class="btn btn-primary" onclick="closeModal('modal-new-test');showNotif('تم الإضافة','تم إضافة التحليل بنجاح ✅')">💾 إضافة التحليل</button>
+    </div>
+  </div>
+</div>
+
+<!-- Notifications Panel -->
+<div class="notification-panel" id="notif-panel"></div>
+
+<script>
+// ============================================================
+// DATA
+// ============================================================
+const patientsData = [
+  {id:'MR-1001', name:'أحمد محمد علي', age:45, gender:'ذكر', blood:'A+', phone:'0501234567', last:'اليوم', status:'مكتمل'},
+  {id:'MR-1002', name:'فاطمة أحمد خالد', age:32, gender:'أنثى', blood:'B+', phone:'0552345678', last:'اليوم', status:'جاري'},
+  {id:'MR-1003', name:'خالد عبدالله محمد', age:58, gender:'ذكر', blood:'O+', phone:'0573456789', last:'أمس', status:'حرج'},
+  {id:'MR-1004', name:'سارة الزهراني', age:27, gender:'أنثى', blood:'AB+', phone:'0564567890', last:'اليوم', status:'معلق'},
+  {id:'MR-1005', name:'محمد السبيعي', age:41, gender:'ذكر', blood:'O-', phone:'0545678901', last:'اليوم', status:'مكتمل'},
+  {id:'MR-1006', name:'نورة العتيبي', age:35, gender:'أنثى', blood:'A-', phone:'0536789012', last:'3 أيام', status:'مكتمل'},
+  {id:'MR-1007', name:'عبدالرحمن الغامدي', age:62, gender:'ذكر', blood:'B-', phone:'0527890123', last:'أسبوع', status:'مكتمل'},
+  {id:'MR-1008', name:'ريم الدوسري', age:29, gender:'أنثى', blood:'A+', phone:'0518901234', last:'أمس', status:'جاري'},
+];
+
+const resultsData = [
+  {test:'هيموجلوبين (Hemoglobin)', result:14.2, unit:'g/dL', min:13.5, max:17.5, ref:'13.5 - 17.5'},
+  {test:'كريات الدم الحمراء (RBC)', result:5.1, unit:'×10⁶/μL', min:4.5, max:5.9, ref:'4.5 - 5.9'},
+  {test:'خلايا الدم البيضاء (WBC)', result:8.3, unit:'×10³/μL', min:4.0, max:11.0, ref:'4.0 - 11.0'},
+  {test:'الصفائح الدموية (Platelets)', result:245, unit:'×10³/μL', min:150, max:400, ref:'150 - 400'},
+  {test:'السكر التراكمي (HbA1c)', result:7.8, unit:'%', min:4.0, max:6.0, ref:'< 6.0'},
+  {test:'سكر الدم الصيامي (Glucose)', result:142, unit:'mg/dL', min:70, max:100, ref:'70 - 100'},
+  {test:'الكولسترول الكلي (Total Cholesterol)', result:198, unit:'mg/dL', min:0, max:200, ref:'< 200'},
+  {test:'الكولسترول الجيد (HDL)', result:42, unit:'mg/dL', min:40, max:999, ref:'> 40'},
+  {test:'الكولسترول السيء (LDL)', result:128, unit:'mg/dL', min:0, max:130, ref:'< 130'},
+  {test:'الدهون الثلاثية (Triglycerides)', result:165, unit:'mg/dL', min:0, max:150, ref:'< 150'},
+  {test:'صوديوم (Sodium)', result:140, unit:'mEq/L', min:135, max:145, ref:'135 - 145'},
+  {test:'بوتاسيوم (Potassium)', result:4.1, unit:'mEq/L', min:3.5, max:5.0, ref:'3.5 - 5.0'},
+];
+
+// ============================================================
+// NAVIGATION
+// ============================================================
+const pageTitles = {
+  dashboard: ['لوحة التحكم','الرئيسية / لوحة التحكم'],
+  patients: ['إدارة المرضى','الرئيسية / المرضى'],
+  'new-patient': ['مريض جديد','الرئيسية / المرضى / جديد'],
+  requests: ['طلبات التحاليل','الرئيسية / الطلبات'],
+  results: ['إدخال النتائج','الرئيسية / النتائج'],
+  print: ['طباعة النتائج','الرئيسية / الطباعة'],
+  invoices: ['الفواتير','الرئيسية / المالية / الفواتير'],
+  payments: ['المدفوعات','الرئيسية / المالية / المدفوعات'],
+  tests: ['قائمة التحاليل','الرئيسية / الكتالوج / التحاليل'],
+  packages: ['الباقات الطبية','الرئيسية / الكتالوج / الباقات'],
+  doctors: ['الأطباء المحولون','الرئيسية / الأطباء'],
+  staff: ['الموظفون','الرئيسية / الموارد البشرية'],
+  inventory: ['المخزون والكواشف','الرئيسية / المخزون'],
+  equipment: ['الأجهزة','الرئيسية / الأجهزة'],
+  reports: ['التقارير','الرئيسية / التقارير'],
+  quality: ['ضبط الجودة','الرئيسية / الجودة'],
+  settings: ['الإعدادات','الرئيسية / الإعدادات'],
+  backup: ['النسخ الاحتياطي','الرئيسية / النظام / الاحتياطي'],
+};
+
+function navigate(page) {
+  document.querySelectorAll('.page-section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+
+  const sec = document.getElementById('sec-' + page);
+  if (sec) sec.classList.add('active');
+
+  const titles = pageTitles[page] || [page, page];
+  document.getElementById('page-title').textContent = titles[0];
+  document.getElementById('page-breadcrumb').textContent = titles[1];
+
+  document.querySelectorAll('.nav-item').forEach(n => {
+    if (n.getAttribute('onclick') && n.getAttribute('onclick').includes("'"+page+"'")) {
+      n.classList.add('active');
+    }
+  });
+
+  if (page === 'patients') renderPatients();
+  if (page === 'results') renderResultsEntry();
+}
+
+// ============================================================
+// PATIENTS
+// ============================================================
+function renderPatients() {
+  const tbody = document.getElementById('patients-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = patientsData.map(p => `
+    <tr>
+      <td><span class="badge badge-primary">${p.id}</span></td>
+      <td><div style="display:flex;align-items:center;gap:10px">
+        <div class="avatar" style="background:linear-gradient(135deg,var(--primary),var(--secondary))">${p.name.charAt(0)}</div>
+        <div><div style="font-size:13px;font-weight:700;color:var(--text-primary)">${p.name}</div><div style="font-size:11px;color:var(--text-secondary)">${p.phone}</div></div>
+      </div></td>
+      <td>${p.age} سنة</td>
+      <td>${p.gender}</td>
+      <td><span style="font-weight:700;color:var(--primary)">${p.blood}</span></td>
+      <td>${p.phone}</td>
+      <td>${p.last}</td>
+      <td>${getStatusBadge(p.status)}</td>
+      <td><div style="display:flex;gap:6px">
+        <button class="btn btn-sm btn-secondary" onclick="navigate('results')">📋 ملف</button>
+        <button class="btn btn-sm btn-primary" onclick="openPrintPreview()">🖨️</button>
+      </div></td>
+    </tr>
+  `).join('');
+}
+
+function getStatusBadge(s) {
+  const m = {
+    'مكتمل': 'success', 'جاري': 'warning', 'معلق': 'danger', 'حرج': 'danger'
+  };
+  return `<span class="badge badge-${m[s]||'secondary'}">${s}</span>`;
+}
+
+// ============================================================
+// RESULTS ENTRY
+// ============================================================
+function renderResultsEntry() {
+  const tbody = document.getElementById('results-entry-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = resultsData.map((r, i) => {
+    const isHigh = r.result > r.max;
+    const isLow = r.result < r.min;
+    const cls = isHigh ? 'high' : isLow ? 'low' : 'normal';
+    const interp = isHigh ? '⬆️ مرتفع' : isLow ? '⬇️ منخفض' : '✅ طبيعي';
+    const interpColor = isHigh ? 'var(--danger)' : isLow ? 'var(--warning)' : 'var(--success)';
+    return `
+    <tr id="rrow-${i}">
+      <td style="font-weight:600;color:var(--text-primary)">${r.test}</td>
+      <td>
+        <input type="number" class="form-control" value="${r.result}"
+          style="width:100px;padding:6px 10px;font-size:14px;font-weight:700;color:${interpColor};border-color:${interpColor}20"
+          oninput="updateResult(${i}, this.value)">
+      </td>
+      <td style="color:var(--text-secondary)">${r.unit}</td>
+      <td style="color:var(--text-secondary)">${r.ref}</td>
+      <td><span id="interp-${i}" style="color:${interpColor};font-weight:700;font-size:13px">${interp}</span></td>
+      <td><input class="form-control" placeholder="..." style="width:140px;padding:6px 10px;font-size:12px"></td>
+    </tr>`;
+  }).join('');
+}
+
+function updateResult(i, val) {
+  const r = resultsData[i];
+  const v = parseFloat(val);
+  const isHigh = v > r.max;
+  const isLow = v < r.min;
+  const el = document.getElementById(`interp-${i}`);
+  if (!el) return;
+  el.textContent = isHigh ? '⬆️ مرتفع' : isLow ? '⬇️ منخفض' : '✅ طبيعي';
+  el.style.color = isHigh ? 'var(--danger)' : isLow ? 'var(--warning)' : 'var(--success)';
+}
+
+function loadResults() {
+  renderResultsEntry();
+  showNotif('تم التحميل', 'تم تحميل طلب RQ-1047 ✅');
+}
+
+function finalizeResults() {
+  showNotif('تم التأكيد', 'تم تأكيد النتائج بنجاح ✅');
+}
+
+// ============================================================
+// PRINT
+// ============================================================
+function openPrintPreview() {
+  const labName = document.getElementById('set-labname')?.value || 'مختبر النور الطبي';
+  const today = new Date().toLocaleDateString('ar-SA');
+  const reqNo = 'RQ-' + Math.floor(1000 + Math.random() * 9000);
+
+  let rows = resultsData.map(r => {
+    const isHigh = r.result > r.max;
+    const isLow = r.result < r.min;
+    const cls = isHigh || isLow ? 'print-result-abnormal' : 'print-result-normal';
+    const flag = isHigh ? '▲ مرتفع' : isLow ? '▼ منخفض' : 'طبيعي';
+    return `<tr>
+      <td>${r.test}</td>
+      <td class="${cls}" style="font-weight:700">${r.result}</td>
+      <td>${r.unit}</td>
+      <td>${r.ref}</td>
+      <td class="${cls}">${flag}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('print-preview-area').innerHTML = `
+  <div style="font-family:'Cairo',sans-serif;direction:rtl">
+    <div style="background:linear-gradient(135deg,#003d7a,#005cbf);color:white;padding:22px 30px;display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div style="font-size:22px;font-weight:900">🔬 ${labName}</div>
+        <div style="font-size:11px;opacity:0.85;margin-top:4px">الرياض - شارع الملك فهد | هاتف: 0112345678 | ترخيص: 12345</div>
+      </div>
+      <div style="text-align:left;font-size:11px;opacity:0.85">
+        <div>تاريخ الطباعة: ${today}</div>
+        <div>رقم الطلب: ${reqNo}</div>
+      </div>
+    </div>
+    <div style="background:#f0f7ff;border:2px solid #cce0ff;margin:16px 20px;padding:14px 18px;border-radius:8px;display:grid;grid-template-columns:repeat(4,1fr);gap:10px;font-size:12px">
+      <div><b>المريض:</b><br>أحمد محمد علي</div>
+      <div><b>رقم الملف:</b><br>MR-1001</div>
+      <div><b>العمر/الجنس:</b><br>45 سنة / ذكر</div>
+      <div><b>الطبيب:</b><br>د. محمد الأحمري</div>
+      <div><b>تاريخ الطلب:</b><br>${today}</div>
+      <div><b>نوع العينة:</b><br>دم وريدي</div>
+      <div><b>رقم الطلب:</b><br>${reqNo}</div>
+      <div><b>فصيلة الدم:</b><br>A+</div>
+    </div>
+    <div style="text-align:center;font-size:15px;font-weight:900;color:#003366;margin:8px 20px;padding:8px;border-bottom:2px solid #003366;letter-spacing:1px">نتائج التحاليل المخبرية</div>
+    <table style="width:calc(100%-40px);margin:8px 20px;border-collapse:collapse;font-size:12px">
+      <thead><tr style="background:#003366;color:white">
+        <th style="padding:9px 12px;text-align:right">الفحص</th>
+        <th style="padding:9px 12px;text-align:right">النتيجة</th>
+        <th style="padding:9px 12px;text-align:right">الوحدة</th>
+        <th style="padding:9px 12px;text-align:right">المدى الطبيعي</th>
+        <th style="padding:9px 12px;text-align:right">التفسير</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div style="margin:16px 20px;padding:14px 0;border-top:2px solid #003366;display:flex;justify-content:space-between;align-items:flex-end;font-size:11px;color:#555">
+      <div><div style="font-size:20px;letter-spacing:-2px;color:#000">||||| ||| || |||||</div><div>${reqNo}</div></div>
+      <div style="text-align:center;font-size:10px;color:#666;max-width:250px">هذه النتائج للاستخدام الطبي فقط.<br>يرجى مراجعة الطبيب لتفسير النتائج.</div>
+      <div style="text-align:center">
+        <div style="width:100px;border-top:1px solid #333;margin:40px auto 4px"></div>
+        <div>أخصائي المختبر</div>
+        <div style="font-size:10px;margin-top:2px">فهد العتيبي</div>
+      </div>
+    </div>
+  </div>`;
+
+  openModal('modal-print-preview');
+}
+
+function doPrint() {
+  // Copy preview to print area
+  document.getElementById('print-area').innerHTML = document.getElementById('print-preview-area').innerHTML;
+  window.print();
+  showNotif('تمت الطباعة', 'تم إرسال التقرير للطابعة 🖨️');
+}
+
+function quickPrint(req, name) {
+  openPrintPreview();
+}
+
+function sendWhatsApp() {
+  showNotif('تم الإرسال', 'تم إرسال النتائج عبر واتساب 📱');
+  closeModal('modal-print-preview');
+}
+
+// ============================================================
+// MODALS
+// ============================================================
+function openModal(id) {
+  document.getElementById(id).classList.add('open');
+}
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+
+document.querySelectorAll('.modal-overlay').forEach(m => {
+  m.addEventListener('click', function(e) {
+    if (e.target === this) this.classList.remove('open');
+  });
+});
+
+// ============================================================
+// NOTIFICATIONS
+// ============================================================
+function showNotif(title, msg, type = 'info') {
+  const icons = { info: 'ℹ️', success: '✅', warning: '⚠️', error: '❌' };
+  const panel = document.getElementById('notif-panel');
+  const el = document.createElement('div');
+  el.className = 'notif';
+  el.innerHTML = `
+    <div class="notif-icon">${icons[type] || 'ℹ️'}</div>
+    <div class="notif-text"><h4>${title}</h4><p>${msg}</p></div>
+  `;
+  panel.appendChild(el);
+  setTimeout(() => { el.style.opacity = '0'; el.style.transform = 'translateX(-100%)'; el.style.transition = '0.4s'; setTimeout(() => el.remove(), 400); }, 3500);
+}
+
+// ============================================================
+// FORM ACTIONS
+// ============================================================
+function savePatient() {
+  const name = document.getElementById('np-name')?.value;
+  if (!name) { showNotif('تنبيه', 'يرجى إدخال اسم المريض', 'warning'); return; }
+  showNotif('تم الحفظ', `تم تسجيل المريض: ${name} ✅`, 'success');
+  navigate('patients');
+}
+
+function quickSavePatient() {
+  const name = document.getElementById('qp-name')?.value;
+  if (!name) { showNotif('تنبيه', 'يرجى إدخال الاسم', 'warning'); return; }
+  showNotif('تم الحفظ', `تم تسجيل: ${name} ✅`, 'success');
+  closeModal('modal-new-patient');
+  renderPatients();
+}
+
+function saveRequest() {
+  showNotif('تم الإنشاء', 'تم إنشاء طلب التحاليل بنجاح ✅', 'success');
+  closeModal('modal-new-request');
+}
+
+function saveSettings() {
+  showNotif('تم الحفظ', 'تم حفظ إعدادات المختبر ✅', 'success');
+}
+
+function handleSearch(val) {
+  // auto handled by CSS focus
+}
+
+// ============================================================
+// INIT
+// ============================================================
+window.addEventListener('DOMContentLoaded', () => {
+  renderPatients();
+  renderResultsEntry();
+  setTimeout(() => showNotif('مرحباً بك', 'نظام MedLab Pro جاهز للعمل 🔬', 'success'), 800);
+});
+</script>
+</body>
+</html>
