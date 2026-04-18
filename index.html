@@ -5975,12 +5975,22 @@ async function _mergeIDBInBackground(){
     // التحاليل
     const idbTests=await IDB.get(pfx+'tests');
     if(idbTests&&Array.isArray(idbTests)&&idbTests.length>0){
-      const map=new Map(tests.map(t=>[t.id,t]));
+      // ALL_TESTS هو المصدر الأساسي — ابنِ الخريطة منه أولاً
+      const allMap=new Map(ALL_TESTS.map(function(x){return [x.id,x];}));
+      const map=new Map(tests.map(function(x){return [x.id,x];}));
       let tc=false;
-      idbTests.forEach(t=>{
+      idbTests.forEach(function(t){
         if(!t.id)return;
-        if(!map.has(t.id)||JSON.stringify(map.get(t.id))!==JSON.stringify(t)){
-          map.set(t.id,t); tc=true;
+        // الحصول على البيانات الأصلية من ALL_TESTS لهذا التحليل إن وُجدت
+        const orig=allMap.get(t.id);
+        // دمج: بيانات IDB (اسم/فرع/وحدة/سعر) + isCalc/calcFormula من ALL_TESTS
+        const merged=Object.assign({},t);
+        if(orig){
+          if(orig.isCalc){merged.isCalc=true;merged.calcFormula=orig.calcFormula||t.calcFormula||'';}
+          else{delete merged.isCalc;delete merged.calcFormula;}
+        }
+        if(!map.has(t.id)||JSON.stringify(map.get(t.id))!==JSON.stringify(merged)){
+          map.set(t.id,merged); tc=true;
         }
       });
       if(tc){tests=[...map.values()];changed=true;}
@@ -8984,6 +8994,9 @@ function runCalcFormula(formula,testId,reqId){
         const matchTest=tests.find(t=>t.code===inp.code);
         if(matchTest&&req.results[matchTest.id]){
           vals[inp.code]=parseFloat(req.results[matchTest.id])||vals[inp.code];
+          // أيضاً أعبئ حقل الإدخال بالقيمة الموجودة في الطلب
+          const ciEl=document.getElementById('ci-'+inp.code);
+          if(ciEl&&!ciEl.value) ciEl.value=req.results[matchTest.id];
         }
       });
     }
@@ -8993,11 +9006,28 @@ function runCalcFormula(formula,testId,reqId){
   document.getElementById('calc-result-display').style.display='block';
   document.getElementById('apply-calc-btn').style.display='';
   window._calcResult=result;
+  window._calcReqId=reqId||null;
+  // حفظ قيم المدخلات مع تسمياتها لعرضها في ورقة التحليل
+  window._calcInputVals={};
+  inputs.forEach(inp=>{
+    if(inp.code==='AGE_INPUT'||inp.code==='GENDER_INPUT') return;
+    const v=vals[inp.code];
+    if(v!==undefined&&v!==0) window._calcInputVals[inp.code]={value:v, label:inp.label};
+  });
 }
 
 function applyCalcResult(testId){
   const el=document.getElementById('rv-'+testId);
   if(el){el.value=window._calcResult;checkResult(testId,window._calcResult);}
+  // حفظ قيم المدخلات في req.calcInputs لعرضها في ورقة التحليل
+  if(window._calcReqId && window._calcInputVals){
+    const req=requests.find(r=>r.id===window._calcReqId);
+    if(req){
+      if(!req.calcInputs) req.calcInputs={};
+      req.calcInputs[testId]=window._calcInputVals;
+    }
+  }
+  _autoSaveResults();
   const modal=document.getElementById('m-calc-temp');if(modal)modal.remove();
 }
 
@@ -9666,23 +9696,33 @@ function buildPrintHTML(req, opts){
       // ── إذا كان التحليل محسوباً — أضف صفوف المدخلات قبل النتيجة النهائية ──
       if(t.isCalc && t.calcFormula && val && val.trim()!==''){
         const calcInputDefs = getCalcFormulaInputs(t.calcFormula);
+        const savedCalcInputs = (req.calcInputs && req.calcInputs[t.id]) || {};
         calcInputDefs.forEach(function(inp){
-          if(inp.code==='AGE_INPUT'||inp.code==='GENDER_INPUT') return; // لا تطبع المدخلات الضمنية
+          if(inp.code==='AGE_INPUT'||inp.code==='GENDER_INPUT') return;
+          // البحث عن القيمة: أولاً في req.results (إذا التحليل مضاف للطلب) ثم في req.calcInputs
+          let inpVal=null, inpName=inp.label, inpUnit='';
           const matchTest = tests.find(function(x){ return x.code===inp.code; });
-          if(!matchTest) return;
-          const inpVal = req.results[matchTest.id];
+          if(matchTest && req.results && req.results[matchTest.id]!==undefined && req.results[matchTest.id]!==''){
+            inpVal=req.results[matchTest.id];
+            inpName=matchTest.nameShort||matchTest.nameEn||inp.label;
+            inpUnit=matchTest.unit||'';
+          } else if(savedCalcInputs[inp.code]){
+            inpVal=savedCalcInputs[inp.code].value;
+            inpName=savedCalcInputs[inp.code].label||inp.label;
+            if(matchTest) inpUnit=matchTest.unit||'';
+          }
           if(!inpVal && inpVal!==0) return;
-          const inpName = matchTest.nameShort||matchTest.nameEn||inp.label;
           body+=`
-      <div style="margin:0 6px;display:flex;align-items:flex-start;direction:ltr;padding:1px 0;padding-right:16px">
-        <div style="flex:4;font-size:${pfs};font-weight:600;color:#555;padding-top:3px">
-          &nbsp;&nbsp;&nbsp;↳ ${inpName}
+      <div style="margin:0 6px;display:flex;align-items:flex-start;direction:ltr;padding:1px 0">
+        <div style="flex:4;font-size:${pfs};font-weight:600;color:#444;padding-top:3px;padding-right:10px">
+          &nbsp;&nbsp;&nbsp;&nbsp;↳ ${inpName}
         </div>
         <div style="flex:2;display:flex;align-items:flex-start;justify-content:flex-start;gap:2px;padding-left:4px;padding-top:2px">
           <span style="font-size:${pfs};font-weight:900;color:#333;flex-shrink:0;line-height:1.4">:</span>
-          <div style="display:flex;align-items:center;gap:2px"><div style="border:1px solid #bbb;border-radius:5px;background:#f8f8f8;padding:2px 6px;font-size:${pfs};font-weight:700;color:#333;min-width:60px;text-align:center;white-space:nowrap;display:inline-block">${inpVal}</div></div>
+          <div style="border:1px solid #ccc;border-radius:4px;background:#f5f5f5;padding:2px 7px;font-size:${pfs};font-weight:700;color:#222;min-width:55px;text-align:center;white-space:nowrap;display:inline-block;margin-right:3px">${inpVal}</div>
+          <span style="font-size:${pfs};font-weight:600;color:#666;white-space:nowrap;padding-top:2px">${inpUnit}</span>
         </div>
-        <div style="flex:3;padding:2px 4px 0 6px"><span style="font-size:${pfs};font-weight:600;color:#888">${matchTest.unit||''}</span></div>
+        <div style="flex:3"></div>
         <div style="flex:2"></div>
       </div>`;
         });
