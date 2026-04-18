@@ -9693,38 +9693,70 @@ function buildPrintHTML(req, opts){
       // Fix 2: Skip tests with no result entered — don't print empty rows
       if(!blankBody && (!val || val.trim()==='')) return;
 
-      // ── إذا كان التحليل محسوباً — أضف صفوف المدخلات قبل النتيجة النهائية ──
+      // ── إذا كان التحليل محسوباً — أضف صفوف المدخلات قبل النتيجة النهائية بنفس تنسيق التحاليل العادية ──
       if(t.isCalc && t.calcFormula && val && val.trim()!==''){
         const calcInputDefs = getCalcFormulaInputs(t.calcFormula);
         const savedCalcInputs = (req.calcInputs && req.calcInputs[t.id]) || {};
         calcInputDefs.forEach(function(inp){
           if(inp.code==='AGE_INPUT'||inp.code==='GENDER_INPUT') return;
-          // البحث عن القيمة: أولاً في req.results (إذا التحليل مضاف للطلب) ثم في req.calcInputs
-          let inpVal=null, inpName=inp.label, inpUnit='';
+          // البحث عن التحليل المطابق في قاعدة البيانات
           const matchTest = tests.find(function(x){ return x.code===inp.code; });
-          if(matchTest && req.results && req.results[matchTest.id]!==undefined && req.results[matchTest.id]!==''){
-            inpVal=req.results[matchTest.id];
-            inpName=matchTest.nameShort||matchTest.nameEn||inp.label;
-            inpUnit=matchTest.unit||'';
+          let inpVal=null, inpName='', inpUnit='', inpRefTxt='—', inpMin=null, inpMax=null;
+          if(matchTest){
+            // القيمة: من req.results إذا كان التحليل مضافاً، وإلا من calcInputs
+            if(req.results && req.results[matchTest.id]!==undefined && req.results[matchTest.id]!==''){
+              inpVal=req.results[matchTest.id];
+            } else if(savedCalcInputs[inp.code]){
+              inpVal=String(savedCalcInputs[inp.code].value);
+            }
+            if(!inpVal && inpVal!==0) return;
+            inpName = matchTest.nameShort&&matchTest.nameShort.trim() ? matchTest.nameShort.trim() : matchTest.nameEn;
+            inpUnit = matchTest.unit||'';
+            // القيم الطبيعية
+            const inpRef = getPatientRef(matchTest, ptGender, ptAge);
+            inpMin = inpRef.min; inpMax = inpRef.max;
+            if(ptGender==='female'&&matchTest.refF&&matchTest.refF.trim()) inpRefTxt=matchTest.refF.trim();
+            else if(ptGender!=='female'&&matchTest.refM&&matchTest.refM.trim()) inpRefTxt=matchTest.refM.trim();
+            else if(matchTest.ref&&matchTest.ref.trim()) inpRefTxt=matchTest.ref.trim();
+            else if(inpRef.ref&&inpRef.ref.trim()) inpRefTxt=inpRef.ref;
+            else if(inpRef.min!==null) inpRefTxt=String(inpRef.min)+' \u2013 '+String(inpRef.max);
           } else if(savedCalcInputs[inp.code]){
-            inpVal=savedCalcInputs[inp.code].value;
-            inpName=savedCalcInputs[inp.code].label||inp.label;
-            if(matchTest) inpUnit=matchTest.unit||'';
+            inpVal=String(savedCalcInputs[inp.code].value);
+            inpName=inp.label;
+            if(!inpVal && inpVal!==0) return;
+          } else { return; }
+          // تحديد H/L/Normal
+          const inpV=parseFloat(inpVal);
+          let inpIsHigh=false, inpIsLow=false;
+          if(!isNaN(inpV) && inpMin!==null){
+            if(inpV>inpMax) inpIsHigh=true;
+            else if(inpV<inpMin) inpIsLow=true;
           }
-          if(!inpVal && inpVal!==0) return;
+          const inpValColor = showHL&&inpIsHigh?'#cc0000':showHL&&inpIsLow?'#0055cc':'#000000';
+          const inpBoxBorder = showHL&&(inpIsHigh||inpIsLow)?inpValColor:'#000000';
+          const inpFlag = showHL&&inpIsHigh
+            ?`<span style="font-size:10px;font-weight:600;color:#cc0000;margin-right:2px;flex-shrink:0">H</span>`
+            :showHL&&inpIsLow
+            ?`<span style="font-size:10px;font-weight:600;color:#0055cc;margin-right:2px;flex-shrink:0">L</span>`
+            :`<span style="width:12px;flex-shrink:0;display:inline-block"></span>`;
+          const inpResultBox=`<div style="border:1.5px solid ${inpBoxBorder};border-radius:5px;background:#fff;padding:3px 6px;font-size:${pfs};font-weight:900;color:${inpValColor};min-width:80px;max-width:160px;text-align:center;white-space:nowrap;display:inline-flex;align-items:center;justify-content:center"><span>${inpVal}</span></div>`;
+          const inpShowUnit = inpUnit && inpUnit!=='qualitative';
+          const inpRefHtml = `<div style="display:block;font-size:${pfs}">${inpRefTxt==='—'?`<span style="font-size:${pfs}">—</span>`:`<span style="font-size:${pfs};font-weight:600;color:#000">${inpRefTxt}</span>${inpShowUnit?`&nbsp;&nbsp;<span style="font-size:${pfs};font-weight:600;color:#444">${inpUnit}</span>`:''}`}</div>`;
           body+=`
-      <div style="margin:0 6px;display:flex;align-items:flex-start;direction:ltr;padding:1px 0">
-        <div style="flex:4;font-size:${pfs};font-weight:600;color:#444;padding-top:3px;padding-right:10px">
+      <div style="margin:0 6px;display:flex;align-items:flex-start;direction:ltr;padding:2px 0">
+        <div style="flex:4;font-size:${pfs};font-weight:600;color:#000000;padding-top:3px">
           &nbsp;&nbsp;&nbsp;&nbsp;↳ ${inpName}
         </div>
         <div style="flex:2;display:flex;align-items:flex-start;justify-content:flex-start;gap:2px;padding-left:4px;padding-top:2px">
-          <span style="font-size:${pfs};font-weight:900;color:#333;flex-shrink:0;line-height:1.4">:</span>
-          <div style="border:1px solid #ccc;border-radius:4px;background:#f5f5f5;padding:2px 7px;font-size:${pfs};font-weight:700;color:#222;min-width:55px;text-align:center;white-space:nowrap;display:inline-block;margin-right:3px">${inpVal}</div>
-          <span style="font-size:${pfs};font-weight:600;color:#666;white-space:nowrap;padding-top:2px">${inpUnit}</span>
+          <span style="font-size:${pfs};font-weight:900;color:#000;flex-shrink:0;line-height:1.4">:</span>
+          <div style="display:flex;align-items:center;gap:2px">${inpResultBox}${inpFlag}</div>
         </div>
-        <div style="flex:3"></div>
+        <div style="flex:3;padding:2px 4px 0 6px">${inpRefHtml}</div>
         <div style="flex:2"></div>
       </div>`;
+          // فاصل خفيف بين المدخلات
+          if(settings.div_test_dotted) body+=`<div style="margin:1px 6px 1px 30px;border-top:1px dotted #ddd"></div>`;
+          else if(settings.div_test_solid) body+=`<div style="margin:1px 6px 1px 30px;border-top:1px solid #eee"></div>`;
         });
       }
 
