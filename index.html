@@ -4130,6 +4130,11 @@ Menopause — 25–135 IU/L" style="font-size:12px;resize:vertical;line-height:1
         <div class="fg"><label class="fl">Price</label><input class="fc" id="et-price" type="number" placeholder="0"></div>
         <div class="fg"><label class="fl">Notes</label><input class="fc" id="et-notes" placeholder="Fasting required, etc."></div>
       </div>
+      <div id="et-formula-section" style="background:rgba(139,92,246,0.07);border:1.5px solid rgba(139,92,246,0.3);border-radius:10px;padding:12px 14px;margin-top:8px;display:none">
+        <div style="font-size:11px;font-weight:800;color:#a78bfa;margin-bottom:8px">🧮 تحليل محسوب بمعادلة</div>
+        <div class="fg"><label class="fl" style="font-size:11px">رمز المعادلة (calcFormula)</label><input class="fc" id="et-calc-formula" placeholder="مثال: homa_ir أو ldl_friedewald" style="font-family:monospace;font-size:12px"></div>
+        <div style="font-size:10px;color:rgba(167,139,250,0.7);margin-top:4px;line-height:1.6">الرموز المتاحة: homa_ir · homa_b · egfr_ckd · egfr_mdrd · ldl_friedewald · non_hdl · chol_ratio · trig_hdl · bmi · ag_ratio · tbil_ratio · quicki · map · sodium_corr · anion_gap · ft3_ft4 · uacr · meld · fib4 · mchr</div>
+      </div>
     </div>
     <div class="mftr"><button class="btn btn-s" onclick="closeModal('m-edit-test')">Cancel</button><button class="btn btn-p" onclick="saveTest()">💾 Save</button></div>
   </div>
@@ -8601,7 +8606,9 @@ function _autoSaveResults(){
     if(allFilled) req.status='done';
     else if(req.status!=='done') req.status='inprogress';
     save('requests',requests);
-    renderRequests(); updateDashboard(); updateBadges();
+    // لا نستدعي renderRequests/updateDashboard هنا لأنها تُفقد focus على الحقول
+    // سيتم التحديث عند الحفظ النهائي فقط
+    updateBadges();
   }, 500);
 }
 function checkResult(tid,val){
@@ -9752,6 +9759,46 @@ function buildPrintHTML(req, opts){
       // مربع النتيجة — القيمة فقط بدون وحدة
       const resultBox=`<div style="border:1.5px solid ${boxBorder};border-radius:5px;background:#fff;padding:3px 6px;font-size:${pfs};font-weight:900;color:${valColor};min-width:80px;max-width:160px;text-align:center;white-space:nowrap;display:inline-flex;align-items:center;justify-content:center"><span>${displayValFull}</span></div>`;
 
+      // ── تحاليل المعادلة: إظهار مدخلات الحساب قبل النتيجة النهائية ──
+      if(t.isCalc && t.calcFormula){
+        const _fInputs = getCalcFormulaInputs(t.calcFormula);
+        _fInputs.forEach(function(inp){
+          // استثناء مدخلات بيانات المريض (عمر، جنس) — لا تُطبع كتحاليل
+          if(inp.code==='AGE_INPUT'||inp.code==='GENDER_INPUT') return;
+          // جلب قيمة المدخل من نتائج الطلب (بمطابقة الـ code)
+          const _inpTest = tests.find(function(x){ return x.code===inp.code; });
+          const _inpVal = _inpTest ? (req.results[_inpTest.id]||'') : '';
+          if(!_inpVal) return; // لا تطبع مدخلاً فارغاً
+          const _inpName = _inpTest ? (_inpTest.nameShort||_inpTest.nameEn) : inp.label;
+          const _inpUnit = _inpTest ? _inpTest.unit : '';
+          const _inpRef = _inpTest ? (ptGender==='female'&&_inpTest.refF?_inpTest.refF:_inpTest.refM||_inpTest.ref||'') : '';
+          // تقييم المدخل
+          let _inpColor='#000000';
+          if(_inpTest && _inpTest.minVal!==null){
+            const _v=parseFloat(_inpVal);
+            const _ref=getPatientRef(_inpTest,ptGender,ptAge);
+            if(_ref.min!==null){
+              if(_v>_ref.max) _inpColor='#cc0000';
+              else if(_v<_ref.min) _inpColor='#0055cc';
+              else _inpColor='#006600';
+            }
+          }
+          body+=`<div style="margin:0 6px;display:flex;align-items:flex-start;direction:ltr;padding:2px 0">
+            <div style="flex:4;font-size:${pfs};font-weight:600;color:#555555;padding-top:3px;padding-left:16px">
+              ◦ ${_inpName}
+            </div>
+            <div style="flex:2;display:flex;align-items:flex-start;justify-content:flex-start;gap:2px;padding-left:4px;padding-top:2px">
+              <span style="font-size:${pfs};font-weight:900;color:#000;flex-shrink:0;line-height:1.4">:</span>
+              <div style="border:1px solid #aaa;border-radius:4px;background:#fafafa;padding:2px 6px;font-size:${pfs};font-weight:900;color:${_inpColor};min-width:70px;text-align:center;white-space:nowrap">
+                ${_inpVal}${_inpUnit?' <span style="font-size:'+(pfsN-1)+'px;font-weight:600;color:#444">'+_inpUnit+'</span>':''}
+              </div>
+            </div>
+            <div style="flex:3;padding:2px 4px 0 6px;font-size:${pfs};color:#555">${_inpRef||'—'}</div>
+            <div style="flex:2"></div>
+          </div>`;
+          if(settings.div_test_dotted) body+=`<div style="margin:1px 6px;border-top:1px dotted #dddddd"></div>`;
+        });
+      }
       body+=`
       <div style="margin:0 6px;display:flex;align-items:flex-start;direction:ltr;padding:2px 0">
         <div style="flex:4;font-size:${pfs};font-weight:600;color:#000000;padding-top:3px">
@@ -10459,12 +10506,26 @@ function openEditTest(id){
     }
     changeRefType();
     document.getElementById('m-edit-test-title').textContent='✏️ Edit Test';
+    // إظهار قسم المعادلة إذا كان التحليل محسوباً
+    const fSec=document.getElementById('et-formula-section');
+    const fInp=document.getElementById('et-calc-formula');
+    if(t.isCalc && t.calcFormula){
+      if(fSec) fSec.style.display='block';
+      if(fInp) fInp.value=t.calcFormula;
+    } else {
+      if(fSec) fSec.style.display='none';
+      if(fInp) fInp.value='';
+    }
   } else {
     ['et-id','et-name-en','et-name-short','et-unit','et-min','et-max','et-min-f','et-max-f','et-ref','et-ref-m','et-ref-f','et-price','et-code','et-notes'].forEach(eid=>{const el=document.getElementById(eid);if(el)el.value='';});
     document.getElementById('rt-simple').checked=true;
     changeRefType();
     updateSubCatDropdown();
     document.getElementById('m-edit-test-title').textContent='🔬 New Test';
+    const fSec2=document.getElementById('et-formula-section');
+    const fInp2=document.getElementById('et-calc-formula');
+    if(fSec2) fSec2.style.display='none';
+    if(fInp2) fInp2.value='';
   }
   openModal('m-edit-test');
 }
@@ -10520,6 +10581,10 @@ function saveTest(){
   const refFEl=document.getElementById('et-ref-f');
   const refMVal=refMEl?refMEl.value.trim():'';
   const refFVal=refFEl?refFEl.value.trim():'';
+  // حفظ خصائص المعادلة من التحليل الأصلي (إن وُجدت) لمنع فقدانها عند التعديل
+  const _origTest = editTestId ? tests.find(x=>x.id===editTestId) : null;
+  const _calcFormula = document.getElementById('et-calc-formula')?.value.trim() || (_origTest&&_origTest.isCalc ? _origTest.calcFormula : '');
+  const _isCalc = !!_calcFormula || (_origTest && _origTest.isCalc);
   const t={id:editTestId||('custom-'+Date.now()),
     code:document.getElementById('et-code').value||'N/A',
     nameEn,nameShort,cat:document.getElementById('et-cat').value,subCat:subCatVal,
@@ -10531,6 +10596,8 @@ function saveTest(){
     price:parseFloat(document.getElementById('et-price').value)||0,
     notes:document.getElementById('et-notes').value
   };
+  // حفظ المعادلة دائماً إذا كانت موجودة
+  if(_isCalc){ t.isCalc=true; t.calcFormula=_calcFormula; }
   if(editTestId){const idx=tests.findIndex(x=>x.id===editTestId);if(idx>-1)tests[idx]=t;}
   else tests.push(t);
   save('tests',tests);
