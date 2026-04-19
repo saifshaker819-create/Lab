@@ -7342,15 +7342,19 @@ function openPrintModal(rid){
     }).join('')}
     </body></html>`;
 
-  const iframe=document.getElementById('print-prev-iframe');
-  if(iframe){
-    iframe.contentDocument.open();
-    iframe.contentDocument.write(combined);
-    iframe.contentDocument.close();
-  }
+  // فتح المودال فوراً ثم كتابة iframe في الخلفية
   const area=document.getElementById('print-prev-area');
   if(area) area.innerHTML='';
   openModal('m-print');
+  // كتابة iframe بعد فتح المودال مباشرة (لا تأخير مرئي)
+  requestAnimationFrame(function(){
+    const iframe=document.getElementById('print-prev-iframe');
+    if(iframe){
+      iframe.contentDocument.open();
+      iframe.contentDocument.write(combined);
+      iframe.contentDocument.close();
+    }
+  });
 }
 
 function getStatusText(s){return{pending:'⏳ معلق',inprogress:'🔄 جاري',done:'✅ مكتمل'}[s]||s;}
@@ -10163,7 +10167,7 @@ function buildPrintHTML(req, opts){
   const pfsN = parseInt(pfs);
   const subcatFsN = parseInt(settings.subcatFontSize||'12');
   const subcatFs  = subcatFsN+'px';
-  const reportFontFamily = settings.printFontFamily || "'Inter',Arial,sans-serif";
+  const reportFontFamily = settings.printFontFamily || "Arial,sans-serif";
   const reportFontWeight = settings.printFontWeight || '700';
 
   // ─── CSS ──────────────────────────────────────────────
@@ -10178,7 +10182,7 @@ function buildPrintHTML(req, opts){
   // هامش سفلي للصفحة = إجمالي ارتفاع الذيل + 6mm احتياطي
   const pageBottomMm = totalFooterH>0 ? Math.ceil(totalFooterH*0.265+6) : 4;
   const css=`
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@600;700;800;900&display=swap');
+    /* Google Fonts removed for faster print — using system fonts */
     *{margin:0;padding:0;box-sizing:border-box;}
     html,body{background:#ffffff !important;margin:0;padding:0;}
     @page{margin:0 !important;size:A4 portrait;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
@@ -18597,7 +18601,7 @@ function _buildUAPrintHTML(r){
 }
 
 function printUAReport(id){
-  loadUARecords();
+  if(!uaRecords||!uaRecords.length) loadUARecords();
   const r=uaRecords.find(x=>x.id===id); if(!r)return;
   const html=_buildUAPrintHTML(r);
   window._medlabPrinting=true;
@@ -19124,7 +19128,7 @@ function _buildStoolPrintHTML(r){
   </body></html>`;
 }
 function printStoolReport(id){
-  loadStoolExamRecords();
+  if(!stoolExamRecords||!stoolExamRecords.length) loadStoolExamRecords();
   const r=stoolExamRecords.find(x=>x.id===id); if(!r)return;
   const html=_buildStoolPrintHTML(r);
   window._medlabPrinting=true;
@@ -20371,7 +20375,7 @@ function _printViaIframe(html){
   const iDoc=iframe.contentWindow.document;
   iDoc.open(); iDoc.write(html); iDoc.close();
 
-  // تأخير بسيط لانتهاء تحميل الخطوط والصور
+  // بدون تأخير — الطباعة فورية
   setTimeout(function(){
     try{
       iframe.contentWindow.focus();
@@ -20384,7 +20388,7 @@ function _printViaIframe(html){
     setTimeout(function(){
       try{ document.body.removeChild(iframe); }catch(e){}
     }, 2000);
-  }, 80);
+  }, 0);
 }
 
 // ============================================================
