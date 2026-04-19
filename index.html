@@ -10910,7 +10910,21 @@ async function chatSendConfirm(){
 
 function _sendReportAsImage(req){
   showNotif('','⏳ جاري تحويل التقرير...','info');
-  const printHtml = buildPrintHTML(req);
+  // بناء HTML يشمل التحاليل المحسوبة
+  const allTests=req.tests.map(tid=>tests.find(t=>t.id===tid)).filter(Boolean);
+  const regularTests=allTests.filter(t=>!t.isSpecialExam && !t.isCalc);
+  const calcTests=allTests.filter(t=>t.isCalc && req.results && req.results[t.id]);
+  const pages=[];
+  if(regularTests.length>0) pages.push(buildPrintHTML(req));
+  calcTests.forEach(function(ct){ pages.push(buildCalcTestPrintHTML(req, ct)); });
+  let printHtml;
+  if(pages.length===0){ printHtml=buildPrintHTML(req); }
+  else if(pages.length===1){ printHtml=pages[0]; }
+  else {
+    printHtml=`<!DOCTYPE html><html><head><meta charset="UTF-8"><style>*{margin:0;padding:0;box-sizing:border-box;}</style></head><body>`
+    +pages.map((p,i)=>{const m=p.match(/<body[^>]*>([\s\S]*)<\/body>/i);return m?m[1]:p;}).join('<div style="page-break-after:always"></div>')
+    +`</body></html>`;
+  }
   const iframe = document.createElement('iframe');
   iframe.style.cssText='position:fixed;left:-9999px;top:0;width:794px;height:1px;border:none;visibility:hidden;';
   document.body.appendChild(iframe);
@@ -11021,7 +11035,8 @@ function doPrint(reqId){
   setTimeout(()=>{window._medlabPrinting=false;},3000);
 
   const allTests=req.tests.map(tid=>tests.find(t=>t.id===tid)).filter(Boolean);
-  const regularTests=allTests.filter(t=>!t.isSpecialExam);
+  const regularTests=allTests.filter(t=>!t.isSpecialExam && !t.isCalc);
+  const calcTests=allTests.filter(t=>t.isCalc && req.results && req.results[t.id]);
   const specialTests=allTests.filter(t=>t.isSpecialExam);
 
   // دالة طباعة الفحوصات الخاصة بالتسلسل
@@ -11039,14 +11054,39 @@ function doPrint(reqId){
       const rec=semenRecords.find(r=>r.reqId===req.id);
       if(rec) printSemenReport(rec.id);
     }
-    // الفحص التالي بعد 300ms
     setTimeout(()=>printSpecialSequential(list,idx+1),300);
   }
 
-  // Print regular tests report via hidden iframe (silent print - no printer dialog open step)
-  if(regularTests.length>0){
-    const content=buildPrintHTML(req);
-    // Remove any existing print iframe
+  // بناء قائمة صفحات HTML بنفس منطق المعاينة
+  const pages=[];
+  if(regularTests.length>0) pages.push(buildPrintHTML(req));
+  calcTests.forEach(function(ct){ pages.push(buildCalcTestPrintHTML(req, ct)); });
+
+  // دمج الصفحات في ملف HTML واحد
+  let content;
+  if(pages.length===0){
+    // لا توجد تحاليل عادية أو محسوبة — نتابع للفحوصات الخاصة فقط
+    content=null;
+  } else if(pages.length===1){
+    content=pages[0];
+  } else {
+    content=`<!DOCTYPE html><html><head><meta charset="UTF-8">
+    <style>
+      @page{margin:0 !important;size:A4 portrait;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+      *{margin:0;padding:0;box-sizing:border-box;}
+      .page-break{page-break-after:always;break-after:page;}
+    </style></head><body>`
+    +pages.map((p,i)=>{
+      // استخرج محتوى body من كل صفحة HTML
+      const m=p.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+      const bodyContent=m?m[1]:p;
+      return (i<pages.length-1)?`<div class="page-break">${bodyContent}</div>`:bodyContent;
+    }).join('')
+    +`</body></html>`;
+  }
+
+  // طباعة الصفحات عبر iframe مخفي
+  if(content){
     const old=document.getElementById('_silentPrintFrame');
     if(old) old.remove();
     const iframe=document.createElement('iframe');
@@ -11055,11 +11095,9 @@ function doPrint(reqId){
     document.body.appendChild(iframe);
     const iDoc=iframe.contentWindow.document;
     iDoc.open(); iDoc.write(content); iDoc.close();
-    // بعد إغلاق نافذة الطباعة العادية مباشرةً — اطبع الفحوصات الخاصة
     iframe.onload=function(){
       try{
         iframe.contentWindow.focus();
-        // استمع لحدث afterprint لطباعة الفحوصات الخاصة فور إغلاق نافذة الطباعة
         iframe.contentWindow.addEventListener('afterprint', function(){
           if(specialTests.length>0) printSpecialSequential(specialTests,0);
         });
@@ -11074,7 +11112,7 @@ function doPrint(reqId){
       }
     };
   } else {
-    // لا توجد تحاليل عادية — اطبع الفحوصات الخاصة مباشرة
+    // لا يوجد محتوى عادي أو محسوب — اطبع الخاصة مباشرة
     if(specialTests.length>0) printSpecialSequential(specialTests,0);
   }
   req.printed=true;
@@ -11089,7 +11127,27 @@ function doPrint(reqId){
 
 function generatePDFBlob(callback){
   const req=requests.find(r=>r.id===currentReqId);if(!req){showNotif('خطأ','لا يوجد طلب محدد','error');return;}
-  const content=buildPrintHTML(req);
+  // بناء قائمة صفحات تشمل التحاليل المحسوبة (HOMA, UACR...)
+  const allTests=req.tests.map(tid=>tests.find(t=>t.id===tid)).filter(Boolean);
+  const regularTests=allTests.filter(t=>!t.isSpecialExam && !t.isCalc);
+  const calcTests=allTests.filter(t=>t.isCalc && req.results && req.results[t.id]);
+  const pages=[];
+  if(regularTests.length>0) pages.push(buildPrintHTML(req));
+  calcTests.forEach(function(ct){ pages.push(buildCalcTestPrintHTML(req, ct)); });
+  let content;
+  if(pages.length===0){ content=buildPrintHTML(req); }
+  else if(pages.length===1){ content=pages[0]; }
+  else {
+    content=`<!DOCTYPE html><html><head><meta charset="UTF-8"><style>
+      @page{margin:0;size:A4 portrait;}*{margin:0;padding:0;box-sizing:border-box;}
+      .page-break{page-break-after:always;break-after:page;}
+    </style></head><body>`
+    +pages.map((p,i)=>{
+      const m=p.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+      const bc=m?m[1]:p;
+      return (i<pages.length-1)?`<div class="page-break">${bc}</div>`:bc;
+    }).join('')+`</body></html>`;
+  }
   // Create render container - must be on-screen for font rendering
   const overlay=document.createElement('div');
   overlay.id='pdf-overlay-tmp';
