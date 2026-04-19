@@ -1704,6 +1704,10 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield;}
 .empty h3{font-size:11px;margin-bottom:8px;}
 .empty p{font-size:11px;}
 /* PATIENT AUTOCOMPLETE */
+/* ── قائمة الأطباء في واجهة إدخال المريض ── */
+#wp-doctor option{color:#000000 !important;font-weight:500 !important;font-family:'Cairo',sans-serif;}
+#wp-doctor{color:#000000 !important;}
+
 .pt-suggest{position:absolute;z-index:9001;background:#080f20;border:1px solid var(--primary);border-radius:10px;max-height:220px;overflow-y:auto;width:100%;box-shadow:0 8px 30px rgba(0,0,0,0.7);}
 .pt-suggest-item{padding:10px 14px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,0.04);}
 .pt-suggest-item:hover{background:rgba(0,212,255,0.1);}
@@ -7418,7 +7422,7 @@ function renderWizStep(){
       <div style="display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap">
         <div class="fg" style="flex:1;min-width:200px;margin-bottom:0">
           <label class="fl" style="font-family:'Cairo',sans-serif;font-size:18px;font-weight:900;color:inherit">الطبيب المحول</label>
-          <select class="fc" id="wp-doctor" style="font-size:17px;font-family:'Cairo',sans-serif;font-weight:700;color:var(--text);margin-top:6px;background:var(--bg-input);border:2px solid var(--primary)">
+          <select class="fc" id="wp-doctor" size="5" style="font-size:17px;font-family:'Cairo',sans-serif;font-weight:500;color:#000000;margin-top:6px;background:var(--bg-input);border:2px solid var(--primary);overflow-y:auto;height:auto">
             <option value="">-- بدون طبيب --</option>
             ${doctors.map(d=>`<option value="${d.id}" ${wizPatient.doctorId===d.id?'selected':''}>${d.name}</option>`).join('')}
             <option value="__add__">➕ إضافة طبيب جديد...</option>
@@ -17439,7 +17443,21 @@ function _buildCultureModalBody(c){
       const drSel=document.getElementById('cult-doctor-sel');
       if(drSel&&c.doctorId){ drSel.value=c.doctorId; }
       else if(drSel&&c.doctorName){ drSel.value='__manual__'; const mn=document.getElementById('cult-doctor-manual'); if(mn){mn.style.display='block';mn.value=c.doctorName;} }
-      if(c.cultureType) cultTypeChanged(true);
+      // عند التعديل: إذا كان لدينا مضادات محفوظة، حمّل ABX مباشرة بدون إعادة ضبط
+      if(c.cultureType){
+        const profNotes=document.getElementById('cult-clsi-note');
+        const profData=CULTURE_ABX_PROFILES[c.cultureType];
+        if(profNotes&&profData){profNotes.textContent='⚠️ CLSI Note: '+profData.note;profNotes.style.display='block';}
+        // إذا كان هناك مضادات محفوظة — عرضها مباشرة بدون إعادة بناء من الـ profile
+        if(window._cultAbxData && window._cultAbxData.length > 0){
+          const abxSec=document.getElementById('cult-abx-section');
+          if(abxSec) abxSec.style.display='block';
+          const savedCodes=window._cultAbxData.map(a=>a.code);
+          _renderAbxRowsNew(savedCodes, window._cultAbxData);
+        } else {
+          cultTypeChanged(true);
+        }
+      }
     },100);
   }
 }
