@@ -11089,7 +11089,36 @@ function doPrint(reqId){
 
 function generatePDFBlob(callback){
   const req=requests.find(r=>r.id===currentReqId);if(!req){showNotif('خطأ','لا يوجد طلب محدد','error');return;}
-  const content=buildPrintHTML(req);
+
+  // ── بناء المحتوى الكامل (تحاليل عادية + محسوبة) مثل المعاينة تماماً ──
+  const allTests=req.tests.map(tid=>tests.find(t=>t.id===tid)).filter(Boolean);
+  const regularTests=allTests.filter(t=>!t.isSpecialExam && !t.isCalc);
+  const calcTests=allTests.filter(t=>t.isCalc && req.results && req.results[t.id]);
+
+  const pages=[];
+  if(regularTests.length>0) pages.push(buildPrintHTML(req));
+  calcTests.forEach(function(ct){ pages.push(buildCalcTestPrintHTML(req, ct)); });
+
+  let content;
+  if(pages.length===0){
+    content=buildPrintHTML(req);
+  } else if(pages.length===1){
+    content=pages[0];
+  } else {
+    // دمج الصفحات مع فاصل صفحات بينها
+    const combined='<!DOCTYPE html><html><head><meta charset="UTF-8"><style>'
+      +'@page{margin:0!important;size:A4 portrait;-webkit-print-color-adjust:exact;print-color-adjust:exact;}'
+      +'*{margin:0;padding:0;box-sizing:border-box;}.page-break{page-break-after:always;break-after:page;}body{background:#fff;}'
+      +'</style></head><body>'
+      +pages.map(function(p,i){
+        var bm=p.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+        var bc=bm?bm[1]:p;
+        return '<div class="'+(i<pages.length-1?'page-break':'')+'">' + bc + '</div>';
+      }).join('')
+      +'</body></html>';
+    content=combined;
+  }
+
   // Create render container - must be on-screen for font rendering
   const overlay=document.createElement('div');
   overlay.id='pdf-overlay-tmp';
