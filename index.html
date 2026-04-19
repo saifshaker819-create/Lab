@@ -11088,47 +11088,27 @@ function doPrint(reqId){
 }
 
 function generatePDFBlob(callback){
-  const req=requests.find(r=>r.id===currentReqId);if(!req){showNotif('خطأ','لا يوجد طلب محدد','error');return;}
+  const req=requests.find(r=>r.id===currentReqId);
+  if(!req){showNotif('خطأ','لا يوجد طلب محدد','error');return;}
 
-  // ── بناء المحتوى الكامل (تحاليل عادية + محسوبة) مثل المعاينة تماماً ──
-  const allTests=req.tests.map(tid=>tests.find(t=>t.id===tid)).filter(Boolean);
-  const regularTests=allTests.filter(t=>!t.isSpecialExam && !t.isCalc);
-  const calcTests=allTests.filter(t=>t.isCalc && req.results && req.results[t.id]);
+  // ── جمع كل الصفحات (عادية + محسوبة) كلٌّ في HTML مستقل ──
+  const allTests=req.tests.map(function(tid){return tests.find(function(t){return t.id===tid;});}).filter(Boolean);
+  const regularTests=allTests.filter(function(t){return !t.isSpecialExam && !t.isCalc;});
+  const calcTests=allTests.filter(function(t){return t.isCalc && req.results && req.results[t.id];});
 
-  const pages=[];
-  if(regularTests.length>0) pages.push(buildPrintHTML(req));
-  calcTests.forEach(function(ct){ pages.push(buildCalcTestPrintHTML(req, ct)); });
+  const pageHTMLs=[];
+  if(regularTests.length>0) pageHTMLs.push(buildPrintHTML(req));
+  calcTests.forEach(function(ct){ pageHTMLs.push(buildCalcTestPrintHTML(req, ct)); });
+  if(pageHTMLs.length===0) pageHTMLs.push(buildPrintHTML(req));
 
-  let content;
-  if(pages.length===0){
-    content=buildPrintHTML(req);
-  } else if(pages.length===1){
-    content=pages[0];
-  } else {
-    // دمج الصفحات مع فاصل صفحات بينها
-    const combined='<!DOCTYPE html><html><head><meta charset="UTF-8"><style>'
-      +'@page{margin:0!important;size:A4 portrait;-webkit-print-color-adjust:exact;print-color-adjust:exact;}'
-      +'*{margin:0;padding:0;box-sizing:border-box;}.page-break{page-break-after:always;break-after:page;}body{background:#fff;}'
-      +'</style></head><body>'
-      +pages.map(function(p,i){
-        var bm=p.match(/<body[^>]*>([\s\S]*)<\/body>/i);
-        var bc=bm?bm[1]:p;
-        return '<div class="'+(i<pages.length-1?'page-break':'')+'">' + bc + '</div>';
-      }).join('')
-      +'</body></html>';
-    content=combined;
-  }
-
-  // Create render container - must be on-screen for font rendering
+  // ── إظهار overlay ──
   const overlay=document.createElement('div');
   overlay.id='pdf-overlay-tmp';
   overlay.style.cssText='position:fixed;inset:0;background:rgba(4,8,15,0.95);z-index:99990;display:flex;align-items:center;justify-content:center;';
   overlay.innerHTML='<div style="color:#00d4ff;font-size:16px;font-weight:700;font-family:Cairo,sans-serif">⏳ جاري إنشاء PDF...</div>';
   document.body.appendChild(overlay);
-  const container=document.createElement('div');
-  container.id='pdf-render-tmp';
-  container.style.cssText='position:fixed;top:0;left:-9999px;width:794px;background:#fff;z-index:99991;font-family:Cairo,sans-serif;direction:ltr;';
-  container.innerHTML=`<style>
+
+  const printCSS=`
     .print-prev,.pp-tbl,.pp-section{background:#fff!important;color:#111!important;}
     .pp-hdr-default{background:linear-gradient(135deg,#003d7a,#0055aa)!important;color:#fff!important;}
     .pp-tbl th{background:#003366!important;color:#fff!important;}
@@ -11139,59 +11119,92 @@ function generatePDFBlob(callback){
     .nm{color:#006600!important;}
     .pp-pt{background:#f0f7ff!important;}
     *{font-family:Cairo,sans-serif!important;}
-  </style>${content}`;
-  document.body.appendChild(container);
+  `;
 
-  // Wait for fonts to fully load before capturing
-  document.fonts.ready.then(()=>{
-  setTimeout(()=>{
-  html2canvas(container,{scale:2,useCORS:true,backgroundColor:'#ffffff',logging:false,allowTaint:true,letterRendering:true}).then(canvas=>{
-    if(document.getElementById('pdf-render-tmp'))document.body.removeChild(container);
-    if(document.getElementById('pdf-overlay-tmp'))document.body.removeChild(document.getElementById('pdf-overlay-tmp'));
-    const{jsPDF}=window.jspdf;
-    const imgData=canvas.toDataURL('image/jpeg',0.95);
-    const pageW=210;const pageH=297;
-    const imgW=pageW;
-    const imgH=(canvas.height*imgW)/canvas.width;
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+  const pageW=210, pageH=297;
+  const fileName=`${req.id}_${req.patientName.replace(/\s/g,'_')}.pdf`;
 
-    const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+  // ── تصوير كل صفحة على حدة في container مستقل ──
+  function _cleanup(){
+    if(document.getElementById('pdf-overlay-tmp'))
+      document.body.removeChild(document.getElementById('pdf-overlay-tmp'));
+  }
 
-    if(imgH<=pageH){
-      doc.addImage(imgData,'JPEG',0,0,imgW,imgH);
-    } else {
-      // Multi-page: slice canvas
-      const pageCanvas=document.createElement('canvas');
-      const ctx=pageCanvas.getContext('2d');
-      const scaleFactor=canvas.width/pageW;
-      const pageHeightPx=pageH*scaleFactor;
-      let remainH=canvas.height;
-      let srcY=0;
-      let pageNum=0;
-      while(remainH>0){
-        if(pageNum>0) doc.addPage();
-        const sliceH=Math.min(pageHeightPx,remainH);
-        pageCanvas.width=canvas.width;
-        pageCanvas.height=sliceH;
-        ctx.fillStyle='#ffffff';
-        ctx.fillRect(0,0,pageCanvas.width,pageCanvas.height);
-        ctx.drawImage(canvas,0,srcY,canvas.width,sliceH,0,0,canvas.width,sliceH);
-        const sliceData=pageCanvas.toDataURL('image/jpeg',0.95);
-        const sliceMMH=(sliceH/scaleFactor);
-        doc.addImage(sliceData,'JPEG',0,0,imgW,sliceMMH);
-        srcY+=sliceH;
-        remainH-=sliceH;
-        pageNum++;
-      }
+  function _renderPage(htmlStr, isFirstPage, onDone, onErr){
+    const container=document.createElement('div');
+    container.style.cssText='position:fixed;top:0;left:-9999px;width:794px;background:#fff;z-index:99991;font-family:Cairo,sans-serif;direction:ltr;';
+    container.innerHTML='<style>'+printCSS+'</style>'+htmlStr;
+    document.body.appendChild(container);
+
+    document.fonts.ready.then(function(){
+      setTimeout(function(){
+        html2canvas(container,{
+          scale:2,useCORS:true,backgroundColor:'#ffffff',
+          logging:false,allowTaint:true,letterRendering:true,
+          width:794,windowWidth:794
+        }).then(function(canvas){
+          document.body.removeChild(container);
+          const imgData=canvas.toDataURL('image/jpeg',0.95);
+          const imgW=pageW;
+          const imgH=(canvas.height*imgW)/canvas.width;
+
+          if(!isFirstPage) doc.addPage();
+
+          if(imgH<=pageH){
+            // صفحة واحدة — ضع الصورة مع توسيط عمودي إذا كانت أصغر
+            doc.addImage(imgData,'JPEG',0,0,imgW,imgH);
+          } else {
+            // الصورة أطول من A4 — قطّعها بحيث كل شريحة = صفحة A4 كاملة
+            const pageCanvas=document.createElement('canvas');
+            const ctx=pageCanvas.getContext('2d');
+            const scaleFactor=canvas.width/pageW;
+            const pageHeightPx=Math.round(pageH*scaleFactor);
+            let srcY=0;
+            let isFirst=true;
+            while(srcY<canvas.height){
+              if(!isFirst) doc.addPage();
+              const sliceH=Math.min(pageHeightPx, canvas.height-srcY);
+              pageCanvas.width=canvas.width;
+              pageCanvas.height=pageHeightPx; // دائماً A4 كاملة
+              ctx.fillStyle='#ffffff';
+              ctx.fillRect(0,0,pageCanvas.width,pageCanvas.height);
+              ctx.drawImage(canvas,0,srcY,canvas.width,sliceH,0,0,canvas.width,sliceH);
+              const sliceData=pageCanvas.toDataURL('image/jpeg',0.95);
+              doc.addImage(sliceData,'JPEG',0,0,imgW,pageH);
+              srcY+=pageHeightPx;
+              isFirst=false;
+            }
+          }
+          onDone();
+        }).catch(function(err){
+          try{document.body.removeChild(container);}catch(e){}
+          onErr(err);
+        });
+      },120);
+    });
+  }
+
+  // ── معالجة الصفحات بالتسلسل ──
+  function _processPages(index){
+    if(index>=pageHTMLs.length){
+      _cleanup();
+      callback(doc, fileName);
+      return;
     }
-    const fileName=`${req.id}_${req.patientName.replace(/\s/g,'_')}.pdf`;
-    callback(doc, fileName);
-  }).catch(err=>{
-    if(document.getElementById('pdf-render-tmp'))document.body.removeChild(document.getElementById('pdf-render-tmp'));
-    if(document.getElementById('pdf-overlay-tmp'))document.body.removeChild(document.getElementById('pdf-overlay-tmp'));
-    showNotif('خطأ','فشل إنشاء PDF: '+err.message,'error');
-  });
-  },100);  // font render delay
-  });  // document.fonts.ready
+    _renderPage(
+      pageHTMLs[index],
+      index===0,
+      function(){ _processPages(index+1); },
+      function(err){
+        _cleanup();
+        showNotif('خطأ','فشل إنشاء PDF: '+err.message,'error');
+      }
+    );
+  }
+
+  _processPages(0);
 }
 
 function downloadPDF(){
