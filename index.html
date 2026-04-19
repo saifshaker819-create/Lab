@@ -11021,8 +11021,42 @@ function doPrint(reqId){
   setTimeout(()=>{window._medlabPrinting=false;},3000);
 
   const allTests=req.tests.map(tid=>tests.find(t=>t.id===tid)).filter(Boolean);
-  const regularTests=allTests.filter(t=>!t.isSpecialExam);
+  const regularTests=allTests.filter(t=>!t.isSpecialExam && !t.isCalc);
+  const calcTests=allTests.filter(t=>t.isCalc && req.results && req.results[t.id]);
   const specialTests=allTests.filter(t=>t.isSpecialExam);
+
+  // دالة طباعة تحليل محسوب واحد عبر iframe صامت
+  function printCalcSilent(ct, afterCB){
+    const content=buildCalcTestPrintHTML(req, ct);
+    const old=document.getElementById('_silentPrintFrameCalc');
+    if(old) old.remove();
+    const iframe=document.createElement('iframe');
+    iframe.id='_silentPrintFrameCalc';
+    iframe.style.cssText='position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;border:none;opacity:0;';
+    document.body.appendChild(iframe);
+    const iDoc=iframe.contentWindow.document;
+    iDoc.open(); iDoc.write(content); iDoc.close();
+    iframe.onload=function(){
+      try{
+        iframe.contentWindow.focus();
+        iframe.contentWindow.addEventListener('afterprint', function(){ if(afterCB) afterCB(); });
+        iframe.contentWindow.print();
+      }catch(e){
+        const w=window.open('','_blank','width=900,height=700');
+        w.document.open(); w.document.write(content); w.document.close();
+        w.addEventListener('afterprint', function(){ if(afterCB) afterCB(); });
+        setTimeout(()=>{try{w.focus();w.print();}catch(e2){}},100);
+      }
+    };
+  }
+
+  // طباعة التحاليل المحسوبة بالتسلسل ثم الفحوصات الخاصة
+  function printCalcSequential(list, idx, afterAllCB){
+    if(idx>=list.length){ if(afterAllCB) afterAllCB(); return; }
+    printCalcSilent(list[idx], function(){
+      setTimeout(()=>printCalcSequential(list, idx+1, afterAllCB), 300);
+    });
+  }
 
   // دالة طباعة الفحوصات الخاصة بالتسلسل
   function printSpecialSequential(list, idx){
@@ -11043,6 +11077,18 @@ function doPrint(reqId){
     setTimeout(()=>printSpecialSequential(list,idx+1),300);
   }
 
+  // دالة تُشغَّل بعد انتهاء طباعة التقرير العادي
+  function afterRegularPrint(){
+    if(calcTests.length>0){
+      // اطبع التحاليل المحسوبة ثم الفحوصات الخاصة
+      printCalcSequential(calcTests, 0, function(){
+        if(specialTests.length>0) setTimeout(()=>printSpecialSequential(specialTests,0),300);
+      });
+    } else {
+      if(specialTests.length>0) printSpecialSequential(specialTests,0);
+    }
+  }
+
   // Print regular tests report via hidden iframe (silent print - no printer dialog open step)
   if(regularTests.length>0){
     const content=buildPrintHTML(req);
@@ -11055,27 +11101,22 @@ function doPrint(reqId){
     document.body.appendChild(iframe);
     const iDoc=iframe.contentWindow.document;
     iDoc.open(); iDoc.write(content); iDoc.close();
-    // بعد إغلاق نافذة الطباعة العادية مباشرةً — اطبع الفحوصات الخاصة
+    // بعد إغلاق نافذة الطباعة العادية مباشرةً — اطبع المحسوبة ثم الخاصة
     iframe.onload=function(){
       try{
         iframe.contentWindow.focus();
-        // استمع لحدث afterprint لطباعة الفحوصات الخاصة فور إغلاق نافذة الطباعة
-        iframe.contentWindow.addEventListener('afterprint', function(){
-          if(specialTests.length>0) printSpecialSequential(specialTests,0);
-        });
+        iframe.contentWindow.addEventListener('afterprint', function(){ afterRegularPrint(); });
         iframe.contentWindow.print();
       }catch(e){
         const w=window.open('','_blank','width=900,height=700');
         w.document.open(); w.document.write(content); w.document.close();
-        w.addEventListener('afterprint', function(){
-          if(specialTests.length>0) printSpecialSequential(specialTests,0);
-        });
+        w.addEventListener('afterprint', function(){ afterRegularPrint(); });
         setTimeout(()=>{try{w.focus();w.print();}catch(e2){}},100);
       }
     };
   } else {
-    // لا توجد تحاليل عادية — اطبع الفحوصات الخاصة مباشرة
-    if(specialTests.length>0) printSpecialSequential(specialTests,0);
+    // لا توجد تحاليل عادية — اطبع المحسوبة ثم الخاصة مباشرة
+    afterRegularPrint();
   }
   req.printed=true;
   req._updatedAt=Date.now(); // وقت التعديل — يُستخدم في المزامنة الذكية
