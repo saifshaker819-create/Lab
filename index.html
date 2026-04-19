@@ -11057,36 +11057,15 @@ function doPrint(reqId){
     setTimeout(()=>printSpecialSequential(list,idx+1),300);
   }
 
-  // بناء قائمة صفحات HTML بنفس منطق المعاينة
+  // بناء قائمة صفحات — كل صفحة HTML مستقلة بـ CSS وفوتر خاص بها
   const pages=[];
   if(regularTests.length>0) pages.push(buildPrintHTML(req));
   calcTests.forEach(function(ct){ pages.push(buildCalcTestPrintHTML(req, ct)); });
 
-  // دمج الصفحات في ملف HTML واحد
-  let content;
-  if(pages.length===0){
-    // لا توجد تحاليل عادية أو محسوبة — نتابع للفحوصات الخاصة فقط
-    content=null;
-  } else if(pages.length===1){
-    content=pages[0];
-  } else {
-    content=`<!DOCTYPE html><html><head><meta charset="UTF-8">
-    <style>
-      @page{margin:0 !important;size:A4 portrait;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
-      *{margin:0;padding:0;box-sizing:border-box;}
-      .page-break{page-break-after:always;break-after:page;}
-    </style></head><body>`
-    +pages.map((p,i)=>{
-      // استخرج محتوى body من كل صفحة HTML
-      const m=p.match(/<body[^>]*>([\s\S]*)<\/body>/i);
-      const bodyContent=m?m[1]:p;
-      return (i<pages.length-1)?`<div class="page-break">${bodyContent}</div>`:bodyContent;
-    }).join('')
-    +`</body></html>`;
-  }
-
-  // طباعة الصفحات عبر iframe مخفي
-  if(content){
+  // دالة طباعة صفحة واحدة عبر iframe مخفي، ثم الانتقال للصفحة التالية
+  function printPageSequential(list, idx, afterAllDone){
+    if(idx>=list.length){ afterAllDone(); return; }
+    const content=list[idx];
     const old=document.getElementById('_silentPrintFrame');
     if(old) old.remove();
     const iframe=document.createElement('iframe');
@@ -11099,20 +11078,25 @@ function doPrint(reqId){
       try{
         iframe.contentWindow.focus();
         iframe.contentWindow.addEventListener('afterprint', function(){
-          if(specialTests.length>0) printSpecialSequential(specialTests,0);
+          printPageSequential(list, idx+1, afterAllDone);
         });
         iframe.contentWindow.print();
       }catch(e){
         const w=window.open('','_blank','width=900,height=700');
         w.document.open(); w.document.write(content); w.document.close();
         w.addEventListener('afterprint', function(){
-          if(specialTests.length>0) printSpecialSequential(specialTests,0);
+          printPageSequential(list, idx+1, afterAllDone);
         });
         setTimeout(()=>{try{w.focus();w.print();}catch(e2){}},100);
       }
     };
+  }
+
+  if(pages.length>0){
+    printPageSequential(pages, 0, function(){
+      if(specialTests.length>0) printSpecialSequential(specialTests,0);
+    });
   } else {
-    // لا يوجد محتوى عادي أو محسوب — اطبع الخاصة مباشرة
     if(specialTests.length>0) printSpecialSequential(specialTests,0);
   }
   req.printed=true;
@@ -11134,30 +11118,16 @@ function generatePDFBlob(callback){
   const pages=[];
   if(regularTests.length>0) pages.push(buildPrintHTML(req));
   calcTests.forEach(function(ct){ pages.push(buildCalcTestPrintHTML(req, ct)); });
-  let content;
-  if(pages.length===0){ content=buildPrintHTML(req); }
-  else if(pages.length===1){ content=pages[0]; }
-  else {
-    content=`<!DOCTYPE html><html><head><meta charset="UTF-8"><style>
-      @page{margin:0;size:A4 portrait;}*{margin:0;padding:0;box-sizing:border-box;}
-      .page-break{page-break-after:always;break-after:page;}
-    </style></head><body>`
-    +pages.map((p,i)=>{
-      const m=p.match(/<body[^>]*>([\s\S]*)<\/body>/i);
-      const bc=m?m[1]:p;
-      return (i<pages.length-1)?`<div class="page-break">${bc}</div>`:bc;
-    }).join('')+`</body></html>`;
-  }
-  // Create render container - must be on-screen for font rendering
+  if(pages.length===0) pages.push(buildPrintHTML(req));
+
+  // Create render container
   const overlay=document.createElement('div');
   overlay.id='pdf-overlay-tmp';
   overlay.style.cssText='position:fixed;inset:0;background:rgba(4,8,15,0.95);z-index:99990;display:flex;align-items:center;justify-content:center;';
   overlay.innerHTML='<div style="color:#00d4ff;font-size:16px;font-weight:700;font-family:Cairo,sans-serif">⏳ جاري إنشاء PDF...</div>';
   document.body.appendChild(overlay);
-  const container=document.createElement('div');
-  container.id='pdf-render-tmp';
-  container.style.cssText='position:fixed;top:0;left:-9999px;width:794px;background:#fff;z-index:99991;font-family:Cairo,sans-serif;direction:ltr;';
-  container.innerHTML=`<style>
+
+  const sharedCSS=`<style>
     .print-prev,.pp-tbl,.pp-section{background:#fff!important;color:#111!important;}
     .pp-hdr-default{background:linear-gradient(135deg,#003d7a,#0055aa)!important;color:#fff!important;}
     .pp-tbl th{background:#003366!important;color:#fff!important;}
@@ -11168,59 +11138,53 @@ function generatePDFBlob(callback){
     .nm{color:#006600!important;}
     .pp-pt{background:#f0f7ff!important;}
     *{font-family:Cairo,sans-serif!important;}
-  </style>${content}`;
-  document.body.appendChild(container);
+  </style>`;
 
-  // Wait for fonts to fully load before capturing
-  document.fonts.ready.then(()=>{
-  setTimeout(()=>{
-  html2canvas(container,{scale:2,useCORS:true,backgroundColor:'#ffffff',logging:false,allowTaint:true,letterRendering:true}).then(canvas=>{
-    if(document.getElementById('pdf-render-tmp'))document.body.removeChild(container);
-    if(document.getElementById('pdf-overlay-tmp'))document.body.removeChild(document.getElementById('pdf-overlay-tmp'));
-    const{jsPDF}=window.jspdf;
-    const imgData=canvas.toDataURL('image/jpeg',0.95);
-    const pageW=210;const pageH=297;
-    const imgW=pageW;
-    const imgH=(canvas.height*imgW)/canvas.width;
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+  const pageW=210, pageH=297;
 
-    const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+  // دالة تُعيد canvas لصفحة HTML واحدة
+  function renderPageToCanvas(htmlContent){
+    return new Promise(function(resolve, reject){
+      const container=document.createElement('div');
+      container.style.cssText='position:fixed;top:0;left:-9999px;width:794px;height:1123px;background:#fff;z-index:99991;font-family:Cairo,sans-serif;direction:ltr;overflow:hidden;';
+      container.innerHTML=sharedCSS+htmlContent;
+      document.body.appendChild(container);
+      document.fonts.ready.then(()=>{
+        setTimeout(()=>{
+          html2canvas(container,{scale:2,useCORS:true,backgroundColor:'#ffffff',logging:false,allowTaint:true,letterRendering:true,width:794,height:1123}).then(canvas=>{
+            document.body.removeChild(container);
+            resolve(canvas);
+          }).catch(err=>{
+            document.body.removeChild(container);
+            reject(err);
+          });
+        },100);
+      });
+    });
+  }
 
-    if(imgH<=pageH){
-      doc.addImage(imgData,'JPEG',0,0,imgW,imgH);
-    } else {
-      // Multi-page: slice canvas
-      const pageCanvas=document.createElement('canvas');
-      const ctx=pageCanvas.getContext('2d');
-      const scaleFactor=canvas.width/pageW;
-      const pageHeightPx=pageH*scaleFactor;
-      let remainH=canvas.height;
-      let srcY=0;
-      let pageNum=0;
-      while(remainH>0){
-        if(pageNum>0) doc.addPage();
-        const sliceH=Math.min(pageHeightPx,remainH);
-        pageCanvas.width=canvas.width;
-        pageCanvas.height=sliceH;
-        ctx.fillStyle='#ffffff';
-        ctx.fillRect(0,0,pageCanvas.width,pageCanvas.height);
-        ctx.drawImage(canvas,0,srcY,canvas.width,sliceH,0,0,canvas.width,sliceH);
-        const sliceData=pageCanvas.toDataURL('image/jpeg',0.95);
-        const sliceMMH=(sliceH/scaleFactor);
-        doc.addImage(sliceData,'JPEG',0,0,imgW,sliceMMH);
-        srcY+=sliceH;
-        remainH-=sliceH;
-        pageNum++;
-      }
+  // طباعة الصفحات واحدة تلو الأخرى ثم دمجها في PDF
+  function renderAll(idx){
+    if(idx>=pages.length){
+      if(document.getElementById('pdf-overlay-tmp')) document.body.removeChild(overlay);
+      const fileName=`${req.id}_${req.patientName.replace(/\s/g,'_')}.pdf`;
+      callback(doc, fileName);
+      return;
     }
-    const fileName=`${req.id}_${req.patientName.replace(/\s/g,'_')}.pdf`;
-    callback(doc, fileName);
-  }).catch(err=>{
-    if(document.getElementById('pdf-render-tmp'))document.body.removeChild(document.getElementById('pdf-render-tmp'));
-    if(document.getElementById('pdf-overlay-tmp'))document.body.removeChild(document.getElementById('pdf-overlay-tmp'));
-    showNotif('خطأ','فشل إنشاء PDF: '+err.message,'error');
-  });
-  },100);  // font render delay
-  });  // document.fonts.ready
+    renderPageToCanvas(pages[idx]).then(function(canvas){
+      if(idx>0) doc.addPage();
+      const imgData=canvas.toDataURL('image/jpeg',0.95);
+      // كل صفحة = A4 واحدة بالكامل
+      doc.addImage(imgData,'JPEG',0,0,pageW,pageH);
+      renderAll(idx+1);
+    }).catch(function(err){
+      if(document.getElementById('pdf-overlay-tmp')) document.body.removeChild(overlay);
+      showNotif('خطأ','فشل إنشاء PDF: '+err.message,'error');
+    });
+  }
+  renderAll(0);
 }
 
 function downloadPDF(){
