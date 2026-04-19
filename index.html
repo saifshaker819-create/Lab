@@ -11070,26 +11070,36 @@ function doPrint(reqId){
     if(old) old.remove();
     const iframe=document.createElement('iframe');
     iframe.id='_silentPrintFrame';
-    iframe.style.cssText='position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;border:none;opacity:0;';
+    // يجب أن يكون للـ iframe حجم حقيقي لكي يُحمَّل المحتوى بشكل صحيح في Android
+    iframe.style.cssText='position:fixed;top:0;left:-900px;width:794px;height:1123px;border:none;visibility:hidden;pointer-events:none;z-index:-1;';
     document.body.appendChild(iframe);
     const iDoc=iframe.contentWindow.document;
     iDoc.open(); iDoc.write(content); iDoc.close();
-    iframe.onload=function(){
+
+    var _printed=false;
+    function _doPrint(){
+      if(_printed) return;
+      _printed=true;
       try{
         iframe.contentWindow.focus();
         iframe.contentWindow.addEventListener('afterprint', function(){
-          printPageSequential(list, idx+1, afterAllDone);
+          setTimeout(function(){ printPageSequential(list, idx+1, afterAllDone); }, 200);
         });
         iframe.contentWindow.print();
       }catch(e){
         const w=window.open('','_blank','width=900,height=700');
-        w.document.open(); w.document.write(content); w.document.close();
-        w.addEventListener('afterprint', function(){
-          printPageSequential(list, idx+1, afterAllDone);
-        });
-        setTimeout(()=>{try{w.focus();w.print();}catch(e2){}},100);
+        if(w){
+          w.document.open(); w.document.write(content); w.document.close();
+          w.addEventListener('afterprint', function(){
+            setTimeout(function(){ printPageSequential(list, idx+1, afterAllDone); }, 200);
+          });
+          setTimeout(()=>{try{w.focus();w.print();}catch(e2){}},400);
+        }
       }
-    };
+    }
+    // onload احتياطي + timeout في حال عدم إطلاق onload (Android/Chrome)
+    iframe.onload=function(){ setTimeout(_doPrint, 300); };
+    setTimeout(function(){ if(!_printed) _doPrint(); }, 1200);
   }
 
   if(pages.length>0){
@@ -20251,28 +20261,32 @@ function _printViaIframe(html){
 
   const iframe=document.createElement('iframe');
   iframe.id='_print_iframe';
-  iframe.style.cssText='position:fixed;top:-9999px;left:-9999px;width:210mm;height:297mm;border:none;opacity:0;';
+  // حجم حقيقي لكي يُحمَّل المحتوى بشكل صحيح في Android/Chrome
+  iframe.style.cssText='position:fixed;top:0;left:-900px;width:794px;height:1123px;border:none;visibility:hidden;pointer-events:none;z-index:-1;';
   document.body.appendChild(iframe);
 
-  // كتابة HTML مباشرة عبر document.write (نفس أسلوب doPrint الموثوق)
-  // بدلاً من Blob URL الذي لا يضمن إطلاق onload في كل المتصفحات
   const iDoc=iframe.contentWindow.document;
   iDoc.open(); iDoc.write(html); iDoc.close();
 
-  // تأخير بسيط لانتهاء تحميل الخطوط والصور
-  setTimeout(function(){
+  var _fired=false;
+  function _execPrint(){
+    if(_fired) return;
+    _fired=true;
     try{
       iframe.contentWindow.focus();
       iframe.contentWindow.print();
     }catch(e){
       const w=window.open('','_blank','width=900,height=700');
       if(w){ w.document.open(); w.document.write(html); w.document.close();
-        setTimeout(function(){try{w.focus();w.print();}catch(e2){}},100); }
+        setTimeout(function(){try{w.focus();w.print();}catch(e2){}},400); }
     }
     setTimeout(function(){
-      try{ document.body.removeChild(iframe); }catch(e){}
-    }, 2000);
-  }, 80);
+      try{ if(document.getElementById('_print_iframe')) document.body.removeChild(iframe); }catch(e){}
+    }, 2500);
+  }
+  // onload + timeout احتياطي للـ Android
+  iframe.onload=function(){ setTimeout(_execPrint, 300); };
+  setTimeout(function(){ if(!_fired) _execPrint(); }, 1200);
 }
 
 // ============================================================
