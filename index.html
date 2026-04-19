@@ -10113,8 +10113,41 @@ function buildPrintHTML(req, opts){
     if(!grouped[key]) grouped[key]=[];
     grouped[key].push(t);
   });
-  // ترتيب أبجدي للمجاميع الفرعية
-  const sortedGroupKeys=Object.keys(grouped).sort((a,b)=>a.localeCompare(b));
+  // ── ترتيب مخصص للمجاميع الفرعية ──────────────────────────────
+  const SUBCAT_ORDER = [
+    'Kidney Functions',
+    'Liver Functions',
+    'Thyroid Hormones',
+    'Lipid Profile',
+  ];
+  // ── ترتيب مخصص للتحاليل داخل كل مجموعة (بالكود) ────────────
+  const TEST_ORDER_BY_SUBCAT = {
+    'Kidney Functions':  ['UREA','CREAT','UA'],
+    'Liver Functions':   ['ALT','AST','ALP','TP','TBIL','DBIL','IBIL'],
+    'Thyroid Hormones':  ['TSH','TT4','TT3','FT4','FT3'],
+    'Lipid Profile':     ['CHOL','TG','VLDL','HDL','LDL'],
+  };
+  // دالة ترتيب التحاليل داخل المجموعة
+  function sortTestsInGroup(subcatKey, testList){
+    const order = TEST_ORDER_BY_SUBCAT[subcatKey];
+    if(!order) return testList;
+    return [...testList].sort((a,b)=>{
+      const ai = order.indexOf(a.code);
+      const bi = order.indexOf(b.code);
+      if(ai===-1 && bi===-1) return 0;
+      if(ai===-1) return 1;
+      if(bi===-1) return -1;
+      return ai - bi;
+    });
+  }
+  // ترتيب المجاميع: المخصصة أولاً بالترتيب المحدد، ثم الباقي أبجدياً
+  const allGroupKeys = Object.keys(grouped);
+  const sortedGroupKeys = [
+    ...SUBCAT_ORDER.filter(k => allGroupKeys.includes(k)),
+    ...allGroupKeys.filter(k => !SUBCAT_ORDER.includes(k)).sort((a,b)=>a.localeCompare(b))
+  ];
+  // تطبيق الترتيب الداخلي على كل مجموعة
+  sortedGroupKeys.forEach(k=>{ grouped[k]=sortTestsInGroup(k, grouped[k]); });
   const ptAge    = parseFloat(pt.ageVal)||Math.floor((Date.now()-new Date(pt.dob||0).getTime())/31557600000)||0;
   const ptGender = pt.gender||'male';
   const prevReqs = requests.filter(r=>r.patientId===pt.id&&r.id!==req.id&&r.status==='done')
