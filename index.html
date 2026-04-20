@@ -8138,27 +8138,14 @@ function wizFinish(){
   });
   save('invoices',invoices);
 
-  closeModal('m-wizard'); renderAll(); updateBadges(); updateDashboard();
+  closeModal('m-wizard');
+  // تحديث مستهدف فقط بدلاً من renderAll() الثقيل — أسرع بكثير
+  renderRequests(); updateBadges(); updateDashboard();
   showNotif('تم الإنشاء',`${rqid} — ${pt.name} | ${total} ${settings.currency||''} — ${payStatus} ✅`,'success');
-  // فتح إدخال النتائج مباشرةً للطلب الجديد — بدون تأخير
+  // فتح إدخال النتائج مباشرةً للطلب الجديد
   currentReqId=rqid;
   window._goToResultCalled=true;
   nav('results');
-  // تحديث القائمة وتحديد الطلب الجديد مباشرة
-  const _sel=document.getElementById('res-req-sel');
-  if(_sel){
-    // أضف الطلب للقائمة فوراً بدون إعادة بناء كاملة
-    const opt=document.createElement('option');
-    opt.value=rqid; opt.textContent=rqid+' - '+pt.name;
-    _sel.appendChild(opt);
-    _sel.value=rqid;
-  }
-  loadResultEntry();
-  // تمرير للأعلى ليرى المستخدم واجهة الإدخال
-  requestAnimationFrame(()=>{
-    const area=document.getElementById('res-entry-area');
-    if(area) area.scrollIntoView({behavior:'smooth',block:'start'});
-  });
 }
 
 // ── حساب مجموع التحاليل في المعالج ──────────────────────────
@@ -9209,8 +9196,12 @@ function loadResultEntry(){
       if(next){next.focus();if(next.select)next.select();}
     };
     tbody.addEventListener('keydown',tbody._resNavHandler,true);
-    // ── تركيز تلقائي على أول حقل إدخال — مع تأخير لتجنب تعارض language observer ──
+    // ── تركيز تلقائي على أول حقل إدخال — فقط إذا لم يكن المستخدم يكتب في حقل آخر ──
     setTimeout(function(){
+      // لا تسرق التركيز إذا كان المستخدم يكتب في حقل بالفعل
+      const activeEl = document.activeElement;
+      const isTyping = activeEl && (activeEl.tagName==='INPUT'||activeEl.tagName==='TEXTAREA'||activeEl.tagName==='SELECT') && document.getElementById('res-entry-tbody')?.contains(activeEl);
+      if(isTyping) return;
       var fi=Array.from(document.querySelectorAll('#res-entry-tbody .res-input')).find(function(el){return el.type!=='hidden'&&el.offsetParent!==null;});
       if(fi){fi.focus();if(fi.select)fi.select();}
     }, 200);
@@ -9286,7 +9277,9 @@ function _autoSaveResults(){
     if(allFilled) req.status='done';
     else if(req.status!=='done') req.status='inprogress';
     save('requests',requests);
-    renderRequests(); updateDashboard(); updateBadges();
+    // أثناء إدخال النتائج: تحديث الـ badges فقط بدون renderRequests
+    // renderRequests تُسبِّب إعادة بناء DOM وتعطيل التركيز على الحقول
+    updateDashboard(); updateBadges();
   }, 500);
 }
 function checkResult(tid,val){
