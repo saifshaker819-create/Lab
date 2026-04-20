@@ -10121,13 +10121,6 @@ function buildPrintHTML(req, opts){
     if(!grouped[key]) grouped[key]=[];
     grouped[key].push(t);
   });
-  // ── ترتيب مخصص للمجاميع الفرعية ──────────────────────────────
-  const SUBCAT_ORDER = [
-    'Kidney Functions',
-    'Liver Functions',
-    'Thyroid Hormones',
-    'Lipid Profile',
-  ];
   // ── ترتيب مخصص للتحاليل داخل كل مجموعة (بالكود) ────────────
   const TEST_ORDER_BY_SUBCAT = {
     'Kidney Functions':  ['UREA','CREAT','UA'],
@@ -10148,12 +10141,8 @@ function buildPrintHTML(req, opts){
       return ai - bi;
     });
   }
-  // ترتيب المجاميع: المخصصة أولاً بالترتيب المحدد، ثم الباقي أبجدياً
-  const allGroupKeys = Object.keys(grouped);
-  const sortedGroupKeys = [
-    ...SUBCAT_ORDER.filter(k => allGroupKeys.includes(k)),
-    ...allGroupKeys.filter(k => !SUBCAT_ORDER.includes(k)).sort((a,b)=>a.localeCompare(b))
-  ];
+  // ترتيب جميع المجاميع الفرعية أبجدياً
+  const sortedGroupKeys = Object.keys(grouped).sort((a,b)=>a.localeCompare(b));
   // تطبيق الترتيب الداخلي على كل مجموعة
   sortedGroupKeys.forEach(k=>{ grouped[k]=sortTestsInGroup(k, grouped[k]); });
   const ptAge    = parseFloat(pt.ageVal)||Math.floor((Date.now()-new Date(pt.dob||0).getTime())/31557600000)||0;
