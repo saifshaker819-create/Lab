@@ -1196,7 +1196,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .dot{width:7px;height:7px;border-radius:50%;background:var(--success);animation:pulse 2s infinite;}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
 .main{flex:1;margin-right:var(--sidebar-w);min-height:100vh;display:flex;flex-direction:column;}
-.hdr{background:rgba(4,8,20,0.85);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);padding:18px 32px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;gap:10px;overflow:visible;}
+.hdr{background:rgba(4,8,20,0.85);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);padding:18px 32px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;gap:10px;overflow:hidden;}
 .hdr-left{display:flex;flex-direction:column;flex:1;min-width:0;}
 .page-title{font-size:11px;font-weight:800;}
 .page-bc{font-size:11px;color:var(--text2);margin-top:1px;}
@@ -3854,8 +3854,6 @@ body.light-mode .wnb-text .wnb-char.neon-trail {
         </div>
       </div>
 
-    </div><!-- end accordion -->
-
         <!-- ■ شاشة الانتظار -->
         <div class="st-card" id="stc-waitscreen">
           <div class="st-card-hdr" onclick="toggleStCard('stc-waitscreen')">
@@ -3908,6 +3906,8 @@ body.light-mode .wnb-text .wnb-char.neon-trail {
             <button class="btn btn-p btn-lg" style="width:100%;margin-top:14px" onclick="saveWaitScreenSettings()">💾 حفظ إعدادات شاشة الانتظار</button>
           </div>
         </div>
+
+    </div><!-- end accordion -->
 
     </div><!-- end settings-accordion outer -->
 
@@ -17786,16 +17786,15 @@ function _abxRowHTML(code, abx, result, mic, idx){
   const brdI=result==='I'?'2px solid #ffaa00':'1px solid rgba(255,170,0,0.35)';
   const brdR=result==='R'?'2px solid #ff3344':'1px solid rgba(220,0,0,0.35)';
   const clsColor={'BL1':'#88ccff','BL2':'#aaddff','BL3':'#ffdd88','CEP1':'#99eebb','CEP2':'#77dd99','CEP3':'#55cc77','CEP4':'#33bb55','CEP5':'#11aa33','CARB':'#ff8888','MON':'#ffaaaa','GLYP':'#cc99ff','OXA':'#bb88ee','AGL':'#ffcc66','FQ':'#ff9944','MLS':'#44ccee','TETR':'#ffbb44','TRIM':'#aabb44','NITR':'#88aa44','FOSS':'#77bb55','POLY':'#ff7777','ANTI':'#ee88cc','MISC':'#aaaaaa'}[abx.cls]||'#aaa';
-  // data-active يجب أن يُضبط في HTML مباشرةً حتى تعمل _collectAbxData بشكل صحيح
   return `<div style="display:grid;grid-template-columns:1fr auto auto auto auto;gap:4px;margin-bottom:3px;align-items:center;padding:3px 4px;border-radius:6px;background:rgba(255,255,255,0.02)" id="cult-abx-row-${code}">
     <div style="display:flex;align-items:center;gap:6px">
       <span style="font-size:9px;font-weight:800;color:${clsColor};background:rgba(255,255,255,0.07);padding:1px 5px;border-radius:4px;white-space:nowrap">${abx.code}</span>
       <span style="font-size:12px;font-weight:700;color:var(--text)">${abx.name.split('(')[0].trim()}</span>
       <span style="font-size:9px;color:var(--text2)">${abx.r||''}</span>
     </div>
-    <button onclick="setAbxBtn('${code}','S')" id="abx-s-${code}" data-active="${result==='S'?'1':''}" style="width:42px;height:30px;border-radius:6px;border:${brdS};background:${bgS};color:${result==='S'?'#00ff77':'rgba(0,200,80,0.5)'};font-weight:900;cursor:pointer;font-size:13px;transition:all 0.15s">S</button>
-    <button onclick="setAbxBtn('${code}','I')" id="abx-i-${code}" data-active="${result==='I'?'1':''}" style="width:42px;height:30px;border-radius:6px;border:${brdI};background:${bgI};color:${result==='I'?'#ffcc00':'rgba(255,170,0,0.5)'};font-weight:900;cursor:pointer;font-size:13px;transition:all 0.15s">I</button>
-    <button onclick="setAbxBtn('${code}','R')" id="abx-r-${code}" data-active="${result==='R'?'1':''}" style="width:42px;height:30px;border-radius:6px;border:${brdR};background:${bgR};color:${result==='R'?'#ff5566':'rgba(220,0,0,0.5)'};font-weight:900;cursor:pointer;font-size:13px;transition:all 0.15s">R</button>
+    <button onclick="setAbxBtn('${code}','S')" id="abx-s-${code}" style="width:42px;height:30px;border-radius:6px;border:${brdS};background:${bgS};color:${result==='S'?'#00ff77':'rgba(0,200,80,0.5)'};font-weight:900;cursor:pointer;font-size:13px;transition:all 0.15s">S</button>
+    <button onclick="setAbxBtn('${code}','I')" id="abx-i-${code}" style="width:42px;height:30px;border-radius:6px;border:${brdI};background:${bgI};color:${result==='I'?'#ffcc00':'rgba(255,170,0,0.5)'};font-weight:900;cursor:pointer;font-size:13px;transition:all 0.15s">I</button>
+    <button onclick="setAbxBtn('${code}','R')" id="abx-r-${code}" style="width:42px;height:30px;border-radius:6px;border:${brdR};background:${bgR};color:${result==='R'?'#ff5566':'rgba(220,0,0,0.5)'};font-weight:900;cursor:pointer;font-size:13px;transition:all 0.15s">R</button>
     <div style="display:flex;align-items:center;gap:2px">
       <input type="text" id="abx-mic-${code}" value="${mic}" placeholder="MIC" style="width:72px;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:5px;padding:4px 6px;color:var(--text);font-family:monospace;font-size:11px;outline:none">
       <button onclick="deleteCultAbxRow('${code}')" style="background:none;border:none;color:rgba(255,100,100,0.5);cursor:pointer;font-size:14px;padding:2px 4px" title="حذف">×</button>
