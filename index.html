@@ -10117,8 +10117,16 @@ function deleteNotif(nid){
   // احذف من localStorage فوراً
   const key=NOTIFS_KEY+'_'+session.username;
   let list=JSON.parse(localStorage.getItem(key)||'[]');
+  const notif=list.find(n=>n.id===nid);
   list=list.filter(n=>n.id!==nid);
   localStorage.setItem(key,JSON.stringify(list));
+  // إذا كان إشعاراً تلقائياً (sys) — احفظه في قائمة المُخفَاة حتى لا يعود بعد الريفريش
+  if(notif&&notif.sys){
+    const dismissedKey='medlab_dismissed_sysnotifs_'+session.username;
+    const dismissed=JSON.parse(localStorage.getItem(dismissedKey)||'[]');
+    if(!dismissed.includes(nid)){ dismissed.push(nid); localStorage.setItem(dismissedKey,JSON.stringify(dismissed)); }
+    delete _sysNotifs[nid];
+  }
   renderNotifPanel(); updateNotifDot();
   // احذف من Firebase نهائياً
   if(fbReady&&fbDb){
@@ -10129,8 +10137,14 @@ function deleteNotif(nid){
 function deleteAllNotifs(){
   const session=getSession(); if(!session) return;
   if(!confirm('حذف جميع الإشعارات؟')) return;
-  // احذف من localStorage فوراً
   const key=NOTIFS_KEY+'_'+session.username;
+  const list=JSON.parse(localStorage.getItem(key)||'[]');
+  // احفظ جميع الإشعارات التلقائية في قائمة المُخفَاة
+  const dismissedKey='medlab_dismissed_sysnotifs_'+session.username;
+  const dismissed=JSON.parse(localStorage.getItem(dismissedKey)||'[]');
+  list.forEach(n=>{ if(n.sys&&!dismissed.includes(n.id)){ dismissed.push(n.id); delete _sysNotifs[n.id]; } });
+  localStorage.setItem(dismissedKey,JSON.stringify(dismissed));
+  // احذف من localStorage فوراً
   localStorage.setItem(key,JSON.stringify([]));
   _lastNotifCount=0;
   renderNotifPanel(); updateNotifDot();
@@ -11226,11 +11240,11 @@ function doPrint(reqId){
     if(old) old.remove();
     const iframe=document.createElement('iframe');
     iframe.id='_silentPrintFrameCalc';
-    iframe.style.cssText='position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;border:none;opacity:0;';
+    iframe.style.cssText='position:fixed;top:-9999px;left:-9999px;width:210mm;height:297mm;border:none;opacity:0;';
     document.body.appendChild(iframe);
     const iDoc=iframe.contentWindow.document;
     iDoc.open(); iDoc.write(content); iDoc.close();
-    iframe.onload=function(){
+    setTimeout(function(){
       try{
         iframe.contentWindow.focus();
         iframe.contentWindow.addEventListener('afterprint', function(){ if(afterCB) afterCB(); });
@@ -11241,7 +11255,8 @@ function doPrint(reqId){
         w.addEventListener('afterprint', function(){ if(afterCB) afterCB(); });
         setTimeout(()=>{try{w.focus();w.print();}catch(e2){}},100);
       }
-    };
+      setTimeout(function(){ try{ document.body.removeChild(iframe); }catch(e){} }, 3000);
+    }, 0);
   }
 
   // طباعة التحاليل المحسوبة بالتسلسل ثم الفحوصات الخاصة
@@ -11291,12 +11306,12 @@ function doPrint(reqId){
     if(old) old.remove();
     const iframe=document.createElement('iframe');
     iframe.id='_silentPrintFrame';
-    iframe.style.cssText='position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;border:none;opacity:0;';
+    iframe.style.cssText='position:fixed;top:-9999px;left:-9999px;width:210mm;height:297mm;border:none;opacity:0;';
     document.body.appendChild(iframe);
     const iDoc=iframe.contentWindow.document;
     iDoc.open(); iDoc.write(content); iDoc.close();
-    // بعد إغلاق نافذة الطباعة العادية مباشرةً — اطبع المحسوبة ثم الخاصة
-    iframe.onload=function(){
+    // استخدام setTimeout مباشر بدلاً من onload — يضمن ظهور نافذة الطباعة فوراً
+    setTimeout(function(){
       try{
         iframe.contentWindow.focus();
         iframe.contentWindow.addEventListener('afterprint', function(){ afterRegularPrint(); });
@@ -11307,7 +11322,8 @@ function doPrint(reqId){
         w.addEventListener('afterprint', function(){ afterRegularPrint(); });
         setTimeout(()=>{try{w.focus();w.print();}catch(e2){}},100);
       }
-    };
+      setTimeout(function(){ try{ document.body.removeChild(iframe); }catch(e){} }, 3000);
+    }, 0);
   } else {
     // لا توجد تحاليل عادية — اطبع المحسوبة ثم الخاصة مباشرة
     afterRegularPrint();
@@ -12196,6 +12212,9 @@ function checkInventoryAlerts(){
   const today=new Date().toISOString().split('T')[0];
   const session=getSession(); if(!session) return;
   const storKey=NOTIFS_KEY+'_'+session.username;
+  // مفتاح الإشعارات المُخفَاة يدوياً من قِبَل المستخدم
+  const dismissedKey='medlab_dismissed_sysnotifs_'+session.username;
+  const dismissed=JSON.parse(localStorage.getItem(dismissedKey)||'[]');
   let list=JSON.parse(localStorage.getItem(storKey)||'[]');
   let changed=false;
 
@@ -12206,21 +12225,24 @@ function checkInventoryAlerts(){
 
     // تنبيه منخفض
     if(i.qty<=threshold){
-      if(!list.find(n=>n.id===lowId)){
+      if(!dismissed.includes(lowId) && !list.find(n=>n.id===lowId)){
         list.unshift({id:lowId,title:'⚠️ مخزون منخفض',body:`${i.name}: تبقى ${i.qty} ${i.unit||''}`,type:'warning',date:new Date().toLocaleDateString('ar'),read:false,sys:true});
         _sysNotifs[lowId]=true;
         changed=true;
       }
     } else {
-      // إزالة التنبيه إذا تم تعبئة المخزون
+      // إزالة التنبيه إذا تم تعبئة المخزون + إزالته من قائمة المُخفَاة
       const before=list.length;
       list=list.filter(n=>n.id!==lowId);
       if(list.length<before){ delete _sysNotifs[lowId]; changed=true; }
+      // أعد تفعيله (أزله من dismissed) لأن الكمية ارتفعت — سيُنبَّه مجدداً إذا انخفضت
+      const dIdx=dismissed.indexOf(lowId);
+      if(dIdx>-1){ dismissed.splice(dIdx,1); localStorage.setItem(dismissedKey,JSON.stringify(dismissed)); }
     }
 
     // تنبيه انتهاء الصلاحية
     if(i.exp&&i.exp<=today){
-      if(!list.find(n=>n.id===expId)){
+      if(!dismissed.includes(expId) && !list.find(n=>n.id===expId)){
         list.unshift({id:expId,title:'⏰ انتهت الصلاحية',body:`${i.name}: انتهى ${i.exp}`,type:'error',date:new Date().toLocaleDateString('ar'),read:false,sys:true});
         _sysNotifs[expId]=true;
         changed=true;
@@ -17696,6 +17718,13 @@ function cultTypeChanged(silent){
   if(!type){if(noteEl)noteEl.style.display='none'; return;}
   const prof = CULTURE_ABX_PROFILES[type];
   if(noteEl&&prof){noteEl.textContent='⚠️ CLSI Note: '+prof.note; noteEl.style.display='block';}
+
+  // ── إذا كانت هناك مضادات محفوظة (وضع التعديل) — لا تُعد بناء القائمة ──
+  const existingRows=document.getElementById('cult-abx-rows');
+  if(!silent && window._cultAbxData && window._cultAbxData.length > 0 && existingRows && existingRows.children.length > 0){
+    return; // المضادات موجودة بالفعل — لا حاجة لإعادة البناء
+  }
+
   // ── مزامنة الحالة الحالية قبل إعادة بناء الجدول ──
   _syncAbxDataFromUI();
   // ────────────────────────────────────────────────
@@ -17735,10 +17764,18 @@ function cultOrganismChanged(){
   if(isNoGrowth){ if(abxSec) abxSec.style.display='none'; return; }
   if(!org){ if(abxSec) abxSec.style.display='none'; return; }
 
+  if(abxSec) abxSec.style.display='block';
+
+  // ── إذا كانت هناك مضادات محفوظة مسبقاً (وضع التعديل) — لا تُعد بناء القائمة ──
+  // فقط اعرضها كما هي بدون تغيير
+  const existingRows=document.getElementById('cult-abx-rows');
+  if(window._cultAbxData && window._cultAbxData.length > 0 && existingRows && existingRows.children.length > 0){
+    return; // المضادات موجودة بالفعل في الواجهة — لا حاجة لإعادة البناء
+  }
+
   // ── مزامنة الحالة الحالية قبل إعادة بناء الجدول ──
   _syncAbxDataFromUI();
   // ────────────────────────────────────────────────
-  if(abxSec) abxSec.style.display='block';
   const type=document.getElementById('cult-type').value;
   if(type) _loadAbxForType(type);
 }
