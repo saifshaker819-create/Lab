@@ -1196,7 +1196,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .dot{width:7px;height:7px;border-radius:50%;background:var(--success);animation:pulse 2s infinite;}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
 .main{flex:1;margin-right:var(--sidebar-w);min-height:100vh;display:flex;flex-direction:column;}
-.hdr{background:rgba(4,8,20,0.85);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);padding:18px 32px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;gap:10px;overflow:hidden;}
+.hdr{background:rgba(4,8,20,0.85);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);padding:18px 32px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;gap:10px;overflow:visible;}
 .hdr-left{display:flex;flex-direction:column;flex:1;min-width:0;}
 .page-title{font-size:11px;font-weight:800;}
 .page-bc{font-size:11px;color:var(--text2);margin-top:1px;}
@@ -10117,16 +10117,8 @@ function deleteNotif(nid){
   // احذف من localStorage فوراً
   const key=NOTIFS_KEY+'_'+session.username;
   let list=JSON.parse(localStorage.getItem(key)||'[]');
-  const notif=list.find(n=>n.id===nid);
   list=list.filter(n=>n.id!==nid);
   localStorage.setItem(key,JSON.stringify(list));
-  // إذا كان إشعاراً تلقائياً (sys) — احفظه في قائمة المُخفَاة حتى لا يعود بعد الريفريش
-  if(notif&&notif.sys){
-    const dismissedKey='medlab_dismissed_sysnotifs_'+session.username;
-    const dismissed=JSON.parse(localStorage.getItem(dismissedKey)||'[]');
-    if(!dismissed.includes(nid)){ dismissed.push(nid); localStorage.setItem(dismissedKey,JSON.stringify(dismissed)); }
-    delete _sysNotifs[nid];
-  }
   renderNotifPanel(); updateNotifDot();
   // احذف من Firebase نهائياً
   if(fbReady&&fbDb){
@@ -10137,14 +10129,8 @@ function deleteNotif(nid){
 function deleteAllNotifs(){
   const session=getSession(); if(!session) return;
   if(!confirm('حذف جميع الإشعارات؟')) return;
-  const key=NOTIFS_KEY+'_'+session.username;
-  const list=JSON.parse(localStorage.getItem(key)||'[]');
-  // احفظ جميع الإشعارات التلقائية في قائمة المُخفَاة
-  const dismissedKey='medlab_dismissed_sysnotifs_'+session.username;
-  const dismissed=JSON.parse(localStorage.getItem(dismissedKey)||'[]');
-  list.forEach(n=>{ if(n.sys&&!dismissed.includes(n.id)){ dismissed.push(n.id); delete _sysNotifs[n.id]; } });
-  localStorage.setItem(dismissedKey,JSON.stringify(dismissed));
   // احذف من localStorage فوراً
+  const key=NOTIFS_KEY+'_'+session.username;
   localStorage.setItem(key,JSON.stringify([]));
   _lastNotifCount=0;
   renderNotifPanel(); updateNotifDot();
@@ -11240,11 +11226,11 @@ function doPrint(reqId){
     if(old) old.remove();
     const iframe=document.createElement('iframe');
     iframe.id='_silentPrintFrameCalc';
-    iframe.style.cssText='position:fixed;top:-9999px;left:-9999px;width:210mm;height:297mm;border:none;opacity:0;';
+    iframe.style.cssText='position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;border:none;opacity:0;';
     document.body.appendChild(iframe);
     const iDoc=iframe.contentWindow.document;
     iDoc.open(); iDoc.write(content); iDoc.close();
-    setTimeout(function(){
+    iframe.onload=function(){
       try{
         iframe.contentWindow.focus();
         iframe.contentWindow.addEventListener('afterprint', function(){ if(afterCB) afterCB(); });
@@ -11255,8 +11241,7 @@ function doPrint(reqId){
         w.addEventListener('afterprint', function(){ if(afterCB) afterCB(); });
         setTimeout(()=>{try{w.focus();w.print();}catch(e2){}},100);
       }
-      setTimeout(function(){ try{ document.body.removeChild(iframe); }catch(e){} }, 3000);
-    }, 0);
+    };
   }
 
   // طباعة التحاليل المحسوبة بالتسلسل ثم الفحوصات الخاصة
@@ -11306,12 +11291,12 @@ function doPrint(reqId){
     if(old) old.remove();
     const iframe=document.createElement('iframe');
     iframe.id='_silentPrintFrame';
-    iframe.style.cssText='position:fixed;top:-9999px;left:-9999px;width:210mm;height:297mm;border:none;opacity:0;';
+    iframe.style.cssText='position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;border:none;opacity:0;';
     document.body.appendChild(iframe);
     const iDoc=iframe.contentWindow.document;
     iDoc.open(); iDoc.write(content); iDoc.close();
-    // استخدام setTimeout مباشر بدلاً من onload — يضمن ظهور نافذة الطباعة فوراً
-    setTimeout(function(){
+    // بعد إغلاق نافذة الطباعة العادية مباشرةً — اطبع المحسوبة ثم الخاصة
+    iframe.onload=function(){
       try{
         iframe.contentWindow.focus();
         iframe.contentWindow.addEventListener('afterprint', function(){ afterRegularPrint(); });
@@ -11322,8 +11307,7 @@ function doPrint(reqId){
         w.addEventListener('afterprint', function(){ afterRegularPrint(); });
         setTimeout(()=>{try{w.focus();w.print();}catch(e2){}},100);
       }
-      setTimeout(function(){ try{ document.body.removeChild(iframe); }catch(e){} }, 3000);
-    }, 0);
+    };
   } else {
     // لا توجد تحاليل عادية — اطبع المحسوبة ثم الخاصة مباشرة
     afterRegularPrint();
@@ -12212,9 +12196,6 @@ function checkInventoryAlerts(){
   const today=new Date().toISOString().split('T')[0];
   const session=getSession(); if(!session) return;
   const storKey=NOTIFS_KEY+'_'+session.username;
-  // مفتاح الإشعارات المُخفَاة يدوياً من قِبَل المستخدم
-  const dismissedKey='medlab_dismissed_sysnotifs_'+session.username;
-  const dismissed=JSON.parse(localStorage.getItem(dismissedKey)||'[]');
   let list=JSON.parse(localStorage.getItem(storKey)||'[]');
   let changed=false;
 
@@ -12225,24 +12206,21 @@ function checkInventoryAlerts(){
 
     // تنبيه منخفض
     if(i.qty<=threshold){
-      if(!dismissed.includes(lowId) && !list.find(n=>n.id===lowId)){
+      if(!list.find(n=>n.id===lowId)){
         list.unshift({id:lowId,title:'⚠️ مخزون منخفض',body:`${i.name}: تبقى ${i.qty} ${i.unit||''}`,type:'warning',date:new Date().toLocaleDateString('ar'),read:false,sys:true});
         _sysNotifs[lowId]=true;
         changed=true;
       }
     } else {
-      // إزالة التنبيه إذا تم تعبئة المخزون + إزالته من قائمة المُخفَاة
+      // إزالة التنبيه إذا تم تعبئة المخزون
       const before=list.length;
       list=list.filter(n=>n.id!==lowId);
       if(list.length<before){ delete _sysNotifs[lowId]; changed=true; }
-      // أعد تفعيله (أزله من dismissed) لأن الكمية ارتفعت — سيُنبَّه مجدداً إذا انخفضت
-      const dIdx=dismissed.indexOf(lowId);
-      if(dIdx>-1){ dismissed.splice(dIdx,1); localStorage.setItem(dismissedKey,JSON.stringify(dismissed)); }
     }
 
     // تنبيه انتهاء الصلاحية
     if(i.exp&&i.exp<=today){
-      if(!dismissed.includes(expId) && !list.find(n=>n.id===expId)){
+      if(!list.find(n=>n.id===expId)){
         list.unshift({id:expId,title:'⏰ انتهت الصلاحية',body:`${i.name}: انتهى ${i.exp}`,type:'error',date:new Date().toLocaleDateString('ar'),read:false,sys:true});
         _sysNotifs[expId]=true;
         changed=true;
@@ -17718,13 +17696,6 @@ function cultTypeChanged(silent){
   if(!type){if(noteEl)noteEl.style.display='none'; return;}
   const prof = CULTURE_ABX_PROFILES[type];
   if(noteEl&&prof){noteEl.textContent='⚠️ CLSI Note: '+prof.note; noteEl.style.display='block';}
-
-  // ── إذا كانت هناك مضادات محفوظة (وضع التعديل) — لا تُعد بناء القائمة ──
-  const existingRows=document.getElementById('cult-abx-rows');
-  if(!silent && window._cultAbxData && window._cultAbxData.length > 0 && existingRows && existingRows.children.length > 0){
-    return; // المضادات موجودة بالفعل — لا حاجة لإعادة البناء
-  }
-
   // ── مزامنة الحالة الحالية قبل إعادة بناء الجدول ──
   _syncAbxDataFromUI();
   // ────────────────────────────────────────────────
@@ -17764,18 +17735,10 @@ function cultOrganismChanged(){
   if(isNoGrowth){ if(abxSec) abxSec.style.display='none'; return; }
   if(!org){ if(abxSec) abxSec.style.display='none'; return; }
 
-  if(abxSec) abxSec.style.display='block';
-
-  // ── إذا كانت هناك مضادات محفوظة مسبقاً (وضع التعديل) — لا تُعد بناء القائمة ──
-  // فقط اعرضها كما هي بدون تغيير
-  const existingRows=document.getElementById('cult-abx-rows');
-  if(window._cultAbxData && window._cultAbxData.length > 0 && existingRows && existingRows.children.length > 0){
-    return; // المضادات موجودة بالفعل في الواجهة — لا حاجة لإعادة البناء
-  }
-
   // ── مزامنة الحالة الحالية قبل إعادة بناء الجدول ──
   _syncAbxDataFromUI();
   // ────────────────────────────────────────────────
+  if(abxSec) abxSec.style.display='block';
   const type=document.getElementById('cult-type').value;
   if(type) _loadAbxForType(type);
 }
@@ -17823,15 +17786,16 @@ function _abxRowHTML(code, abx, result, mic, idx){
   const brdI=result==='I'?'2px solid #ffaa00':'1px solid rgba(255,170,0,0.35)';
   const brdR=result==='R'?'2px solid #ff3344':'1px solid rgba(220,0,0,0.35)';
   const clsColor={'BL1':'#88ccff','BL2':'#aaddff','BL3':'#ffdd88','CEP1':'#99eebb','CEP2':'#77dd99','CEP3':'#55cc77','CEP4':'#33bb55','CEP5':'#11aa33','CARB':'#ff8888','MON':'#ffaaaa','GLYP':'#cc99ff','OXA':'#bb88ee','AGL':'#ffcc66','FQ':'#ff9944','MLS':'#44ccee','TETR':'#ffbb44','TRIM':'#aabb44','NITR':'#88aa44','FOSS':'#77bb55','POLY':'#ff7777','ANTI':'#ee88cc','MISC':'#aaaaaa'}[abx.cls]||'#aaa';
+  // data-active يجب أن يُضبط في HTML مباشرةً حتى تعمل _collectAbxData بشكل صحيح
   return `<div style="display:grid;grid-template-columns:1fr auto auto auto auto;gap:4px;margin-bottom:3px;align-items:center;padding:3px 4px;border-radius:6px;background:rgba(255,255,255,0.02)" id="cult-abx-row-${code}">
     <div style="display:flex;align-items:center;gap:6px">
       <span style="font-size:9px;font-weight:800;color:${clsColor};background:rgba(255,255,255,0.07);padding:1px 5px;border-radius:4px;white-space:nowrap">${abx.code}</span>
       <span style="font-size:12px;font-weight:700;color:var(--text)">${abx.name.split('(')[0].trim()}</span>
       <span style="font-size:9px;color:var(--text2)">${abx.r||''}</span>
     </div>
-    <button onclick="setAbxBtn('${code}','S')" id="abx-s-${code}" style="width:42px;height:30px;border-radius:6px;border:${brdS};background:${bgS};color:${result==='S'?'#00ff77':'rgba(0,200,80,0.5)'};font-weight:900;cursor:pointer;font-size:13px;transition:all 0.15s">S</button>
-    <button onclick="setAbxBtn('${code}','I')" id="abx-i-${code}" style="width:42px;height:30px;border-radius:6px;border:${brdI};background:${bgI};color:${result==='I'?'#ffcc00':'rgba(255,170,0,0.5)'};font-weight:900;cursor:pointer;font-size:13px;transition:all 0.15s">I</button>
-    <button onclick="setAbxBtn('${code}','R')" id="abx-r-${code}" style="width:42px;height:30px;border-radius:6px;border:${brdR};background:${bgR};color:${result==='R'?'#ff5566':'rgba(220,0,0,0.5)'};font-weight:900;cursor:pointer;font-size:13px;transition:all 0.15s">R</button>
+    <button onclick="setAbxBtn('${code}','S')" id="abx-s-${code}" data-active="${result==='S'?'1':''}" style="width:42px;height:30px;border-radius:6px;border:${brdS};background:${bgS};color:${result==='S'?'#00ff77':'rgba(0,200,80,0.5)'};font-weight:900;cursor:pointer;font-size:13px;transition:all 0.15s">S</button>
+    <button onclick="setAbxBtn('${code}','I')" id="abx-i-${code}" data-active="${result==='I'?'1':''}" style="width:42px;height:30px;border-radius:6px;border:${brdI};background:${bgI};color:${result==='I'?'#ffcc00':'rgba(255,170,0,0.5)'};font-weight:900;cursor:pointer;font-size:13px;transition:all 0.15s">I</button>
+    <button onclick="setAbxBtn('${code}','R')" id="abx-r-${code}" data-active="${result==='R'?'1':''}" style="width:42px;height:30px;border-radius:6px;border:${brdR};background:${bgR};color:${result==='R'?'#ff5566':'rgba(220,0,0,0.5)'};font-weight:900;cursor:pointer;font-size:13px;transition:all 0.15s">R</button>
     <div style="display:flex;align-items:center;gap:2px">
       <input type="text" id="abx-mic-${code}" value="${mic}" placeholder="MIC" style="width:72px;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:5px;padding:4px 6px;color:var(--text);font-family:monospace;font-size:11px;outline:none">
       <button onclick="deleteCultAbxRow('${code}')" style="background:none;border:none;color:rgba(255,100,100,0.5);cursor:pointer;font-size:14px;padding:2px 4px" title="حذف">×</button>
