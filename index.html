@@ -1355,7 +1355,7 @@ textarea.fc{resize:vertical;}
 .wiz-s2-footer .fg{margin-bottom:0;flex:1;min-width:120px;}
 /* test items - single column */
 .test-list{display:flex;flex-direction:column;gap:4px;padding:2px;}
-.test-item{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:7px;border:1px solid var(--border);background:var(--bg-card);cursor:pointer;transition:all 0.15s;}
+.test-item{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:7px;border:1px solid var(--border);background:var(--bg-card);cursor:pointer;}
 .test-item:hover{border-color:var(--primary);background:rgba(0,212,255,0.06);}
 .test-item.selected{border-color:var(--primary);background:rgba(0,212,255,0.13);}
 .test-item input[type=checkbox]{accent-color:var(--primary);width:15px;height:15px;flex-shrink:0;cursor:pointer;}
@@ -1422,7 +1422,7 @@ body.light-mode .lang-toggle-btn.lang-en{background:rgba(85,0,187,0.1);border-co
 .cat-btn{padding:5px 12px;border-radius:20px;border:1px solid var(--border);background:var(--bg-glass);color:var(--text2);font-size:11px;font-weight:600;cursor:pointer;transition:all 0.2s;font-family:'Cairo',sans-serif;}
 .cat-btn.active{background:rgba(0,212,255,0.15);border-color:var(--primary);color:var(--primary);}
 .test-list{display:grid;grid-template-columns:repeat(2,1fr);gap:5px;padding:2px;}
-.test-item{display:flex;align-items:center;gap:7px;padding:6px 9px;border-radius:8px;border:1px solid var(--border);background:var(--bg-card);cursor:pointer;transition:all 0.2s;}
+.test-item{display:flex;align-items:center;gap:7px;padding:6px 9px;border-radius:8px;border:1px solid var(--border);background:var(--bg-card);cursor:pointer;}
 .test-item:hover{border-color:var(--primary);background:rgba(0,212,255,0.05);}
 .test-item.selected{border-color:var(--primary);background:rgba(0,212,255,0.12);}
 .test-item input[type=checkbox]{accent-color:var(--primary);width:13px;height:13px;flex-shrink:0;cursor:pointer;}
@@ -8458,8 +8458,6 @@ function toggleWizTest(tid){
   _wizRightPanelUpdateOne(t, tid, nowSelected);
 
   updateWizTotal();
-  const srch=document.getElementById('wiz-test-srch');
-  if(srch){ srch.focus(); srch.select(); }
 }
 
 // تحديث جزئي سريع: يضيف أو يحذف عنصر واحد فقط من القائمة اليمنى
@@ -8749,13 +8747,11 @@ function wizFinish(){
   save('invoices',invoices);
 
   closeModal('m-wizard');
-  // تحديث مستهدف فقط بدلاً من renderAll() الثقيل — أسرع بكثير
-  renderRequests(); updateBadges(); updateDashboard();
   showNotif('تم الإنشاء',`${rqid} — ${pt.name} | ${total} ${settings.currency||''} — ${payStatus} ✅`,'success');
-  // فتح إدخال النتائج مباشرةً للطلب الجديد
   currentReqId=rqid;
   window._goToResultCalled=true;
   nav('results');
+  setTimeout(function(){ renderRequests(); updateBadges(); updateDashboard(); }, 80);
 }
 
 // ── حساب مجموع التحاليل في المعالج ──────────────────────────
