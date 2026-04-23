@@ -2239,18 +2239,7 @@ select.fc:focus{outline:none;}
 }
 
 /* badge اختيار التحاليل في الـ wizard */
-#wiz-sel-count{
-  transition:all 0.2s cubic-bezier(0.34,1.56,0.64,1);
-  transform:translateZ(0);
-}
-.wiz-count-pop{
-  animation:countPop 0.3s cubic-bezier(0.34,1.56,0.64,1);
-}
-@keyframes countPop{
-  0%{transform:scale(1);}
-  50%{transform:scale(1.5);}
-  100%{transform:scale(1);}
-}
+#wiz-sel-count{}
 
 /* ── طابور الانتظار ── */
 .wq-row-pending td { border-right: 3px solid var(--warning); }
@@ -27006,28 +26995,8 @@ document.addEventListener('DOMContentLoaded',function(){
   }
 });
 
-/* patch renderWizRightPanel و _wizRightPanelUpdateOne لإضافة badge pop */
-function _wizBadgePop(){
-  requestAnimationFrame(function(){
-    const badge=document.getElementById('wiz-sel-count');
-    if(badge){badge.classList.remove('wiz-count-pop');void badge.offsetWidth;badge.classList.add('wiz-count-pop');}
-  });
-}
+/* patch filterWizTests لإعادة scroll للأعلى */
 setTimeout(function(){
-  if(typeof renderWizRightPanel==='function'){
-    const _orig=window.renderWizRightPanel;
-    window.renderWizRightPanel=function(){
-      _orig.apply(this,arguments);
-      _wizBadgePop();
-    };
-  }
-  if(typeof _wizRightPanelUpdateOne==='function'){
-    const _orig3=window._wizRightPanelUpdateOne;
-    window._wizRightPanelUpdateOne=function(){
-      _orig3.apply(this,arguments);
-      _wizBadgePop();
-    };
-  }
   if(typeof filterWizTests==='function'){
     const _orig2=window.filterWizTests;
     window.filterWizTests=function(){
