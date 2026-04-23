@@ -1728,6 +1728,7 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield;}
   .sidebar{transform:translateX(100%);}
   .sidebar.open{transform:translateX(0);}
   .main{margin-right:0!important;}
+  .req-sticky-bar{right:0!important;}
 
   /* ── overlay للشريط الجانبي ── */
   #sidebar-overlay{
@@ -1838,7 +1839,7 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield;}
 /* ── تحسينات الأداء ─────────────────────────────────── */
 .sidebar{will-change:transform;contain:layout style;}
 .modal{will-change:transform,opacity;contain:layout style;}
-.sec{contain:style;}
+.sec{contain:layout style;}
 .tbl{contain:layout style;}
 .gc{contain:layout style;}
 *{-webkit-font-smoothing:antialiased;text-rendering:optimizeSpeed;}
@@ -2619,7 +2620,9 @@ body.light-mode .wnb-text .wnb-char.neon-trail {
       </div>
       <!-- ══════════════════════════════════════════ -->
 
-      <div class="req-sticky-bar" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;flex-wrap:wrap;gap:10px;position:sticky;top:72px;z-index:8000;background:var(--bg-dark);padding:10px 0 10px 0;box-shadow:0 4px 16px rgba(4,8,20,0.98);">
+      <!-- spacer يعوض ارتفاع الشريط الثابت -->
+      <div style="height:58px;flex-shrink:0;"></div>
+      <div class="req-sticky-bar" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;position:fixed;top:72px;right:var(--sidebar-w);left:0;z-index:8000;background:var(--bg-dark);padding:10px 18px;box-shadow:0 4px 16px rgba(4,8,20,0.98);border-bottom:1px solid var(--border);">
         <div class="tabs">
           <button class="tab active" data-filter="today" onclick="filterReq('today',this)">📅 اليوم</button>
           <button class="tab" data-filter="all" onclick="filterReq('all',this)">الكل</button>
