@@ -565,10 +565,7 @@ body.light-mode *:not(a):not(.btn-p):not(.btn-ok):not(.ni.active):not(.ni.active
   color:inherit;
 }
 body.light-mode #sec-requests .req-sticky-bar{background:var(--bg-body)!important;}
-/* شريط الطلبات العائم - موبايل */
-@media(max-width:768px){
-  #req-float-bar{right:0!important;}
-}
+#sec-requests .req-sticky-bar{z-index:8000!important;}
 /* ضمان عمل position:sticky في قسم الطلبات (contain:layout يكسر sticky) */
 #sec-requests{contain:style!important;}
 #sec-requests .req-sticky-bar{z-index:8000!important;}
@@ -1204,7 +1201,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .status-row{display:flex;align-items:center;gap:5px;margin-top:6px;}
 .dot{width:7px;height:7px;border-radius:50%;background:var(--success);animation:pulse 2s infinite;}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
-.main{flex:1;margin-right:var(--sidebar-w);min-height:100vh;display:flex;flex-direction:column;}
+.main{flex:1;margin-right:var(--sidebar-w);height:100vh;display:flex;flex-direction:column;overflow-y:auto;overflow-x:hidden;}
 .hdr{background:rgba(4,8,20,0.85);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);padding:18px 32px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:9999;gap:10px;overflow:visible;}
 .hdr-left{display:flex;flex-direction:column;flex:1;min-width:0;}
 .page-title{font-size:11px;font-weight:800;}
@@ -1842,9 +1839,18 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield;}
 /* ── تحسينات الأداء ─────────────────────────────────── */
 .sidebar{will-change:transform;contain:layout style;}
 .modal{will-change:transform,opacity;contain:layout style;}
-.sec{contain:layout style;}
-.tbl{contain:layout style;}
-.gc{contain:layout style;}
+.sec{contain:style;}
+#sec-requests .req-sticky-bar{
+  position:sticky;
+  top:0;
+  z-index:8000;
+  background:var(--bg-dark);
+  padding:10px 18px;
+  box-shadow:0 4px 20px rgba(4,8,20,1);
+  margin-bottom:0;
+}
+.tbl{contain:style;}
+.gc{contain:style;}
 *{-webkit-font-smoothing:antialiased;text-rendering:optimizeSpeed;}
 .moverlay{will-change:opacity;}
 .notif{will-change:transform,opacity;}
@@ -2532,22 +2538,6 @@ body.light-mode .wnb-text .wnb-char.neon-trail {
     </div>
   </div>
 
-  <!-- ══ شريط طلبات عائم ثابت — خارج كل الـ sections ══ -->
-  <div id="req-float-bar" style="display:none;position:fixed;top:72px;right:var(--sidebar-w);left:0;z-index:99000;background:var(--bg-dark);border-bottom:1.5px solid var(--border);padding:10px 18px;box-shadow:0 4px 20px rgba(4,8,20,0.98);display:none;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;">
-    <div class="tabs">
-      <button class="tab active" data-filter="today" onclick="filterReq('today',this)">📅 اليوم</button>
-      <button class="tab" data-filter="all" onclick="filterReq('all',this)">الكل</button>
-      <button class="tab" data-filter="pending" onclick="filterReq('pending',this)">معلقة</button>
-      <button class="tab" data-filter="inprogress" onclick="filterReq('inprogress',this)">جارية</button>
-      <button class="tab" data-filter="done" onclick="filterReq('done',this)">مكتملة</button>
-    </div>
-    <div style="display:flex;gap:8px;align-items:center;flex-shrink:0;">
-      <div class="srch-box" style="width:160px"><span class="srch-ic">🔍</span><input class="srch-inp" id="req-srch-inp" lang="ar" dir="rtl" placeholder="بحث..." oninput="searchReq(this.value)" style="padding-left:70px;"><button type="button" class="lang-toggle-btn" id="req-srch-ltb" onclick="toggleInputLang('req-srch-inp','req-srch-ltb')" title="تبديل لغة الإدخال">ع</button></div>
-      <button class="btn btn-p" style="white-space:nowrap;flex-shrink:0;" onclick="startNewPatient()">➕ طلب جديد</button>
-    </div>
-  </div>
-  <!-- ══════════════════════════════════════════════════════ -->
-
   <div class="page">
 
     <!-- DASHBOARD -->
@@ -2639,8 +2629,19 @@ body.light-mode .wnb-text .wnb-char.neon-trail {
       </div>
       <!-- ══════════════════════════════════════════ -->
 
-      <!-- spacer يعوض ارتفاع الشريط العائم -->
-      <div style="height:58px;"></div>
+      <div class="req-sticky-bar" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+        <div class="tabs">
+          <button class="tab active" data-filter="today" onclick="filterReq('today',this)">📅 اليوم</button>
+          <button class="tab" data-filter="all" onclick="filterReq('all',this)">الكل</button>
+          <button class="tab" data-filter="pending" onclick="filterReq('pending',this)">معلقة</button>
+          <button class="tab" data-filter="inprogress" onclick="filterReq('inprogress',this)">جارية</button>
+          <button class="tab" data-filter="done" onclick="filterReq('done',this)">مكتملة</button>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-shrink:0;">
+          <div class="srch-box" style="width:150px"><span class="srch-ic">🔍</span><input class="srch-inp" id="req-srch-inp" lang="ar" dir="rtl" placeholder="بحث..." oninput="searchReq(this.value)" style="padding-left:70px;"><button type="button" class="lang-toggle-btn" id="req-srch-ltb" onclick="toggleInputLang('req-srch-inp','req-srch-ltb')" title="تبديل لغة الإدخال">ع</button></div>
+          <button class="btn btn-p" style="white-space:nowrap;flex-shrink:0;" onclick="startNewPatient()">➕ طلب جديد</button>
+        </div>
+      </div>
 
       <div class="gc">
         <div style="overflow-x:auto">
@@ -7687,16 +7688,13 @@ function nav(p){
     if(p==='stool') renderStoolList();
     if(p==='semen') renderSemenList();
     if(p==='requests'){
-      document.getElementById('req-float-bar').style.display='flex';
       // رسم فوري بدون تأخير
       renderRequestsFiltered('today');
-      document.querySelectorAll('#req-float-bar .tabs .tab').forEach(t=>t.classList.remove('active'));
-      const todayTab=document.querySelector('#req-float-bar .tabs .tab[data-filter="today"]');
+      document.querySelectorAll('#sec-requests .tabs .tab').forEach(t=>t.classList.remove('active'));
+      const todayTab=document.querySelector('#sec-requests .tabs .tab[onclick*="today"]');
       if(todayTab) todayTab.classList.add('active');
       const srch=document.getElementById('req-srch-inp');
       if(srch){srch.focus();srch.select();}
-    } else {
-      document.getElementById('req-float-bar').style.display='none';
     }
     if(p==='waitqueue'){if(typeof renderWaitQueue==='function')renderWaitQueue();}
     if(p==='lis'){if(typeof lisInit==='function')lisInit();}
