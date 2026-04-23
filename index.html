@@ -7141,7 +7141,6 @@ async function _migrateLegacyLS(){
 async function _mergeIDBInBackground(){
   try{
     const pfx=DB._pfx();
-    // المفاتيح التي تُستبدل بالكامل من IDB (لا دمج) — لأنها تحتوي افتراضيات
     const REPLACE_KEYS=new Set(['packages','inventory','tests']);
     const keyMap={
       patients:'patients', requests:'requests', invoices:'invoices',
@@ -7151,25 +7150,58 @@ async function _mergeIDBInBackground(){
       cultureRecords:'cultureRecords', uaRecords:'uaRecords',
       stoolExamRecords:'stoolExamRecords', semenRecords:'semenRecords'
     };
+
+    // ── تحسين الأداء: تحميل patients + requests أولاً بالتوازي ──
+    const PRIORITY_KEYS=['patients','requests','invoices','doctors'];
+    const priorityResults=await Promise.all(PRIORITY_KEYS.map(k=>IDB.get(pfx+k)));
     let changed=false;
-    for(const [k,varName] of Object.entries(keyMap)){
-      const idbVal=await IDB.get(pfx+k);
-      // للمفاتيح ذات الافتراضيات: تحقق إذا كان المستخدم حفظ يوماً ما
+
+    PRIORITY_KEYS.forEach(function(k,i){
+      const idbVal=priorityResults[i];
+      const varName=keyMap[k];
+      if(!idbVal||!Array.isArray(idbVal)||idbVal.length===0) return;
+      const globals={patients,requests,invoices,doctors,packages,inventory,
+        qcRecords,testGroups,billingRecords,cultureRecords,uaRecords,
+        stoolExamRecords,semenRecords};
+      const current=globals[varName]||[];
+      const currentIds=new Set(current.map(x=>x.id).filter(Boolean));
+      const toAdd=idbVal.filter(x=>x.id&&!currentIds.has(x.id));
+      if(toAdd.length>0){
+        current.push(...toAdd);
+        changed=true;
+      }
+      _MC[pfx+k]=current;
+      switch(k){
+        case 'patients': patients=current; break;
+        case 'requests': requests=current; break;
+        case 'invoices': invoices=current; break;
+        case 'doctors':  doctors=current;  break;
+      }
+    });
+
+    // رسم فوري بعد تحميل البيانات الأساسية
+    if(changed){ renderAll(); updateDashboard(); updateBadges(); }
+    changed=false;
+
+    // ── ثم تحميل باقي البيانات بالتوازي ──
+    const REST_KEYS=Object.keys(keyMap).filter(k=>!PRIORITY_KEYS.includes(k));
+    const restResults=await Promise.all(REST_KEYS.map(k=>IDB.get(pfx+k)));
+
+    for(let i=0;i<REST_KEYS.length;i++){
+      const k=REST_KEYS[i];
+      const idbVal=restResults[i];
+      const varName=keyMap[k];
       if(REPLACE_KEYS.has(k)){
-        // إذا IDB فيه قيمة (حتى لو مصفوفة فارغة) = المستخدم تحكم بها من قبل → استخدمها
-        // إذا IDB = null = لم يُحفظ قط → أبقِ الافتراضيات
-        if(idbVal===null||idbVal===undefined) continue; // لم يُحفظ قط
+        if(idbVal===null||idbVal===undefined) continue;
         const saved=Array.isArray(idbVal)?idbVal:[];
         switch(k){
           case 'packages':  packages=saved;  break;
           case 'inventory': inventory=saved; break;
-          case 'tests':     tests=saved;     break;
         }
         _MC[pfx+k]=saved;
         changed=true;
         continue;
       }
-      // باقي المفاتيح: دمج عادي
       if(!idbVal||!Array.isArray(idbVal)||idbVal.length===0) continue;
       const globals={patients,requests,invoices,doctors,packages,inventory,
         qcRecords,testGroups,billingRecords,cultureRecords,uaRecords,
@@ -7183,10 +7215,6 @@ async function _mergeIDBInBackground(){
       }
       _MC[pfx+k]=current;
       switch(k){
-        case 'patients':         patients=current; break;
-        case 'requests':         requests=current; break;
-        case 'invoices':         invoices=current; break;
-        case 'doctors':          doctors=current; break;
         case 'qc':               qcRecords=current; break;
         case 'testGroups':       testGroups=current; break;
         case 'billing':          billingRecords=current; break;
@@ -7199,21 +7227,17 @@ async function _mergeIDBInBackground(){
     // التحاليل
     const idbTests=await IDB.get(pfx+'tests');
     if(idbTests&&Array.isArray(idbTests)&&idbTests.length>0){
-      // ALL_TESTS هو المصدر الأساسي — ابنِ الخريطة منه أولاً
       const allMap=new Map(ALL_TESTS.map(function(x){return [x.id,x];}));
       const map=new Map(tests.map(function(x){return [x.id,x];}));
       let tc=false;
       idbTests.forEach(function(t){
         if(!t.id)return;
-        // الحصول على البيانات الأصلية من ALL_TESTS لهذا التحليل إن وُجدت
         const orig=allMap.get(t.id);
-        // دمج: بيانات IDB (اسم/فرع/وحدة/سعر) + isCalc/calcFormula من ALL_TESTS
         const merged=Object.assign({},t);
         if(orig){
           if(orig.isCalc){
             merged.isCalc=true;
             merged.calcFormula=orig.calcFormula||t.calcFormula||'';
-            // حفظ calcInputSettings من IDB إذا وُجدت، وإلا من ALL_TESTS
             if(!merged.calcInputSettings && orig.calcInputSettings) merged.calcInputSettings=orig.calcInputSettings;
           }
           else{delete merged.isCalc;delete merged.calcFormula;delete merged.calcInputSettings;}
@@ -7730,12 +7754,27 @@ function nav(p){
     if(p==='stool') renderStoolList();
     if(p==='semen') renderSemenList();
     if(p==='requests'){
-      // رسم فوري بدون تأخير
-      renderRequestsFiltered('today');
+      // إعادة تعيين الـ tab
       document.querySelectorAll('#sec-requests .tabs .tab').forEach(t=>t.classList.remove('active'));
       const todayTab=document.querySelector('#sec-requests .tabs .tab[onclick*="today"]');
       if(todayTab) todayTab.classList.add('active');
-      // rAF مزدوج: الأول يضمن رسم DOM، الثاني يضمن التركيز بعد الرسم
+      // رسم فوري إذا البيانات موجودة في الكاش، وإلا أظهر loading ثم أعد المحاولة
+      if(requests && requests.length > 0){
+        renderRequestsFiltered('today');
+      } else {
+        const tbody=document.getElementById('requests-body');
+        if(tbody) tbody.innerHTML='<tr><td colspan="8" style="text-align:center;padding:30px;color:var(--text2)">⏳ جاري التحميل...</td></tr>';
+        // انتظر تحميل IDB ثم ارسم
+        (function _waitAndRender(tries){
+          if(requests && requests.length > 0){
+            renderRequestsFiltered('today');
+          } else if(tries > 0){
+            setTimeout(function(){ _waitAndRender(tries-1); }, 200);
+          } else {
+            renderRequestsFiltered('today'); // ارسم حتى لو فارغة
+          }
+        })(20); // حاول 20 مرة × 200ms = 4 ثانية كحد أقصى
+      }
       requestAnimationFrame(function(){
         requestAnimationFrame(function(){
           const srch=document.getElementById('req-srch-inp');
@@ -8755,8 +8794,9 @@ function wizFinish(){
   showNotif('تم الإنشاء',`${rqid} — ${pt.name} | ${total} ${settings.currency||''} — ${payStatus} ✅`,'success');
   currentReqId=rqid;
   window._goToResultCalled=true;
+  // رسم فوري من الكاش في الذاكرة — لا حاجة لانتظار IDB
+  renderRequests(); updateBadges(); updateDashboard();
   nav('results');
-  setTimeout(function(){ renderRequests(); updateBadges(); updateDashboard(); }, 80);
 }
 
 // ── حساب مجموع التحاليل في المعالج ──────────────────────────
@@ -8850,32 +8890,31 @@ function openPatientPortalByPatient(patientId){
 function filterPatients(f,el){document.querySelectorAll('.tabs .tab').forEach(t=>t.classList.remove('active'));el.classList.add('active');renderPatients(f);}
 function searchPatients(v){
   if(window._spTimer)clearTimeout(window._spTimer);
+  // رسم فوري من الذاكرة أولاً (بدون تأخير)
+  renderPatients('all',v);
+  if(!v||v.length<2){ window._idbSearchTemp=null; return; }
   window._spTimer=setTimeout(async function(){
-    renderPatients('all',v);
-    // إذا كان البحث محدداً، ابحث في IDB أيضاً وأضف النتائج الناقصة
-    if(v&&v.length>=2){
-      try{
-        const pfx=DB._pfx();
-        const idbPts=await IDB.get(pfx+'patients');
-        if(!idbPts||!Array.isArray(idbPts)) return;
-        const q=v.toLowerCase();
-        const lsIds=new Set(patients.map(p=>p.id));
-        const idbMatches=idbPts.filter(p=>
-          !lsIds.has(p.id)&&(
-            p.name.toLowerCase().includes(q)||
-            (p.phone||'').includes(q)||
-            (p.id||'').toLowerCase().includes(q)));
-        if(idbMatches.length>0){
-          // أضف مؤقتاً للذاكرة وأعد الرسم
-          const tempPts=[...patients,...idbMatches];
-          window._idbSearchTemp=idbMatches;
-          renderPatients('all',v,tempPts);
-        }
-      }catch{}
-    } else {
-      window._idbSearchTemp=null;
-    }
-  },200);
+    try{
+      const pfx=DB._pfx();
+      // كاش نتيجة IDB لمدة 60 ثانية بدل قراءته في كل بحث
+      if(!window._idbPtsCache||Date.now()-window._idbPtsCacheTime>60000){
+        window._idbPtsCache=await IDB.get(pfx+'patients')||[];
+        window._idbPtsCacheTime=Date.now();
+      }
+      if(!Array.isArray(window._idbPtsCache)||!window._idbPtsCache.length) return;
+      const q=v.toLowerCase();
+      const lsIds=new Set(patients.map(p=>p.id));
+      const idbMatches=window._idbPtsCache.filter(p=>
+        !lsIds.has(p.id)&&(
+          p.name.toLowerCase().includes(q)||
+          (p.phone||'').includes(q)||
+          (p.id||'').toLowerCase().includes(q)));
+      if(idbMatches.length>0){
+        window._idbSearchTemp=idbMatches;
+        renderPatients('all',v,[...patients,...idbMatches]);
+      }
+    }catch{}
+  },80);
 }
 function deletePatient(id){if(confirm('هل أنت متأكد من حذف هذا المريض؟')){patients=patients.filter(p=>p.id!==id);save('patients',patients);renderAll();updateBadges();showNotif('تم الحذف','تم حذف المريض','success');}}
 function editPatient(id){const p=patients.find(x=>x.id===id);if(!p)return;wizPatient={...p};wizSelectedTests=[];wizStep=1;_wizEditPatientOnly=false;renderWizStep();openModal('m-wizard');}
@@ -9530,11 +9569,16 @@ function vrSavePatientEdit(pid, rid){
   const drSel=document.getElementById('vr-ep-doctor-sel');
   const drInp=document.getElementById('vr-ep-doctor');
   let newDoctor='';
-  if(drSel&&drSel.value==='__manual__'){
-    newDoctor=(drInp?drInp.value||'':'').trim();
-  } else if(drSel&&drSel.value){
-    newDoctor=drSel.value;
+  let doctorChanged=false;
+  if(drSel){
+    doctorChanged=true;
+    if(drSel.value==='__manual__'){
+      newDoctor=(drInp?drInp.value||'':'').trim();
+    } else {
+      newDoctor=drSel.value; // قد يكون فارغاً (بدون طبيب) وهذا مقصود
+    }
   } else if(drInp){
+    doctorChanged=true;
     newDoctor=(drInp.value||'').trim();
   }
 
@@ -9543,7 +9587,8 @@ function vrSavePatientEdit(pid, rid){
   if(newDob) pt.dob=newDob;
   pt.gender=newGender;
   pt.phone=newPhone;
-  if(newDoctor){ pt.doctorName=newDoctor; }
+  // نحدّث الطبيب دائماً حتى لو أصبح فارغاً (بدون طبيب)
+  if(doctorChanged){ pt.doctorName=newDoctor; if(!newDoctor) pt.doctorId=''; }
   save('patients',patients);
   if(pt.phone) addToPhoneBook(pt.name, pt.phone);
 
@@ -9551,10 +9596,14 @@ function vrSavePatientEdit(pid, rid){
   const r=requests.find(x=>x.id===rid);
   if(r){
     if(newName) r.patientName=newName;
-    if(newDoctor){ r.doctorName=newDoctor; }
-    // تحديث doctorId إذا وُجد الطبيب في القائمة
-    const doc=doctors.find(d=>d.name===newDoctor);
-    if(doc){ r.doctorId=doc.id; if(pt) pt.doctorId=doc.id; }
+    if(doctorChanged){
+      r.doctorName=newDoctor;
+      if(!newDoctor){ r.doctorId=''; if(pt) pt.doctorId=''; }
+    }
+    if(newDoctor){
+      const doc=doctors.find(d=>d.name===newDoctor);
+      if(doc){ r.doctorId=doc.id; if(pt) pt.doctorId=doc.id; }
+    }
     save('requests',requests);
   }
 
@@ -10427,7 +10476,7 @@ function selectPrintReq(id,name){
 // NOTIFICATIONS SYSTEM
 // ============================================================
 const NOTIFS_KEY='medlab_notifications';
-const NOTIF_EXPIRY_DAYS=14;
+const NOTIF_EXPIRY_DAYS=7; // التنبيهات تُحذف بعد أسبوع واحد
 
 function playNotifSound(){
   try{
@@ -10467,6 +10516,14 @@ function _initNotifListener(username){
   _notifListener = fbDb.ref('notifs/'+username);
   _notifListener.on('value', snap=>{
     const raw=snap.val()||{};
+    const oneWeekAgo=Date.now()-(NOTIF_EXPIRY_DAYS*24*60*60*1000);
+    // حذف التنبيهات القديمة من Firebase مباشرة
+    Object.entries(raw).forEach(([nid,n])=>{
+      if(n&&n.ts&&n.ts<oneWeekAgo){
+        fbDb.ref('notifs/'+username+'/'+nid).remove().catch(()=>{});
+        delete raw[nid];
+      }
+    });
     const list=Object.values(raw).sort((a,b)=>(a.ts||0)-(b.ts||0));
     const unread=list.filter(n=>!n.read).length;
     const dot=document.getElementById('notif-dot');
@@ -10503,7 +10560,24 @@ function _startLocalNotifPolling(username){
 
 function getMyNotifs(){
   const session=getSession(); if(!session) return [];
-  const list=JSON.parse(localStorage.getItem(NOTIFS_KEY+'_'+session.username)||'[]');
+  const key=NOTIFS_KEY+'_'+session.username;
+  let list=JSON.parse(localStorage.getItem(key)||'[]');
+  const oneWeekAgo=Date.now()-(NOTIF_EXPIRY_DAYS*24*60*60*1000);
+  // حذف التنبيهات الأقدم من أسبوع
+  const toDelete=list.filter(n=>{
+    if(!n.ts) return false; // بدون timestamp — أبقِها
+    return n.ts < oneWeekAgo;
+  });
+  if(toDelete.length>0){
+    list=list.filter(n=>!n.ts||n.ts>=oneWeekAgo);
+    localStorage.setItem(key,JSON.stringify(list));
+    // حذف من Firebase أيضاً
+    if(fbReady&&fbDb){
+      toDelete.forEach(function(n){
+        if(n.id) fbDb.ref('notifs/'+session.username+'/'+n.id).remove().catch(()=>{});
+      });
+    }
+  }
   return list.slice().reverse();
 }
 
@@ -19076,12 +19150,16 @@ function saveAndPrintUA(){
     window._uaReqId=null;
   }
   closeModal('m-ua');
-  renderUAList();
-  const resSel=document.getElementById('res-req-sel');
-  if(resSel&&resSel.value){ loadResultEntry(); }
-  window._specialExamInlineMode=false;
   showNotif('تم','جاري الطباعة 🖨️','success');
-  setTimeout(()=>printUAReport(rec.id), 50);
+  // طباعة فورية بالتوازي مع الحفظ — لا حاجة لانتظار setTimeout
+  printUAReport(rec.id);
+  // تحديث القائمة في الخلفية بعد الطباعة
+  requestAnimationFrame(function(){
+    renderUAList();
+    const resSel=document.getElementById('res-req-sel');
+    if(resSel&&resSel.value){ loadResultEntry(); }
+  });
+  window._specialExamInlineMode=false;
 }
 function deleteUARecord(id){
   if(!confirm('حذف هذا السجل؟'))return;
@@ -27602,5 +27680,120 @@ setTimeout(function(){
 
 
 
+
+
+
+/* ════════════════════════════════════════════════════════
+   💡 هل تعلم؟ — نافذة معلومات تحليلية تظهر عند الخمول
+════════════════════════════════════════════════════════ */
+(function() {
+
+  var facts = [
+    { icon:'🩸', test:'تحليل السكر الصائم (FBS)', fact:'يُجرى بعد 8 ساعات من الامتناع عن الأكل. النتيجة الطبيعية أقل من 100 ملغ/ديسيلتر. إذا كانت بين 100–125 فهذا يعني مقدمات السكري، وفوق 126 بقراءتين يستدعي مراجعة الطبيب.' },
+    { icon:'❤️', test:'الكوليسترول الكلي', fact:'أفضل نتيجة هي أقل من 200 ملغ/ديسيلتر. ارتفاعه لا يسبب أعراضاً واضحة لذلك يُسمّى "القاتل الصامت". الإكثار من الدهون المشبعة والتدخين من أبرز أسباب ارتفاعه.' },
+    { icon:'🫀', test:'الهيموغلوبين (Hgb)', fact:'يقيس كمية الهيموغلوبين الحامل للأكسجين. الطبيعي للرجال 13.5–17.5 وللنساء 12–15.5 غ/ديسيلتر. انخفاضه يعني فقر الدم، وارتفاعه قد يدل على الجفاف.' },
+    { icon:'🔬', test:'هرمون الغدة الدرقية (TSH)', fact:'يُعدّ TSH "قائد الأوركسترا" لأنه يتحكم في نشاط الغدة الدرقية. القيمة الطبيعية 0.4–4.0 mIU/L. ارتفاعه يعني خمول الغدة، وانخفاضه يعني فرط نشاطها.' },
+    { icon:'💛', test:'البيليروبين', fact:'ينتج من تكسّر خلايا الدم الحمراء. ارتفاعه يسبب اصفرار الجلد والعيون (اليرقان). القيمة الطبيعية الكلية أقل من 1.2 ملغ/ديسيلتر وهو مؤشر مهم لصحة الكبد.' },
+    { icon:'🧪', test:'الكرياتينين', fact:'يعكس كفاءة الكلى في تنقية الدم. الطبيعي للرجال 0.7–1.3 وللنساء 0.6–1.1 ملغ/ديسيلتر. ارتفاعه المستمر قد يشير إلى قصور كلوي يستوجب المتابعة.' },
+    { icon:'⚪', test:'خلايا الدم البيضاء (WBC)', fact:'جيش الجسم الدفاعي! النطاق الطبيعي 4,500–11,000 خلية/ميكرولتر. ارتفاعها يدل على التهاب أو عدوى، وانخفاضها قد يضعف المناعة.' },
+    { icon:'🩺', test:'سكر التراكمي (HbA1c)', fact:'يكشف متوسط مستوى السكر خلال 3 أشهر كاملة ولا يتأثر بوجبة أمس. هدف المريض السكري أقل من 7%. أدق من قياس السكر اليومي لتقييم التحكم بالمرض.' },
+    { icon:'🦴', test:'فيتامين D', fact:'يُسمّى "فيتامين الشمس" لأن الجلد ينتجه بالتعرض للشمس. القيمة الطبيعية 30–100 نانوغرام/مل. نقصه شائع جداً ويؤثر على العظام والمناعة والمزاج.' },
+    { icon:'⚡', test:'البوتاسيوم (K)', fact:'يجب أن يبقى بين 3.5–5.0 mEq/L بدقة. انحرافه قليلاً يؤثر على ضربات القلب! الموز والأفوكادو مصادر ممتازة له في الغذاء.' },
+    { icon:'🔴', test:'الحديد (Serum Iron)', fact:'ضروري لصنع هيموغلوبين الدم. النطاق الطبيعي 60–170 ميكروغرام/ديسيلتر. نقصه أكثر شيوعاً عند النساء. الشاي والقهوة يقللان امتصاصه إذا أُخذا مع الوجبة.' },
+    { icon:'🧬', test:'بروتين CRP الالتهابي', fact:'يرتفع خلال ساعات من بدء أي التهاب في الجسم. القيمة الطبيعية أقل من 10 ملغ/لتر. يُستخدم لمتابعة فعالية العلاج، كلما انخفض كلما تحسنت الاستجابة.' },
+    { icon:'💜', test:'حمض اليوريك', fact:'ارتفاعه قد يسبب النقرس — ألم مفاجئ شديد في المفاصل. الطبيعي للرجال 3.4–7.0 وللنساء 2.4–6.0 ملغ/ديسيلتر. اللحوم والمأكولات البحرية ترفعه.' },
+    { icon:'🟠', test:'إنزيم الكبد ALT', fact:'موجود داخل خلايا الكبد. ارتفاعه في الدم يعني أن خلايا الكبد تتضرر. القيمة الطبيعية أقل من 56 وحدة/لتر. الإفراط في الدهون أو بعض الأدوية قد يرفعه.' },
+    { icon:'🩵', test:'الصوديوم (Na)', fact:'يتحكم في توازن السوائل وضغط الدم. القيمة الطبيعية 136–145 mEq/L. انخفاضه يسبب الصداع والتعب، وارتفاعه يدل عادةً على الجفاف.' }
+  ];
+
+  var IDLE_MS = 2 * 60 * 1000;
+  var idleTimer = null;
+  var lastIdx = -1;
+  var isShowing = false;
+
+  function pickFact() {
+    var idx;
+    do { idx = Math.floor(Math.random() * facts.length); }
+    while (idx === lastIdx && facts.length > 1);
+    lastIdx = idx;
+    return facts[idx];
+  }
+
+  function showPopup() {
+    if (isShowing) return;
+    isShowing = true;
+    var f = pickFact();
+    var isLight = document.body.classList.contains('light-mode');
+
+    var boxBg     = isLight ? 'linear-gradient(145deg,#ffffff,#eef4fb)' : 'linear-gradient(145deg,#060c1a,#0c1628)';
+    var accentCol = isLight ? '#0077b6' : '#00d4ff';
+    var headerBg  = isLight ? 'linear-gradient(135deg,#0077b6,#0096c7)' : 'linear-gradient(135deg,#00b4d8,#0077b6)';
+    var boxShadow = isLight ? '0 0 50px rgba(0,119,182,0.2),0 24px 60px rgba(0,0,0,0.15)' : '0 0 70px rgba(0,212,255,0.22),0 28px 70px rgba(0,0,0,0.85)';
+    var textCol   = isLight ? '#0d1a2e' : '#e8f4fd';
+    var text2Col  = isLight ? '#5a7a94' : 'rgba(255,255,255,0.5)';
+    var divCol    = isLight ? 'rgba(0,119,182,0.13)' : 'rgba(0,212,255,0.13)';
+    var btnShadow = isLight ? '0 4px 18px rgba(0,119,182,0.35)' : '0 4px 18px rgba(0,180,255,0.35)';
+
+    var overlay = document.createElement('div');
+    overlay.id = 'dyk-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:2147483647;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;padding:20px;direction:rtl;animation:fadeInBg 0.3s ease;';
+
+    overlay.innerHTML =
+      '<div id="dyk-box" style="background:'+boxBg+';border:2px solid '+accentCol+';border-radius:22px;max-width:450px;width:100%;box-shadow:'+boxShadow+';overflow:hidden;animation:dykPopIn 0.42s cubic-bezier(0.175,0.885,0.32,1.275);font-family:\'Cairo\',\'Inter\',sans-serif;">' +
+
+        '<div style="background:'+headerBg+';padding:18px 22px 15px;display:flex;align-items:center;gap:13px;">' +
+          '<span style="font-size:34px;line-height:1;flex-shrink:0;filter:drop-shadow(0 2px 8px rgba(0,0,0,0.3))">'+f.icon+'</span>' +
+          '<div>' +
+            '<div style="font-size:9.5px;font-weight:800;letter-spacing:2.5px;color:rgba(255,255,255,0.78);text-transform:uppercase;margin-bottom:4px;">💡 هل تعلم؟</div>' +
+            '<div style="font-size:15px;font-weight:800;color:#fff;line-height:1.35;">'+f.test+'</div>' +
+          '</div>' +
+        '</div>' +
+
+        '<div style="padding:22px 24px 16px;">' +
+          '<p style="margin:0;font-size:13.5px;line-height:2.1;color:'+textCol+';border-right:3px solid '+accentCol+';padding-right:14px;">'+f.fact+'</p>' +
+        '</div>' +
+
+        '<div style="padding:12px 22px 20px;border-top:1px solid '+divCol+';display:flex;align-items:center;justify-content:space-between;">' +
+          '<span style="font-size:10.5px;color:'+text2Col+';">تظهر تلقائياً بعد دقيقتين خمول ✨</span>' +
+          '<button id="dyk-ok-btn" style="background:'+headerBg+';color:#fff;border:none;border-radius:12px;padding:10px 28px;font-size:13px;font-weight:800;font-family:\'Cairo\',\'Inter\',sans-serif;cursor:pointer;box-shadow:'+btnShadow+';transition:transform 0.15s,box-shadow 0.15s;letter-spacing:0.3px;"' +
+            ' onmouseover="this.style.transform=\'translateY(-2px)\';this.style.opacity=\'0.92\'"' +
+            ' onmouseout="this.style.transform=\'\';this.style.opacity=\'1\'">' +
+            '👍&nbsp; فهمت!' +
+          '</button>' +
+        '</div>' +
+
+      '</div>';
+
+    document.body.appendChild(overlay);
+
+    function close() {
+      overlay.style.animation = 'dykFadeOut 0.28s ease forwards';
+      setTimeout(function() {
+        if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+        isShowing = false;
+        resetTimer();
+      }, 260);
+    }
+
+    document.getElementById('dyk-ok-btn').addEventListener('click', close);
+    overlay.addEventListener('click', function(e) { if (e.target === overlay) close(); });
+  }
+
+  function resetTimer() {
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(showPopup, IDLE_MS);
+  }
+
+  ['mousemove','mousedown','keydown','touchstart','scroll','click','pointermove'].forEach(function(ev) {
+    document.addEventListener(ev, resetTimer, {passive:true});
+  });
+
+  var s = document.createElement('style');
+  s.textContent = '@keyframes dykPopIn{from{opacity:0;transform:scale(0.8) translateY(30px)}to{opacity:1;transform:scale(1) translateY(0)}}@keyframes dykFadeOut{from{opacity:1}to{opacity:0}}';
+  document.head.appendChild(s);
+
+  resetTimer();
+
+})();
 
 </script>
