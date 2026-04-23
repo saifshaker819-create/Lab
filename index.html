@@ -8448,7 +8448,7 @@ function toggleWizTest(tid){
   if(idx>-1) wizSelectedTests.splice(idx,1);
   else wizSelectedTests.push(t);
 
-  // Partial DOM update — only touch the clicked test-item (no full re-render)
+  // 1) تحديث test-item في القائمة اليسرى (checkbox + class)
   const item=document.querySelector(`.test-item[onclick*="'${tid}'"]`)||
              document.querySelector(`.test-item[onclick="toggleWizTest('${tid}')"]`);
   if(item){
@@ -8457,7 +8457,7 @@ function toggleWizTest(tid){
     else{item.classList.remove('selected');if(cb)cb.checked=false;}
   }
 
-  // Update quick-select button visual state
+  // 2) تحديث زر quick-select
   const qBtn=document.getElementById('quick-btn-'+tid);
   if(qBtn){
     qBtn.style.borderColor=nowSelected?'var(--primary)':'var(--border)';
@@ -8465,10 +8465,40 @@ function toggleWizTest(tid){
     qBtn.style.color=nowSelected?'var(--primary)':'var(--text)';
   }
 
-  renderWizRightPanel();
+  // 3) تحديث القائمة اليمنى بشكل جزئي (بدون إعادة رسم كاملة)
+  _wizRightPanelUpdateOne(t, tid, nowSelected);
+
   updateWizTotal();
   const srch=document.getElementById('wiz-test-srch');
   if(srch){ srch.focus(); srch.select(); }
+}
+
+// تحديث جزئي سريع: يضيف أو يحذف عنصر واحد فقط من القائمة اليمنى
+function _wizRightPanelUpdateOne(t, tid, nowSelected){
+  const list=document.getElementById('wiz-right-list');
+  const count=document.getElementById('wiz-sel-count');
+  if(count) count.textContent=wizSelectedTests.length;
+  if(!list) return;
+
+  if(nowSelected){
+    // إزالة رسالة "لم يتم اختيار" إن وُجدت
+    const empty=list.querySelector('.wiz-sel-empty');
+    if(empty) empty.remove();
+    // إضافة العنصر الجديد
+    const div=document.createElement('div');
+    div.className='wiz-sel-item';
+    div.dataset.selId=tid;
+    div.innerHTML=`<div style="flex:1;min-width:0"><div class="wiz-sel-item-code">${t.code}</div><div class="wiz-sel-item-name">${tDisplayName(t)}</div></div><span style="font-size:10px;color:var(--text2);flex-shrink:0;margin-left:4px">${t.price||0}</span><button class="wiz-sel-rm" onclick="toggleWizTest('${tid}')" title="حذف">×</button>`;
+    list.appendChild(div);
+  } else {
+    // حذف العنصر من القائمة اليمنى
+    const existing=list.querySelector(`.wiz-sel-item[data-sel-id="${tid}"]`);
+    if(existing) existing.remove();
+    // إذا أصبحت القائمة فارغة
+    if(!wizSelectedTests.length){
+      list.innerHTML=`<div class="wiz-sel-empty">لم يتم اختيار<br>أي تحليل بعد</div>`;
+    }
+  }
 }
 
 function renderWizRightPanel(){
@@ -8482,7 +8512,7 @@ function renderWizRightPanel(){
     return;
   }
   list.innerHTML=wizSelectedTests.map(t=>`
-    <div class="wiz-sel-item">
+    <div class="wiz-sel-item" data-sel-id="${t.id}">
       <div style="flex:1;min-width:0">
         <div class="wiz-sel-item-code">${t.code}</div>
         <div class="wiz-sel-item-name">${tDisplayName(t)}</div>
@@ -26976,16 +27006,26 @@ document.addEventListener('DOMContentLoaded',function(){
   }
 });
 
-/* patch renderWizRightPanel لإضافة badge pop */
+/* patch renderWizRightPanel و _wizRightPanelUpdateOne لإضافة badge pop */
+function _wizBadgePop(){
+  requestAnimationFrame(function(){
+    const badge=document.getElementById('wiz-sel-count');
+    if(badge){badge.classList.remove('wiz-count-pop');void badge.offsetWidth;badge.classList.add('wiz-count-pop');}
+  });
+}
 setTimeout(function(){
   if(typeof renderWizRightPanel==='function'){
     const _orig=window.renderWizRightPanel;
     window.renderWizRightPanel=function(){
       _orig.apply(this,arguments);
-      requestAnimationFrame(function(){
-        const badge=document.getElementById('wiz-sel-count');
-        if(badge){badge.classList.remove('wiz-count-pop');void badge.offsetWidth;badge.classList.add('wiz-count-pop');}
-      });
+      _wizBadgePop();
+    };
+  }
+  if(typeof _wizRightPanelUpdateOne==='function'){
+    const _orig3=window._wizRightPanelUpdateOne;
+    window._wizRightPanelUpdateOne=function(){
+      _orig3.apply(this,arguments);
+      _wizBadgePop();
     };
   }
   if(typeof filterWizTests==='function'){
