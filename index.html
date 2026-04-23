@@ -565,8 +565,13 @@ body.light-mode *:not(a):not(.btn-p):not(.btn-ok):not(.ni.active):not(.ni.active
   color:inherit;
 }
 body.light-mode #sec-requests .req-sticky-bar{background:var(--bg-body)!important;}
-/* ضمان ظهور شريط البحث في الطلبات فوق البانر دائماً */
-#sec-requests .req-sticky-bar{z-index:8000!important;isolation:isolate;}
+/* شريط الطلبات العائم - موبايل */
+@media(max-width:768px){
+  #req-float-bar{right:0!important;}
+}
+/* ضمان عمل position:sticky في قسم الطلبات (contain:layout يكسر sticky) */
+#sec-requests{contain:style!important;}
+#sec-requests .req-sticky-bar{z-index:8000!important;}
 /* ── الوضع النهاري: قوائم منسدلة وعناصر خاصة ── */
 body.light-mode select,body.light-mode select.fc{background:#edf0f5!important;color:#000000!important;border-color:#c8d4e0!important;}
 body.light-mode select option{background:#ffffff!important;color:#000000!important;}
@@ -2527,6 +2532,22 @@ body.light-mode .wnb-text .wnb-char.neon-trail {
     </div>
   </div>
 
+  <!-- ══ شريط طلبات عائم ثابت — خارج كل الـ sections ══ -->
+  <div id="req-float-bar" style="display:none;position:fixed;top:72px;right:var(--sidebar-w);left:0;z-index:99000;background:var(--bg-dark);border-bottom:1.5px solid var(--border);padding:10px 18px;box-shadow:0 4px 20px rgba(4,8,20,0.98);display:none;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;">
+    <div class="tabs">
+      <button class="tab active" data-filter="today" onclick="filterReq('today',this)">📅 اليوم</button>
+      <button class="tab" data-filter="all" onclick="filterReq('all',this)">الكل</button>
+      <button class="tab" data-filter="pending" onclick="filterReq('pending',this)">معلقة</button>
+      <button class="tab" data-filter="inprogress" onclick="filterReq('inprogress',this)">جارية</button>
+      <button class="tab" data-filter="done" onclick="filterReq('done',this)">مكتملة</button>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;flex-shrink:0;">
+      <div class="srch-box" style="width:160px"><span class="srch-ic">🔍</span><input class="srch-inp" id="req-srch-inp" lang="ar" dir="rtl" placeholder="بحث..." oninput="searchReq(this.value)" style="padding-left:70px;"><button type="button" class="lang-toggle-btn" id="req-srch-ltb" onclick="toggleInputLang('req-srch-inp','req-srch-ltb')" title="تبديل لغة الإدخال">ع</button></div>
+      <button class="btn btn-p" style="white-space:nowrap;flex-shrink:0;" onclick="startNewPatient()">➕ طلب جديد</button>
+    </div>
+  </div>
+  <!-- ══════════════════════════════════════════════════════ -->
+
   <div class="page">
 
     <!-- DASHBOARD -->
@@ -2602,20 +2623,6 @@ body.light-mode .wnb-text .wnb-char.neon-trail {
 
     <!-- REQUESTS -->
     <div class="sec" id="sec-requests">
-      <div class="req-sticky-bar" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;flex-wrap:wrap;gap:10px;position:sticky;top:72px;z-index:8000;background:var(--bg-dark);padding:10px 0 10px 0;box-shadow:0 4px 16px rgba(4,8,20,0.98);">
-        <div class="tabs">
-          <button class="tab active" data-filter="today" onclick="filterReq('today',this)">📅 اليوم</button>
-          <button class="tab" data-filter="all" onclick="filterReq('all',this)">الكل</button>
-          <button class="tab" data-filter="pending" onclick="filterReq('pending',this)">معلقة</button>
-          <button class="tab" data-filter="inprogress" onclick="filterReq('inprogress',this)">جارية</button>
-          <button class="tab" data-filter="done" onclick="filterReq('done',this)">مكتملة</button>
-        </div>
-        <div style="display:flex;gap:8px;align-items:center;flex-shrink:0;">
-          <div class="srch-box" style="width:150px"><span class="srch-ic">🔍</span><input class="srch-inp" id="req-srch-inp" lang="ar" dir="rtl" placeholder="بحث..." oninput="searchReq(this.value)" style="padding-left:70px;"><button type="button" class="lang-toggle-btn" id="req-srch-ltb" onclick="toggleInputLang('req-srch-inp','req-srch-ltb')" title="تبديل لغة الإدخال">ع</button></div>
-          <button class="btn btn-p" style="white-space:nowrap;flex-shrink:0;" onclick="startNewPatient()">➕ طلب جديد</button>
-        </div>
-      </div>
-
       <!-- ══════════════ بانر الترحيب النيون — الطلبات ══════════════ -->
       <div class="welcome-neon-banner wnb-requests" id="wnb-requests-banner">
         <div class="wnb-bg-layer"></div>
@@ -2631,6 +2638,9 @@ body.light-mode .wnb-text .wnb-char.neon-trail {
         <div class="wnb-line wnb-line-bottom"></div>
       </div>
       <!-- ══════════════════════════════════════════ -->
+
+      <!-- spacer يعوض ارتفاع الشريط العائم -->
+      <div style="height:58px;"></div>
 
       <div class="gc">
         <div style="overflow-x:auto">
@@ -7677,13 +7687,16 @@ function nav(p){
     if(p==='stool') renderStoolList();
     if(p==='semen') renderSemenList();
     if(p==='requests'){
+      document.getElementById('req-float-bar').style.display='flex';
       // رسم فوري بدون تأخير
       renderRequestsFiltered('today');
-      document.querySelectorAll('#sec-requests .tabs .tab').forEach(t=>t.classList.remove('active'));
-      const todayTab=document.querySelector('#sec-requests .tabs .tab[onclick*="today"]');
+      document.querySelectorAll('#req-float-bar .tabs .tab').forEach(t=>t.classList.remove('active'));
+      const todayTab=document.querySelector('#req-float-bar .tabs .tab[data-filter="today"]');
       if(todayTab) todayTab.classList.add('active');
       const srch=document.getElementById('req-srch-inp');
       if(srch){srch.focus();srch.select();}
+    } else {
+      document.getElementById('req-float-bar').style.display='none';
     }
     if(p==='waitqueue'){if(typeof renderWaitQueue==='function')renderWaitQueue();}
     if(p==='lis'){if(typeof lisInit==='function')lisInit();}
