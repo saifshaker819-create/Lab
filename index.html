@@ -577,16 +577,17 @@ body.light-mode #sec-requests .req-sticky-bar{background:var(--bg-body)!importan
   border-radius: 50%;
   background: linear-gradient(135deg, var(--primary), var(--secondary));
   border: none;
-  cursor: pointer;
+  cursor: grab;
   display: none;
   align-items: center;
   justify-content: center;
   font-size: 22px;
   box-shadow: 0 4px 20px rgba(0,212,255,0.45), 0 2px 8px rgba(0,0,0,0.5);
   transition: box-shadow 0.2s, transform 0.15s;
-  touch-action: none;
+  touch-action: none !important;
   user-select: none;
   -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
 }
 #req-float-btn:hover { box-shadow: 0 6px 28px rgba(0,212,255,0.65), 0 2px 10px rgba(0,0,0,0.5); transform: scale(1.07); }
 #req-float-btn.dragging { opacity: 0.85; transform: scale(1.12); box-shadow: 0 8px 36px rgba(0,212,255,0.7); }
@@ -27255,6 +27256,9 @@ setTimeout(function(){
     '  transition-duration:0.06s !important;',
     '}',
 
+    /* استثناء الزر العائم — يحتاج touch-action:none للسحب */
+    '#req-float-btn { touch-action:none !important; cursor:grab !important; }',
+
     /* تحريك الصفحات أسرع */
     '.sec.active { animation:fadeUp 0.07s ease both !important; }',
 
@@ -27381,46 +27385,125 @@ setTimeout(function(){
 
 
 /* ══════════════════════════════════════════════════════════════
-   🔍 زر البحث العائم — قسم الطلبات
+   🔍 زر البحث العائم — قسم الطلبات  v2
 ══════════════════════════════════════════════════════════════ */
 (function initReqFloatBtn() {
-  var btn, box, isDragging = false, hasMoved = false;
-  var pos = { x: null, y: null };
-  var drag = { startX: 0, startY: 0, origX: 0, origY: 0 };
+  var STORE_KEY = 'medlab_float_btn_pos';
+  var BTN_SIZE  = 56;
+  var btn, box;
+  var posX = -1, posY = -1;
+  var dragStartX, dragStartY, dragOrigX, dragOrigY;
+  var dragging = false, moved = false;
 
-  function setDefaultPos() {
-    var margin = 20;
-    pos.x = window.innerWidth - 56 - margin;
-    pos.y = window.innerHeight - 130;
-    applyPos();
+  /* ── حفظ واسترجاع الموضع ── */
+  function savePos() {
+    try { localStorage.setItem(STORE_KEY, JSON.stringify({x:posX,y:posY})); } catch(e){}
+  }
+  function loadPos() {
+    try {
+      var s = localStorage.getItem(STORE_KEY);
+      if (s) { var p = JSON.parse(s); posX = p.x; posY = p.y; }
+    } catch(e){}
+  }
+
+  /* ── حدود الشاشة ── */
+  function clamp() {
+    var maxX = window.innerWidth  - BTN_SIZE - 8;
+    var maxY = window.innerHeight - BTN_SIZE - 8;
+    posX = Math.max(8,  Math.min(posX, maxX));
+    posY = Math.max(80, Math.min(posY, maxY));
   }
 
   function applyPos() {
-    var maxX = window.innerWidth - 56 - 8;
-    var maxY = window.innerHeight - 56 - 8;
-    pos.x = Math.max(8, Math.min(pos.x, maxX));
-    pos.y = Math.max(72, Math.min(pos.y, maxY));
-    btn.style.left = pos.x + 'px';
-    btn.style.top  = pos.y + 'px';
-    // ضبط موضع صندوق البحث فوق أو تحت الزر
-    positionBox();
+    clamp();
+    btn.style.left = posX + 'px';
+    btn.style.top  = posY + 'px';
   }
 
+  function defaultPos() {
+    posX = window.innerWidth  - BTN_SIZE - 22;
+    posY = window.innerHeight - BTN_SIZE - 90;
+  }
+
+  /* ── صندوق البحث ── */
   function positionBox() {
-    if (!box || box.style.display === 'none') return;
-    var bw = 280, bh = 110;
-    var bx = pos.x + 56 - bw; // محاذاة يمين الزر
-    var by = pos.y - bh - 10;
-    if (by < 76) by = pos.y + 66;
-    if (bx < 8) bx = 8;
-    box.style.left = bx + 'px';
-    box.style.top  = by + 'px';
+    var bw = Math.min(290, window.innerWidth - 16);
+    var bx = posX + BTN_SIZE - bw;
+    var by = posY - 120;
+    if (by < 80) by = posY + BTN_SIZE + 10;
+    if (bx < 8)  bx = 8;
+    box.style.left  = bx + 'px';
+    box.style.top   = by + 'px';
+    box.style.width = bw + 'px';
   }
 
+  window.closeReqFloatSearch = function() {
+    if (!box) return;
+    box.style.display = 'none';
+  };
+
+  window.syncReqSearch = function(v) {
+    var m = document.getElementById('req-srch-inp');
+    if (m) { m.value = v; searchReq(v); }
+  };
+
+  function openBox() {
+    box.style.display = 'flex';
+    positionBox();
+    setTimeout(function() {
+      var inp = document.getElementById('req-float-srch-inp');
+      if (inp) { inp.focus(); inp.select(); }
+    }, 30);
+  }
+
+  function toggleBox() {
+    if (box.style.display === 'flex') closeReqFloatSearch();
+    else openBox();
+  }
+
+  /* ══ Pointer Events للسحب — يعمل على موبايل وديسكتوب ══ */
+  function onPD(e) {        // pointerdown
+    /* تجاهل نقرات على العناصر الداخلية */
+    if (e.target !== btn) return;
+    dragging  = true;
+    moved     = false;
+    dragStartX = e.clientX;
+    dragStartY = e.clientY;
+    dragOrigX  = posX;
+    dragOrigY  = posY;
+    btn.setPointerCapture(e.pointerId);   // ← يضمن استمرار الأحداث
+    btn.classList.add('dragging');
+    e.preventDefault();
+    e.stopPropagation();
+  }
+
+  function onPM(e) {        // pointermove
+    if (!dragging) return;
+    var dx = e.clientX - dragStartX;
+    var dy = e.clientY - dragStartY;
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) moved = true;
+    posX = dragOrigX + dx;
+    posY = dragOrigY + dy;
+    applyPos();
+    if (box.style.display === 'flex') positionBox();
+    e.preventDefault();
+  }
+
+  function onPU(e) {        // pointerup / pointercancel
+    if (!dragging) return;
+    dragging = false;
+    btn.classList.remove('dragging');
+    if (moved) {
+      savePos();            // احفظ الموضع الجديد
+    } else {
+      toggleBox();          // نقرة بدون سحب = فتح/إغلاق
+    }
+  }
+
+  /* ── إظهار / إخفاء الزر ── */
   function showBtn() {
     if (!btn) return;
     btn.style.display = 'flex';
-    if (pos.x === null) setDefaultPos();
   }
   function hideBtn() {
     if (!btn) return;
@@ -27428,94 +27511,46 @@ setTimeout(function(){
     closeReqFloatSearch();
   }
 
-  window.closeReqFloatSearch = function() {
-    if (!box) return;
-    box.style.display = 'none';
-    // مزامنة: مسح البحث لو أُغلق الصندوق
-    var mainInp = document.getElementById('req-srch-inp');
-    if (mainInp && !mainInp.value) searchReq('');
-  };
-
-  window.syncReqSearch = function(v) {
-    var mainInp = document.getElementById('req-srch-inp');
-    if (mainInp) mainInp.value = v;
-  };
-
-  function toggleBox() {
-    if (!box) return;
-    if (box.style.display === 'flex') {
-      closeReqFloatSearch();
-    } else {
-      box.style.display = 'flex';
-      positionBox();
-      setTimeout(function() {
-        var inp = document.getElementById('req-float-srch-inp');
-        if (inp) inp.focus();
-      }, 60);
-    }
-  }
-
-  /* ── سحب الزر ── */
-  function onPointerDown(e) {
-    if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON') return;
-    isDragging = true; hasMoved = false;
-    drag.startX = e.clientX || (e.touches && e.touches[0].clientX) || 0;
-    drag.startY = e.clientY || (e.touches && e.touches[0].clientY) || 0;
-    drag.origX = pos.x; drag.origY = pos.y;
-    btn.classList.add('dragging');
-    e.preventDefault();
-  }
-
-  function onPointerMove(e) {
-    if (!isDragging) return;
-    var cx = e.clientX || (e.touches && e.touches[0].clientX) || 0;
-    var cy = e.clientY || (e.touches && e.touches[0].clientY) || 0;
-    var dx = cx - drag.startX;
-    var dy = cy - drag.startY;
-    if (Math.abs(dx) > 4 || Math.abs(dy) > 4) hasMoved = true;
-    pos.x = drag.origX + dx;
-    pos.y = drag.origY + dy;
-    applyPos();
-    e.preventDefault();
-  }
-
-  function onPointerUp(e) {
-    if (!isDragging) return;
-    isDragging = false;
-    btn.classList.remove('dragging');
-    if (!hasMoved) toggleBox(); // نقرة بدون سحب → فتح/إغلاق الصندوق
-  }
-
-  /* ── مراقبة التنقل بين الأقسام ── */
-  function watchNav() {
+  /* ── ربط nav ── */
+  function hookNav() {
     var _nav = window.nav;
-    if (typeof _nav === 'function') {
-      window.nav = function(page) {
-        _nav(page);
-        setTimeout(function() {
-          if (page === 'requests') showBtn();
-          else hideBtn();
-        }, 40);
-      };
-    }
+    if (typeof _nav !== 'function') return;
+    window.nav = function(page) {
+      _nav(page);
+      setTimeout(function() {
+        if (page === 'requests') showBtn();
+        else hideBtn();
+      }, 50);
+    };
   }
 
-  document.addEventListener('DOMContentLoaded', function() {
+  /* ── تهيئة بعد تحميل DOM ── */
+  function init() {
     btn = document.getElementById('req-float-btn');
     box = document.getElementById('req-float-search-box');
     if (!btn || !box) return;
 
-    // أحداث الماوس
-    btn.addEventListener('mousedown', onPointerDown);
-    document.addEventListener('mousemove', onPointerMove);
-    document.addEventListener('mouseup', onPointerUp);
+    /* موضع محفوظ أو افتراضي */
+    loadPos();
+    if (posX < 0) defaultPos();
+    applyPos();
 
-    // أحداث اللمس
-    btn.addEventListener('touchstart', onPointerDown, { passive: false });
-    document.addEventListener('touchmove', onPointerMove, { passive: false });
-    document.addEventListener('touchend', onPointerUp);
+    /* ربط أحداث الـ Pointer (يشمل اللمس والماوس) */
+    btn.addEventListener('pointerdown',   onPD, {capture:true});
+    btn.addEventListener('pointermove',   onPM, {capture:true});
+    btn.addEventListener('pointerup',     onPU, {capture:true});
+    btn.addEventListener('pointercancel', onPU, {capture:true});
 
-    // مزامنة مع البحث الرئيسي
+    /* إغلاق الصندوق بالنقر خارجه */
+    document.addEventListener('pointerdown', function(e) {
+      if (box.style.display === 'flex' &&
+          !box.contains(e.target) &&
+          e.target !== btn) {
+        closeReqFloatSearch();
+      }
+    }, true);
+
+    /* مزامنة حقل البحث الرئيسي مع العائم */
     var mainInp = document.getElementById('req-srch-inp');
     if (mainInp) {
       mainInp.addEventListener('input', function() {
@@ -27524,26 +27559,25 @@ setTimeout(function(){
       });
     }
 
-    // إغلاق الصندوق عند النقر خارجه
-    document.addEventListener('click', function(e) {
-      if (box.style.display === 'flex' && !box.contains(e.target) && e.target !== btn) {
-        closeReqFloatSearch();
-      }
-    });
+    hookNav();
 
-    watchNav();
-
-    // إظهار الزر إذا كان قسم الطلبات نشطاً عند التحميل
+    /* إظهار الزر إن كان القسم نشطاً الآن */
     setTimeout(function() {
       var sec = document.getElementById('sec-requests');
       if (sec && sec.classList.contains('active')) showBtn();
-    }, 500);
-  });
+    }, 400);
+  }
 
-  // إعادة الحساب عند تغيير حجم الشاشة
+  /* resize: إعادة التقييد فقط بدون تغيير الموضع المحفوظ */
   window.addEventListener('resize', function() {
     if (btn && btn.style.display !== 'none') applyPos();
+    if (box && box.style.display === 'flex') positionBox();
   });
+
+  if (document.readyState === 'loading')
+    document.addEventListener('DOMContentLoaded', init);
+  else
+    init();
 
 })();
 
