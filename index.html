@@ -565,9 +565,8 @@ body.light-mode *:not(a):not(.btn-p):not(.btn-ok):not(.ni.active):not(.ni.active
   color:inherit;
 }
 body.light-mode #sec-requests .req-sticky-bar{background:var(--bg-body)!important;}
-/* ضمان عمل position:sticky في قسم الطلبات (contain:layout يكسر sticky) */
-#sec-requests{contain:style!important;}
-#sec-requests .req-sticky-bar{z-index:8000!important;}
+/* ضمان ظهور شريط البحث في الطلبات فوق البانر دائماً */
+#sec-requests .req-sticky-bar{z-index:8000!important;isolation:isolate;}
 /* ── الوضع النهاري: قوائم منسدلة وعناصر خاصة ── */
 body.light-mode select,body.light-mode select.fc{background:#edf0f5!important;color:#000000!important;border-color:#c8d4e0!important;}
 body.light-mode select option{background:#ffffff!important;color:#000000!important;}
@@ -1728,7 +1727,6 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield;}
   .sidebar{transform:translateX(100%);}
   .sidebar.open{transform:translateX(0);}
   .main{margin-right:0!important;}
-  .req-sticky-bar{right:0!important;}
 
   /* ── overlay للشريط الجانبي ── */
   #sidebar-overlay{
@@ -2604,6 +2602,20 @@ body.light-mode .wnb-text .wnb-char.neon-trail {
 
     <!-- REQUESTS -->
     <div class="sec" id="sec-requests">
+      <div class="req-sticky-bar" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;flex-wrap:wrap;gap:10px;position:sticky;top:72px;z-index:8000;background:var(--bg-dark);padding:10px 0 10px 0;box-shadow:0 4px 16px rgba(4,8,20,0.98);">
+        <div class="tabs">
+          <button class="tab active" data-filter="today" onclick="filterReq('today',this)">📅 اليوم</button>
+          <button class="tab" data-filter="all" onclick="filterReq('all',this)">الكل</button>
+          <button class="tab" data-filter="pending" onclick="filterReq('pending',this)">معلقة</button>
+          <button class="tab" data-filter="inprogress" onclick="filterReq('inprogress',this)">جارية</button>
+          <button class="tab" data-filter="done" onclick="filterReq('done',this)">مكتملة</button>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-shrink:0;">
+          <div class="srch-box" style="width:150px"><span class="srch-ic">🔍</span><input class="srch-inp" id="req-srch-inp" lang="ar" dir="rtl" placeholder="بحث..." oninput="searchReq(this.value)" style="padding-left:70px;"><button type="button" class="lang-toggle-btn" id="req-srch-ltb" onclick="toggleInputLang('req-srch-inp','req-srch-ltb')" title="تبديل لغة الإدخال">ع</button></div>
+          <button class="btn btn-p" style="white-space:nowrap;flex-shrink:0;" onclick="startNewPatient()">➕ طلب جديد</button>
+        </div>
+      </div>
+
       <!-- ══════════════ بانر الترحيب النيون — الطلبات ══════════════ -->
       <div class="welcome-neon-banner wnb-requests" id="wnb-requests-banner">
         <div class="wnb-bg-layer"></div>
@@ -2619,22 +2631,6 @@ body.light-mode .wnb-text .wnb-char.neon-trail {
         <div class="wnb-line wnb-line-bottom"></div>
       </div>
       <!-- ══════════════════════════════════════════ -->
-
-      <!-- spacer يعوض ارتفاع الشريط الثابت -->
-      <div style="height:58px;flex-shrink:0;"></div>
-      <div class="req-sticky-bar" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;position:fixed;top:72px;right:var(--sidebar-w);left:0;z-index:8000;background:var(--bg-dark);padding:10px 18px;box-shadow:0 4px 16px rgba(4,8,20,0.98);border-bottom:1px solid var(--border);">
-        <div class="tabs">
-          <button class="tab active" data-filter="today" onclick="filterReq('today',this)">📅 اليوم</button>
-          <button class="tab" data-filter="all" onclick="filterReq('all',this)">الكل</button>
-          <button class="tab" data-filter="pending" onclick="filterReq('pending',this)">معلقة</button>
-          <button class="tab" data-filter="inprogress" onclick="filterReq('inprogress',this)">جارية</button>
-          <button class="tab" data-filter="done" onclick="filterReq('done',this)">مكتملة</button>
-        </div>
-        <div style="display:flex;gap:8px;align-items:center;flex-shrink:0;">
-          <div class="srch-box" style="width:150px"><span class="srch-ic">🔍</span><input class="srch-inp" id="req-srch-inp" lang="ar" dir="rtl" placeholder="بحث..." oninput="searchReq(this.value)" style="padding-left:70px;"><button type="button" class="lang-toggle-btn" id="req-srch-ltb" onclick="toggleInputLang('req-srch-inp','req-srch-ltb')" title="تبديل لغة الإدخال">ع</button></div>
-          <button class="btn btn-p" style="white-space:nowrap;flex-shrink:0;" onclick="startNewPatient()">➕ طلب جديد</button>
-        </div>
-      </div>
 
       <div class="gc">
         <div style="overflow-x:auto">
