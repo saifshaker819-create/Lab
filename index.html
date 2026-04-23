@@ -7735,8 +7735,13 @@ function nav(p){
       document.querySelectorAll('#sec-requests .tabs .tab').forEach(t=>t.classList.remove('active'));
       const todayTab=document.querySelector('#sec-requests .tabs .tab[onclick*="today"]');
       if(todayTab) todayTab.classList.add('active');
-      const srch=document.getElementById('req-srch-inp');
-      if(srch){srch.focus();srch.select();}
+      // rAF مزدوج: الأول يضمن رسم DOM، الثاني يضمن التركيز بعد الرسم
+      requestAnimationFrame(function(){
+        requestAnimationFrame(function(){
+          const srch=document.getElementById('req-srch-inp');
+          if(srch){srch.focus();srch.select();}
+        });
+      });
     }
     if(p==='waitqueue'){if(typeof renderWaitQueue==='function')renderWaitQueue();}
     if(p==='lis'){if(typeof lisInit==='function')lisInit();}
@@ -9175,7 +9180,7 @@ function searchReq(v){
     const activeTab=document.querySelector('#sec-requests .tabs .tab.active');
     const filter=activeTab?.getAttribute('data-filter')||'today';
     renderRequestsFiltered(filter,v);
-  },0);
+  },80);
 }
 function deleteReq(id){if(confirm('حذف هذا الطلب؟')){requests=requests.filter(r=>r.id!==id);save('requests',requests);renderRequests();updateBadges();updateDashboard();showNotif('تم الحذف','تم حذف الطلب');}}
 function goToResult(id){
@@ -9287,7 +9292,7 @@ function openViewResultsModal(rid){
         </div>`;
     } else {
       const iCls=val?(parseFloat(val)>t.maxVal?'res-high':parseFloat(val)<t.minVal?'res-low':'res-ok'):'';
-      inputHtml=`<input type="number" class="res-input ${iCls}" id="vr-rv-${t.id}" lang="en" inputmode="decimal" value="${val}" step="any" oninput="vrCheckResult('${t.id}',this.value)" placeholder="...">`;
+      inputHtml=`<input type="text" class="res-input ${iCls}" id="vr-rv-${t.id}" lang="en" inputmode="decimal" value="${val}" oninput="vrCheckResult('${t.id}',this.value)" placeholder="...">`;
     }
 
     rows+=`<div style="display:flex;align-items:flex-start;gap:12px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.05)">
@@ -9712,7 +9717,7 @@ function loadResultEntry(){
       </div>`;
     } else {
       const cls=savedVal&&ref.min!==null?(parseFloat(savedVal)>ref.max?'res-high':parseFloat(savedVal)<ref.min?'res-low':'res-ok'):'';
-      inputHtml=`<input type="number" class="res-input ${cls}" id="rv-${t.id}" lang="en" inputmode="decimal" value="${savedVal||''}" step="any" oninput="checkResult('${t.id}',this.value)" placeholder="...">`;
+      inputHtml=`<input type="text" class="res-input ${cls}" id="rv-${t.id}" lang="en" inputmode="decimal" value="${savedVal||''}" oninput="checkResult('${t.id}',this.value)" placeholder="...">`;
     }
     // جمع آخر 4 نتائج لهذا التحليل بالذات لنفس المريض
     const prevForThisTest=prevReqs.filter(pr=>pr.results&&pr.results[t.id]!==undefined&&pr.results[t.id]!=='').slice(0,4);
@@ -9808,15 +9813,22 @@ function loadResultEntry(){
       if(next){next.focus();if(next.select)next.select();}
     };
     tbody.addEventListener('keydown',tbody._resNavHandler,true);
-    // ── تركيز تلقائي على أول حقل إدخال — فقط إذا لم يكن المستخدم يكتب في حقل آخر ──
-    setTimeout(function(){
+    // ── تركيز تلقائي فوري على أول حقل إدخال ──
+    requestAnimationFrame(function(){
       // لا تسرق التركيز إذا كان المستخدم يكتب في حقل بالفعل
-      const activeEl = document.activeElement;
-      const isTyping = activeEl && (activeEl.tagName==='INPUT'||activeEl.tagName==='TEXTAREA'||activeEl.tagName==='SELECT') && document.getElementById('res-entry-tbody')?.contains(activeEl);
+      var activeEl = document.activeElement;
+      var isTyping = activeEl && (activeEl.tagName==='INPUT'||activeEl.tagName==='TEXTAREA'||activeEl.tagName==='SELECT') && document.getElementById('res-entry-tbody') && document.getElementById('res-entry-tbody').contains(activeEl);
       if(isTyping) return;
       var fi=Array.from(document.querySelectorAll('#res-entry-tbody .res-input')).find(function(el){return el.type!=='hidden'&&el.offsetParent!==null;});
-      if(fi){fi.focus();if(fi.select)fi.select();}
-    }, 200);
+      if(fi){
+        // حفظ القيمة الحالية قبل التركيز لمنع حذفها
+        var existingVal = fi.value;
+        fi.focus();
+        if(fi.select && (!existingVal || existingVal==='')) fi.select();
+        // استعادة القيمة إذا تغيرت بشكل غير مقصود
+        if(existingVal) fi.value = existingVal;
+      }
+    });
   })();
 }
 
@@ -27096,7 +27108,7 @@ setTimeout(function(){
         var activeTab = document.querySelector('#sec-requests .tabs .tab.active');
         var filter = (activeTab && activeTab.getAttribute('data-filter')) || 'today';
         if(typeof renderRequestsFiltered === 'function') renderRequestsFiltered(filter, v);
-      }, 200);
+      }, 80);
     };
   }
 
