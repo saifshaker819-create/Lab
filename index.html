@@ -567,6 +567,55 @@ body.light-mode *:not(a):not(.btn-p):not(.btn-ok):not(.ni.active):not(.ni.active
 body.light-mode #sec-requests .req-sticky-bar{background:var(--bg-body)!important;}
 /* ضمان ظهور شريط البحث في الطلبات فوق البانر دائماً */
 #sec-requests .req-sticky-bar{z-index:8000!important;isolation:isolate;}
+
+/* ── زر البحث العائم في قسم الطلبات ── */
+#req-float-btn {
+  position: fixed;
+  z-index: 99990;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary), var(--secondary));
+  border: none;
+  cursor: pointer;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  box-shadow: 0 4px 20px rgba(0,212,255,0.45), 0 2px 8px rgba(0,0,0,0.5);
+  transition: box-shadow 0.2s, transform 0.15s;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+#req-float-btn:hover { box-shadow: 0 6px 28px rgba(0,212,255,0.65), 0 2px 10px rgba(0,0,0,0.5); transform: scale(1.07); }
+#req-float-btn.dragging { opacity: 0.85; transform: scale(1.12); box-shadow: 0 8px 36px rgba(0,212,255,0.7); }
+body.light-mode #req-float-btn { box-shadow: 0 4px 20px rgba(0,95,153,0.35), 0 2px 8px rgba(0,0,0,0.2); }
+
+/* نافذة البحث العائمة */
+#req-float-search-box {
+  position: fixed;
+  z-index: 99989;
+  background: var(--bg-modal);
+  border: 1.5px solid var(--primary);
+  border-radius: 16px;
+  padding: 14px 16px;
+  box-shadow: 0 8px 40px rgba(0,212,255,0.25), 0 4px 20px rgba(0,0,0,0.6);
+  display: none;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 260px;
+  animation: floatSearchIn 0.18s ease;
+}
+@keyframes floatSearchIn {
+  from { opacity:0; transform: scale(0.88) translateY(8px); }
+  to   { opacity:1; transform: scale(1) translateY(0); }
+}
+body.light-mode #req-float-search-box { background: #ffffff; border-color: var(--primary); box-shadow: 0 8px 32px rgba(0,95,153,0.18), 0 4px 16px rgba(0,0,0,0.12); }
+#req-float-search-box .float-srch-inp-wrap { display:flex; align-items:center; gap:6px; background:var(--bg-input); border:1px solid var(--border); border-radius:10px; padding:6px 10px; }
+#req-float-search-box .float-srch-inp-wrap:focus-within { border-color:var(--primary); background:var(--bg-input-focus); }
+#req-float-srch-inp { background:transparent; border:none; outline:none; color:var(--text); font-family:var(--font-family); font-size:13px; flex:1; min-width:0; direction:rtl; }
+#req-float-srch-inp::placeholder { color:var(--text2); }
 /* ── الوضع النهاري: قوائم منسدلة وعناصر خاصة ── */
 body.light-mode select,body.light-mode select.fc{background:#edf0f5!important;color:#000000!important;border-color:#c8d4e0!important;}
 body.light-mode select option{background:#ffffff!important;color:#000000!important;}
@@ -2638,6 +2687,20 @@ body.light-mode .wnb-text .wnb-char.neon-trail {
         </div>
       </div>
     </div>
+
+    <!-- ══ زر البحث العائم — قسم الطلبات ══ -->
+    <button id="req-float-btn" title="بحث في الطلبات" aria-label="بحث في الطلبات">🔍</button>
+    <div id="req-float-search-box">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px;">
+        <span style="font-size:12px;font-weight:700;color:var(--primary)">🔍 بحث في الطلبات</span>
+        <button onclick="closeReqFloatSearch()" style="background:none;border:none;color:var(--text2);font-size:18px;cursor:pointer;line-height:1;padding:0 2px;" title="إغلاق">×</button>
+      </div>
+      <div class="float-srch-inp-wrap">
+        <input id="req-float-srch-inp" class="srch-inp" lang="ar" dir="rtl" placeholder="بحث باسم المريض أو رقم الطلب..." oninput="searchReq(this.value);syncReqSearch(this.value)" autocomplete="off" autofocus>
+        <button type="button" class="lang-toggle-btn" id="req-float-ltb" onclick="toggleInputLang('req-float-srch-inp','req-float-ltb')" title="تبديل لغة الإدخال" style="position:static;transform:none;top:auto;">ع</button>
+      </div>
+    </div>
+    <!-- ══════════════════════════════════════════ -->
 
     <!-- RESULTS ENTRY -->
     <div class="sec" id="sec-results">
@@ -27315,6 +27378,174 @@ setTimeout(function(){
   console.log('[MedLab] ⚡ Speed Boost v3.0 مفعّل');
 
 })(); // END speedBoost
+
+
+/* ══════════════════════════════════════════════════════════════
+   🔍 زر البحث العائم — قسم الطلبات
+══════════════════════════════════════════════════════════════ */
+(function initReqFloatBtn() {
+  var btn, box, isDragging = false, hasMoved = false;
+  var pos = { x: null, y: null };
+  var drag = { startX: 0, startY: 0, origX: 0, origY: 0 };
+
+  function setDefaultPos() {
+    var margin = 20;
+    pos.x = window.innerWidth - 56 - margin;
+    pos.y = window.innerHeight - 130;
+    applyPos();
+  }
+
+  function applyPos() {
+    var maxX = window.innerWidth - 56 - 8;
+    var maxY = window.innerHeight - 56 - 8;
+    pos.x = Math.max(8, Math.min(pos.x, maxX));
+    pos.y = Math.max(72, Math.min(pos.y, maxY));
+    btn.style.left = pos.x + 'px';
+    btn.style.top  = pos.y + 'px';
+    // ضبط موضع صندوق البحث فوق أو تحت الزر
+    positionBox();
+  }
+
+  function positionBox() {
+    if (!box || box.style.display === 'none') return;
+    var bw = 280, bh = 110;
+    var bx = pos.x + 56 - bw; // محاذاة يمين الزر
+    var by = pos.y - bh - 10;
+    if (by < 76) by = pos.y + 66;
+    if (bx < 8) bx = 8;
+    box.style.left = bx + 'px';
+    box.style.top  = by + 'px';
+  }
+
+  function showBtn() {
+    if (!btn) return;
+    btn.style.display = 'flex';
+    if (pos.x === null) setDefaultPos();
+  }
+  function hideBtn() {
+    if (!btn) return;
+    btn.style.display = 'none';
+    closeReqFloatSearch();
+  }
+
+  window.closeReqFloatSearch = function() {
+    if (!box) return;
+    box.style.display = 'none';
+    // مزامنة: مسح البحث لو أُغلق الصندوق
+    var mainInp = document.getElementById('req-srch-inp');
+    if (mainInp && !mainInp.value) searchReq('');
+  };
+
+  window.syncReqSearch = function(v) {
+    var mainInp = document.getElementById('req-srch-inp');
+    if (mainInp) mainInp.value = v;
+  };
+
+  function toggleBox() {
+    if (!box) return;
+    if (box.style.display === 'flex') {
+      closeReqFloatSearch();
+    } else {
+      box.style.display = 'flex';
+      positionBox();
+      setTimeout(function() {
+        var inp = document.getElementById('req-float-srch-inp');
+        if (inp) inp.focus();
+      }, 60);
+    }
+  }
+
+  /* ── سحب الزر ── */
+  function onPointerDown(e) {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON') return;
+    isDragging = true; hasMoved = false;
+    drag.startX = e.clientX || (e.touches && e.touches[0].clientX) || 0;
+    drag.startY = e.clientY || (e.touches && e.touches[0].clientY) || 0;
+    drag.origX = pos.x; drag.origY = pos.y;
+    btn.classList.add('dragging');
+    e.preventDefault();
+  }
+
+  function onPointerMove(e) {
+    if (!isDragging) return;
+    var cx = e.clientX || (e.touches && e.touches[0].clientX) || 0;
+    var cy = e.clientY || (e.touches && e.touches[0].clientY) || 0;
+    var dx = cx - drag.startX;
+    var dy = cy - drag.startY;
+    if (Math.abs(dx) > 4 || Math.abs(dy) > 4) hasMoved = true;
+    pos.x = drag.origX + dx;
+    pos.y = drag.origY + dy;
+    applyPos();
+    e.preventDefault();
+  }
+
+  function onPointerUp(e) {
+    if (!isDragging) return;
+    isDragging = false;
+    btn.classList.remove('dragging');
+    if (!hasMoved) toggleBox(); // نقرة بدون سحب → فتح/إغلاق الصندوق
+  }
+
+  /* ── مراقبة التنقل بين الأقسام ── */
+  function watchNav() {
+    var _nav = window.nav;
+    if (typeof _nav === 'function') {
+      window.nav = function(page) {
+        _nav(page);
+        setTimeout(function() {
+          if (page === 'requests') showBtn();
+          else hideBtn();
+        }, 40);
+      };
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    btn = document.getElementById('req-float-btn');
+    box = document.getElementById('req-float-search-box');
+    if (!btn || !box) return;
+
+    // أحداث الماوس
+    btn.addEventListener('mousedown', onPointerDown);
+    document.addEventListener('mousemove', onPointerMove);
+    document.addEventListener('mouseup', onPointerUp);
+
+    // أحداث اللمس
+    btn.addEventListener('touchstart', onPointerDown, { passive: false });
+    document.addEventListener('touchmove', onPointerMove, { passive: false });
+    document.addEventListener('touchend', onPointerUp);
+
+    // مزامنة مع البحث الرئيسي
+    var mainInp = document.getElementById('req-srch-inp');
+    if (mainInp) {
+      mainInp.addEventListener('input', function() {
+        var fi = document.getElementById('req-float-srch-inp');
+        if (fi) fi.value = this.value;
+      });
+    }
+
+    // إغلاق الصندوق عند النقر خارجه
+    document.addEventListener('click', function(e) {
+      if (box.style.display === 'flex' && !box.contains(e.target) && e.target !== btn) {
+        closeReqFloatSearch();
+      }
+    });
+
+    watchNav();
+
+    // إظهار الزر إذا كان قسم الطلبات نشطاً عند التحميل
+    setTimeout(function() {
+      var sec = document.getElementById('sec-requests');
+      if (sec && sec.classList.contains('active')) showBtn();
+    }, 500);
+  });
+
+  // إعادة الحساب عند تغيير حجم الشاشة
+  window.addEventListener('resize', function() {
+    if (btn && btn.style.display !== 'none') applyPos();
+  });
+
+})();
 
 
 
