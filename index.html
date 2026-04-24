@@ -7012,6 +7012,12 @@ const ALL_TESTS=[
 {id:'calc016',code:'ANION-GAP',nameEn:'Anion Gap',nameShort:'Anion Gap',cat:'Calculated',subCat:'Miscellaneous',unit:'mEq/L',minVal:8,maxVal:12,minF:8,maxF:12,ref:'8 - 12',time:'calculated',price:0,notes:'Formula: Na - (Cl + HCO3)',isCalc:true,calcFormula:'anion_gap'},
 {id:'calc019',code:'MELD',nameEn:'MELD Score',nameShort:'MELD',cat:'Calculated',subCat:'Miscellaneous',unit:'score',minVal:null,maxVal:null,minF:null,maxF:null,ref:'< 10 Low | 10-19 Medium | >20 High',time:'calculated',price:0,notes:'Formula: 3.78×ln(Bili) + 11.2×ln(INR) + 9.57×ln(Creat) + 6.43',isCalc:true,calcFormula:'meld'},
 {id:'calc020',code:'FIB4',nameEn:'FIB-4 Index',nameShort:'FIB-4',cat:'Calculated',subCat:'Miscellaneous',unit:'index',minVal:null,maxVal:null,minF:null,maxF:null,ref:'< 1.30 Low | 1.30-2.67 Indeterminate | >2.67 High',time:'calculated',price:0,notes:'Formula: (Age × AST) / (Platelets × √ALT)',isCalc:true,calcFormula:'fib4'},
+// ══════════════════════════════════════════════════════════════
+// SPECIAL QUALITATIVE TESTS (Custom Options)
+// ══════════════════════════════════════════════════════════════
+{id:'sq001',code:'URINE-ALB',nameEn:'Urine for Albumin',nameShort:'Urine Albumin',cat:'Urinalysis',subCat:'Urinalysis',unit:'qualitative',minVal:null,maxVal:null,minF:null,maxF:null,ref:'Nil',time:'2 hours',price:50,notes:'',opts:['Nil','Trace','+','++','+++','++++'],normalOpt:'Nil'},
+{id:'sq002',code:'ROSE-BENGAL',nameEn:'Rose Bengal',nameShort:'Rose Bengal',cat:'Immunology',subCat:'Brucella Test',unit:'qualitative',minVal:null,maxVal:null,minF:null,maxF:null,ref:'Negative',time:'2 hours',price:80,notes:'',opts:['Negative','Positive 25','Positive 50','Positive 100','Positive 200','Positive 400','Positive 800'],normalOpt:'Negative'},
+{id:'sq003',code:'KETONES-U',nameEn:'Ketones In Urine',nameShort:'Urine Ketones',cat:'Urinalysis',subCat:'Urinalysis',unit:'qualitative',minVal:null,maxVal:null,minF:null,maxF:null,ref:'Absent',time:'2 hours',price:40,notes:'',opts:['Absent','Trace','+','++','+++','++++'],normalOpt:'Absent'},
 ];
 
 const TEST_CATS=['All','Hematology','Blood Gases','Biochemistry','Hormones','Immunology','Vitamins & Minerals','Tumor Markers','Infections','Urinalysis','Microbiology','Stool','Semen','Special','Calculated'];
@@ -9651,9 +9657,15 @@ function loadResultEntry(){
     const isBloodGroup=(t.unit==='blood-group'||t.code==='BLOOD-GRP');
     const isQual=!isBloodGroup&&(t.unit==='qualitative'||t.refType==='pos-neg')&&!(t.ageRanges&&t.ageRanges.length);
     const isTiter=isQual&&(t.unit==='titer'||(t.ref&&t.ref.indexOf('1:')>-1));
+    const hasCustomOpts=Array.isArray(t.opts)&&t.opts.length>0;
     const ref=getPatientRef(t,ptGender,ptAge);
     let inputHtml;
-    if(isBloodGroup){
+    if(hasCustomOpts){
+      inputHtml=`<select class="res-input" id="rv-${t.id}" style="width:145px" onchange="_autoSaveResults()">
+        <option value="">-- Select --</option>
+        ${t.opts.map(o=>`<option value="${o}" ${savedVal===o?'selected':''}>${o}</option>`).join('')}
+      </select>`;
+    } else if(isBloodGroup){
       const bgOpts=['A+','A-','B+','B-','AB+','AB-','O+','O-'];
       inputHtml=`<select class="res-input" id="rv-${t.id}" style="width:145px;font-weight:800;font-size:14px" onchange="_autoSaveResults()">
         <option value="">-- فصيلة الدم --</option>
@@ -11088,7 +11100,9 @@ function buildPrintHTML(req, opts){
       }
 
       let isHigh=false, isLow=false;
-      if(!isQual&&displayVal!=='—'){
+      if(t.normalOpt&&displayVal!=='—'){
+        if(displayVal!==t.normalOpt) isHigh=true;
+      } else if(!isQual&&displayVal!=='—'){
         const v=parseFloat(displayVal);
         if(ref.min!==null&&v>ref.max) isHigh=true;
         else if(ref.min!==null&&v<ref.min) isLow=true;
@@ -18829,9 +18843,6 @@ const UA_FIELDS = {
       {id:'urobilinogen', label:'Urobilinogen',        type:'select', options:['Absent','Trace','+','++','+++','++++'], normal:'Absent'},
       {id:'nitrite',      label:'Nitrite',             type:'select', options:['Absent','Trace','+','++','+++','++++'], normal:'Absent'},
       {id:'leukocyte',    label:'Leukocyte Esterase',  type:'select', options:['Absent','Trace','+','++','+++','++++'], normal:'Absent'},
-      {id:'urine_albumin',label:'Urine for Albumin',   type:'select', options:['Nil','Trace','+','++','+++','++++'], normal:'Nil'},
-      {id:'rose_bengal',  label:'Rose Bengal',         type:'select', options:['Negative','Positive 25','Positive 50','Positive 100','Positive 200','Positive 400','Positive 800'], normal:'Negative'},
-      {id:'ketones_urine',label:'Ketones in Urine',    type:'select', options:['Absent','Trace','+','++','+++','++++'], normal:'Absent'},
     ]
   },
   microscopy: {
