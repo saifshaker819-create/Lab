@@ -5283,22 +5283,46 @@ F: 12 - 16 g/dL" style="font-size:12px;resize:vertical"></textarea></div>
 
         <!-- Positive / Negative block -->
         <div id="ref-pos-neg-block" style="display:none">
-          <div style="background:rgba(0,255,157,0.06);border:1px solid rgba(0,255,157,0.25);border-radius:9px;padding:14px;display:flex;align-items:flex-start;gap:12px">
+          <div style="background:rgba(0,255,157,0.06);border:1px solid rgba(0,255,157,0.25);border-radius:9px;padding:14px;display:flex;align-items:flex-start;gap:12px;margin-bottom:10px">
             <div style="font-size:28px;line-height:1">✅</div>
             <div>
               <div style="font-size:13px;font-weight:700;color:var(--accent);margin-bottom:4px">تحليل نوعي — Qualitative</div>
               <div style="font-size:11px;color:var(--text2);line-height:1.6">
-                النتيجة ستكون اختيارية: <b style="color:var(--success)">Negative</b> أو <b style="color:var(--danger)">Positive</b> أو <b style="color:var(--warning)">Weak Positive</b>.<br>
+                حدّد الخيارات التي ستظهر عند إدخال نتيجة هذا التحليل.<br>
                 الوحدة ستُعيَّن تلقائياً على <b style="color:var(--primary)">qualitative</b> وتُلغى حقول Min/Max.
               </div>
             </div>
           </div>
-          <div class="fg" style="margin-top:10px">
-            <label class="fl">القيمة الطبيعية الافتراضية (للمدى المرجعي)</label>
-            <select class="fc" id="et-pos-neg-default">
-              <option value="Negative">Negative (سلبي) — افتراضي</option>
-              <option value="Positive">Positive (إيجابي)</option>
-            </select>
+
+          <!-- إدارة خيارات التحليل النوعي -->
+          <div style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:9px;padding:12px">
+            <div style="font-size:12px;font-weight:700;color:var(--primary);margin-bottom:10px">📋 خيارات النتيجة</div>
+
+            <!-- قائمة الخيارات الحالية -->
+            <div id="qual-options-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px;max-height:220px;overflow-y:auto"></div>
+
+            <!-- إضافة خيار جديد -->
+            <div style="display:flex;gap:6px;align-items:center;margin-bottom:10px">
+              <input class="fc" id="qual-new-option-input" placeholder="مثال: Trace أو +" style="flex:1;padding:6px 10px;font-size:12px" onkeydown="if(event.key==='Enter'){event.preventDefault();addQualOption();}">
+              <button class="btn btn-s btn-sm" onclick="addQualOption()" style="flex-shrink:0;white-space:nowrap">➕ إضافة</button>
+            </div>
+
+            <!-- خيارات سريعة للإضافة -->
+            <div style="font-size:10px;color:var(--text2);margin-bottom:6px">إضافة سريعة:</div>
+            <div style="display:flex;flex-wrap:wrap;gap:5px">
+              ${['Negative','Positive','Weak Positive','Reactive','Non-Reactive','Trace','+','++','+++','++++','Nil','Absent'].map(o=>
+                `<button class="btn btn-sm" style="font-size:10px;padding:3px 8px;background:rgba(0,212,255,0.08);border:1px solid rgba(0,212,255,0.25);color:var(--primary)" onclick="quickAddQualOption('${o}')">${o}</button>`
+              ).join('')}
+            </div>
+
+            <!-- القيمة الطبيعية الافتراضية -->
+            <div class="fg" style="margin-top:12px;margin-bottom:0">
+              <label class="fl">القيمة الطبيعية الافتراضية (للمدى المرجعي)</label>
+              <select class="fc" id="et-pos-neg-default">
+                <option value="Negative">Negative (سلبي) — افتراضي</option>
+                <option value="Positive">Positive (إيجابي)</option>
+              </select>
+            </div>
           </div>
         </div>
 
@@ -7012,12 +7036,6 @@ const ALL_TESTS=[
 {id:'calc016',code:'ANION-GAP',nameEn:'Anion Gap',nameShort:'Anion Gap',cat:'Calculated',subCat:'Miscellaneous',unit:'mEq/L',minVal:8,maxVal:12,minF:8,maxF:12,ref:'8 - 12',time:'calculated',price:0,notes:'Formula: Na - (Cl + HCO3)',isCalc:true,calcFormula:'anion_gap'},
 {id:'calc019',code:'MELD',nameEn:'MELD Score',nameShort:'MELD',cat:'Calculated',subCat:'Miscellaneous',unit:'score',minVal:null,maxVal:null,minF:null,maxF:null,ref:'< 10 Low | 10-19 Medium | >20 High',time:'calculated',price:0,notes:'Formula: 3.78×ln(Bili) + 11.2×ln(INR) + 9.57×ln(Creat) + 6.43',isCalc:true,calcFormula:'meld'},
 {id:'calc020',code:'FIB4',nameEn:'FIB-4 Index',nameShort:'FIB-4',cat:'Calculated',subCat:'Miscellaneous',unit:'index',minVal:null,maxVal:null,minF:null,maxF:null,ref:'< 1.30 Low | 1.30-2.67 Indeterminate | >2.67 High',time:'calculated',price:0,notes:'Formula: (Age × AST) / (Platelets × √ALT)',isCalc:true,calcFormula:'fib4'},
-// ══════════════════════════════════════════════════════════════
-// SPECIAL QUALITATIVE TESTS (Custom Options)
-// ══════════════════════════════════════════════════════════════
-{id:'sq001',code:'URINE-ALB',nameEn:'Urine for Albumin',nameShort:'Urine Albumin',cat:'Urinalysis',subCat:'Urinalysis',unit:'qualitative',minVal:null,maxVal:null,minF:null,maxF:null,ref:'Nil',time:'2 hours',price:50,notes:'',opts:['Nil','Trace','+','++','+++','++++'],normalOpt:'Nil'},
-{id:'sq002',code:'ROSE-BENGAL',nameEn:'Rose Bengal',nameShort:'Rose Bengal',cat:'Immunology',subCat:'Brucella Test',unit:'qualitative',minVal:null,maxVal:null,minF:null,maxF:null,ref:'Negative',time:'2 hours',price:80,notes:'',opts:['Negative','Positive 25','Positive 50','Positive 100','Positive 200','Positive 400','Positive 800'],normalOpt:'Negative'},
-{id:'sq003',code:'KETONES-U',nameEn:'Ketones In Urine',nameShort:'Urine Ketones',cat:'Urinalysis',subCat:'Urinalysis',unit:'qualitative',minVal:null,maxVal:null,minF:null,maxF:null,ref:'Absent',time:'2 hours',price:40,notes:'',opts:['Absent','Trace','+','++','+++','++++'],normalOpt:'Absent'},
 ];
 
 const TEST_CATS=['All','Hematology','Blood Gases','Biochemistry','Hormones','Immunology','Vitamins & Minerals','Tumor Markers','Infections','Urinalysis','Microbiology','Stool','Semen','Special','Calculated'];
@@ -9254,15 +9272,12 @@ function openViewResultsModal(rid){
     let inputHtml;
     // Fix 4: Always allow editing - remove printed lock
     if(isQual){
-        const isManual = val && !['','Negative','Positive','Reactive','Non-Reactive','Acceptable'].includes(val);
+        const qualOpts=(t.qualOptions&&t.qualOptions.length>0)?t.qualOptions:['Negative','Positive','Reactive','Non-Reactive','Acceptable'];
+        const isManual = val && ![''].concat(qualOpts).includes(val);
         inputHtml=`<div style="display:flex;flex-direction:column;gap:4px">
           <select class="res-input" id="vr-rv-${t.id}" style="width:145px" onchange="vrHandleQualChange('${t.id}',this)">
             <option value="">-- Select --</option>
-            <option ${val==='Negative'?'selected':''}>Negative</option>
-            <option ${val==='Positive'?'selected':''}>Positive</option>
-            <option ${val==='Reactive'?'selected':''}>Reactive</option>
-            <option ${val==='Non-Reactive'?'selected':''}>Non-Reactive</option>
-            <option ${val==='Acceptable'?'selected':''}>Acceptable</option>
+            ${qualOpts.map(o=>`<option ${val===o?'selected':''}>${o}</option>`).join('')}
             <option value="__manual__" ${isManual?'selected':''}>✏️ إدخال يدوي</option>
           </select>
           <input type="text" class="res-input" id="vr-rv-manual-${t.id}"
@@ -9657,15 +9672,9 @@ function loadResultEntry(){
     const isBloodGroup=(t.unit==='blood-group'||t.code==='BLOOD-GRP');
     const isQual=!isBloodGroup&&(t.unit==='qualitative'||t.refType==='pos-neg')&&!(t.ageRanges&&t.ageRanges.length);
     const isTiter=isQual&&(t.unit==='titer'||(t.ref&&t.ref.indexOf('1:')>-1));
-    const hasCustomOpts=Array.isArray(t.opts)&&t.opts.length>0;
     const ref=getPatientRef(t,ptGender,ptAge);
     let inputHtml;
-    if(hasCustomOpts){
-      inputHtml=`<select class="res-input" id="rv-${t.id}" style="width:145px" onchange="_autoSaveResults()">
-        <option value="">-- Select --</option>
-        ${t.opts.map(o=>`<option value="${o}" ${savedVal===o?'selected':''}>${o}</option>`).join('')}
-      </select>`;
-    } else if(isBloodGroup){
+    if(isBloodGroup){
       const bgOpts=['A+','A-','B+','B-','AB+','AB-','O+','O-'];
       inputHtml=`<select class="res-input" id="rv-${t.id}" style="width:145px;font-weight:800;font-size:14px" onchange="_autoSaveResults()">
         <option value="">-- فصيلة الدم --</option>
@@ -9693,16 +9702,12 @@ function loadResultEntry(){
         +'<input type="hidden" id="rv-'+t.id+'" value="'+(savedVal||'')+'">'
         +'</div>';
     } else if(isQual){
-      const isManual2 = savedVal && !['','Negative','Positive','Weak','Reactive','Non-Reactive','Acceptable'].includes(savedVal);
+      const qualOpts2=(t.qualOptions&&t.qualOptions.length>0)?t.qualOptions:['Negative','Positive','Weak','Reactive','Non-Reactive','Acceptable'];
+      const isManual2 = savedVal && ![''].concat(qualOpts2).includes(savedVal);
       inputHtml=`<div style="display:flex;flex-direction:column;gap:4px">
         <select class="res-input" id="rv-${t.id}" style="width:145px" onchange="handleQualChange('${t.id}',this)">
           <option value="">-- Select --</option>
-          <option ${savedVal==='Negative'?'selected':''}>Negative</option>
-          <option ${savedVal==='Positive'?'selected':''}>Positive</option>
-          <option ${savedVal==='Weak'?'selected':''}>Weak</option>
-          <option ${savedVal==='Reactive'?'selected':''}>Reactive</option>
-          <option ${savedVal==='Non-Reactive'?'selected':''}>Non-Reactive</option>
-          <option ${savedVal==='Acceptable'?'selected':''}>Acceptable</option>
+          ${qualOpts2.map(o=>`<option ${savedVal===o?'selected':''}>${o}</option>`).join('')}
           <option value="__manual__" ${isManual2?'selected':''}>✏️ إدخال يدوي</option>
         </select>
         <input type="text" class="res-input" id="rv-manual-${t.id}"
@@ -11100,9 +11105,7 @@ function buildPrintHTML(req, opts){
       }
 
       let isHigh=false, isLow=false;
-      if(t.normalOpt&&displayVal!=='—'){
-        if(displayVal!==t.normalOpt) isHigh=true;
-      } else if(!isQual&&displayVal!=='—'){
+      if(!isQual&&displayVal!=='—'){
         const v=parseFloat(displayVal);
         if(ref.min!==null&&v>ref.max) isHigh=true;
         else if(ref.min!==null&&v<ref.min) isLow=true;
@@ -11977,6 +11980,69 @@ function shareWhatsApp(){
 // ============================================================
 let ageRangeCount=0;
 
+
+// ============================================================
+// QUALITATIVE OPTIONS MANAGEMENT
+// ============================================================
+let currentQualOptions = []; // array of {value, isDefault}
+
+function renderQualOptionsList() {
+  const container = document.getElementById('qual-options-list');
+  if (!container) return;
+  if (currentQualOptions.length === 0) {
+    container.innerHTML = '<div style="text-align:center;color:var(--text2);font-size:11px;padding:10px">لا توجد خيارات — أضف خيارات من الأدوات أعلاه</div>';
+    return;
+  }
+  container.innerHTML = currentQualOptions.map((opt, idx) => `
+    <div style="display:flex;align-items:center;gap:6px;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:7px;padding:6px 10px">
+      <input type="text" class="fc" value="${opt.value}" id="qo-inp-${idx}"
+        style="flex:1;padding:4px 8px;font-size:12px;min-width:0"
+        onchange="updateQualOption(${idx},this.value)">
+      <button class="btn btn-d btn-sm" onclick="removeQualOption(${idx})" style="flex-shrink:0;padding:3px 7px">🗑️</button>
+    </div>
+  `).join('');
+
+  // Update default dropdown
+  const defSel = document.getElementById('et-pos-neg-default');
+  if (defSel) {
+    const curVal = defSel.value;
+    defSel.innerHTML = currentQualOptions.map(o =>
+      `<option value="${o.value}" ${o.value === curVal ? 'selected' : ''}>${o.value}</option>`
+    ).join('');
+    if (!currentQualOptions.find(o => o.value === curVal) && currentQualOptions.length > 0) {
+      defSel.value = currentQualOptions[0].value;
+    }
+  }
+}
+
+function addQualOption() {
+  const inp = document.getElementById('qual-new-option-input');
+  if (!inp) return;
+  const val = inp.value.trim();
+  if (!val) { showNotif('تنبيه', 'أدخل قيمة الخيار', 'warn'); return; }
+  if (currentQualOptions.find(o => o.value === val)) { showNotif('تنبيه', 'هذا الخيار موجود بالفعل', 'warn'); return; }
+  currentQualOptions.push({ value: val });
+  inp.value = '';
+  renderQualOptionsList();
+}
+
+function quickAddQualOption(val) {
+  if (currentQualOptions.find(o => o.value === val)) { showNotif('تنبيه', 'الخيار موجود بالفعل', 'warn'); return; }
+  currentQualOptions.push({ value: val });
+  renderQualOptionsList();
+}
+
+function removeQualOption(idx) {
+  currentQualOptions.splice(idx, 1);
+  renderQualOptionsList();
+}
+
+function updateQualOption(idx, newVal) {
+  if (!newVal.trim()) return;
+  currentQualOptions[idx].value = newVal.trim();
+  renderQualOptionsList();
+}
+
 function changeRefType(){
   const val=document.querySelector('input[name="ref-type"]:checked').value;
   document.getElementById('ref-simple-block').style.display=val==='simple'?'block':'none';
@@ -11991,6 +12057,7 @@ function changeRefType(){
     if(uInp) uInp.value='qualitative';
     const refEl=document.getElementById('et-ref');
     if(refEl && !refEl.value) refEl.value='Negative';
+    renderQualOptionsList();
   }
 }
 
@@ -12075,6 +12142,7 @@ function renderTestsDB(){
 function openEditTest(id){
   editTestId=id;
   ageRangeCount=0;
+  currentQualOptions=[];
   document.getElementById('age-ranges-list').innerHTML='';
   const etCat=document.getElementById('et-cat');
   etCat.innerHTML=TEST_CATS.filter(c=>c!=='All').map(c=>`<option>${c}</option>`).join('');
@@ -12102,7 +12170,13 @@ function openEditTest(id){
     if(isPosNeg){
       document.getElementById('rt-pos-neg').checked=true;
       const defSel=document.getElementById('et-pos-neg-default');
-      if(defSel) defSel.value=(t.ref&&t.ref.trim()==='Positive')?'Positive':'Negative';
+      // Load saved qualOptions or default set
+      currentQualOptions=(t.qualOptions&&t.qualOptions.length>0)?t.qualOptions.map(v=>({value:v})):[{value:'Negative'},{value:'Positive'}];
+      const defVal=t.qualDefault||(t.ref&&t.ref.trim()==='Positive'?'Positive':'Negative');
+      if(defSel){
+        defSel.innerHTML=currentQualOptions.map(o=>`<option value="${o.value}">${o.value}</option>`).join('');
+        defSel.value=defVal;
+      }
     } else if(hasAgeRanges){
       document.getElementById('rt-age').checked=true;
       const unitOpts='<option value="year">سنة</option><option value="month">شهر</option><option value="day">يوم</option>';
@@ -12230,6 +12304,13 @@ function saveTest(){
     price:parseFloat(document.getElementById('et-price').value)||0,
     notes:document.getElementById('et-notes').value
   };
+  // حفظ خيارات التحليل النوعي
+  if(refType==='pos-neg'){
+    const defVal=(document.getElementById('et-pos-neg-default')||{}).value||'Negative';
+    t.qualOptions=currentQualOptions.map(o=>o.value);
+    t.qualDefault=defVal;
+    if(!t.ref) t.ref=defVal;
+  }
   // الحفاظ على isCalc وcalcFormula وcalcInputSettings إذا كان التحليل محسوباً (المشكلة ٣)
   if(editTestId){
     const origTest=tests.find(x=>x.id===editTestId);
