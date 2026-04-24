@@ -11096,16 +11096,36 @@ function buildPrintHTML(req, opts){
         ref=getPatientRef(t,ptGender,ptAge);
       }
 
-      let isHigh=false, isLow=false;
+      let isHigh=false, isLow=false, isQualAbnormal=false;
       if(!isQual&&displayVal!=='—'){
         const v=parseFloat(displayVal);
         if(ref.min!==null&&v>ref.max) isHigh=true;
         else if(ref.min!==null&&v<ref.min) isLow=true;
-      } else if(displayVal==='Positive'||displayVal==='Reactive') isHigh=true;
+      } else if(isQual&&displayVal!=='—'){
+        // Option-based (qualitative) tests: red box when value differs from normal — no H/L letter
+        const _qNormal = t.qualDefault || null;
+        if(_qNormal){
+          isQualAbnormal = (displayVal !== _qNormal);
+        } else {
+          // Built-in qualitative tests: detect by ref or known abnormal keywords
+          const _ql = displayVal.toLowerCase();
+          const _knownAbn = ['positive','reactive','detected','present','found'];
+          const _knownNrm = ['negative','non-reactive','not detected','normal','absent','compatible','not present','none detected','not found','see report'];
+          if(_knownAbn.some(a=>_ql===a||_ql.startsWith(a+' ')||_ql.startsWith(a+'/'))){
+            isQualAbnormal = true;
+          } else if(!_knownNrm.some(n=>_ql===n||_ql.startsWith(n))){
+            // Compare against the test's ref value if it is a simple single value
+            const _ref = (t.ref||'').trim();
+            if(_ref && !_ref.includes('|') && !_ref.includes('/') && _ref.toLowerCase()!=='see report' && displayVal!==_ref){
+              isQualAbnormal = true;
+            }
+          }
+        }
+      }
 
       const isAbnormal = isHigh||isLow;
-      const valColor   = showHL&&isHigh?'#cc0000':showHL&&isLow?'#0055cc':'#000000';
-      const boxBorder  = showHL&&isAbnormal?valColor:'#000000';
+      const valColor   = showHL&&isHigh?'#cc0000':showHL&&isLow?'#0055cc':showHL&&isQualAbnormal?'#cc0000':'#000000';
+      const boxBorder  = showHL&&isAbnormal?valColor:showHL&&isQualAbnormal?'#cc0000':'#000000';
       const flagLetter = showHL&&isHigh
         ?`<span style="font-size:10px;font-weight:600;color:#cc0000;margin-right:2px;flex-shrink:0">H</span>`
         :showHL&&isLow
@@ -19235,7 +19255,7 @@ function _buildUAPrintHTML(r){
           <span style="color:#000;margin-right:6px">■</span>${f.label}
         </td>
         <td style="font-size:15px;font-weight:700;color:#000000;padding:3px 10px;width:32%;border:none;border-bottom:1px solid #e0e0e0;text-align:center">
-          <span style="display:inline-block;border:1.5px solid #b0b0b0;border-radius:4px;padding:1px 10px;min-width:90px;text-align:center;background:#fff;color:${isAbn?'#cc0000':'#000000'};font-weight:${isAbn?'900':'700'}">${val}</span>
+          <span style="display:inline-block;border:1.5px solid ${isAbn?'#cc0000':'#b0b0b0'};border-radius:4px;padding:1px 10px;min-width:90px;text-align:center;background:${isAbn?'#fff5f5':'#fff'};color:${isAbn?'#cc0000':'#000000'};font-weight:${isAbn?'900':'700'}">${val}</span>
         </td>
         <td style="font-size:15px;font-weight:700;color:#000000;padding:3px 10px;width:30%;border:none;border-bottom:1px solid #e0e0e0">${f.normal||'—'}</td>
       </tr>`;
@@ -19801,7 +19821,7 @@ function _buildStoolPrintHTML(r){
         return `<tr style="background:${rowBg}">
           <td style="font-size:14px;font-weight:700;color:#000000;padding:2px 8px;width:38%;border:none;border-bottom:1px solid #e0e0e0"><span style="color:#000;margin-right:5px">■</span>${f.label}</td>
           <td style="font-size:14px;font-weight:700;padding:2px 8px;width:32%;border:none;border-bottom:1px solid #e0e0e0;text-align:center">
-            <span style="display:inline-block;border:1.5px solid #b0b0b0;border-radius:4px;padding:3px 10px;min-width:220px;text-align:left;background:#fff;color:${isAbn?'#cc0000':'#000000'};font-weight:${isAbn?'900':'700'};line-height:1.6">${parasiteLines}</span>
+            <span style="display:inline-block;border:1.5px solid ${isAbn?'#cc0000':'#b0b0b0'};border-radius:4px;padding:3px 10px;min-width:220px;text-align:left;background:${isAbn?'#fff5f5':'#fff'};color:${isAbn?'#cc0000':'#000000'};font-weight:${isAbn?'900':'700'};line-height:1.6">${parasiteLines}</span>
           </td>
           <td style="font-size:14px;font-weight:700;color:#000000;padding:2px 8px;width:30%;border:none;border-bottom:1px solid #e0e0e0">${f.normal||'—'}</td>
         </tr>`;
@@ -19811,7 +19831,7 @@ function _buildStoolPrintHTML(r){
       return `<tr style="background:${rowBg}">
         <td style="font-size:14px;font-weight:700;color:#000000;padding:2px 8px;width:38%;border:none;border-bottom:1px solid #e0e0e0"><span style="color:#000;margin-right:5px">■</span>${f.label}</td>
         <td style="font-size:14px;font-weight:700;color:#000000;padding:2px 8px;width:32%;border:none;border-bottom:1px solid #e0e0e0;text-align:center">
-          <span style="display:inline-block;border:1.5px solid #b0b0b0;border-radius:4px;padding:1px 8px;min-width:80px;text-align:center;background:#fff;color:${isAbn?'#cc0000':'#000000'};font-weight:${isAbn?'900':'700'}">${val}</span>
+          <span style="display:inline-block;border:1.5px solid ${isAbn?'#cc0000':'#b0b0b0'};border-radius:4px;padding:1px 8px;min-width:80px;text-align:center;background:${isAbn?'#fff5f5':'#fff'};color:${isAbn?'#cc0000':'#000000'};font-weight:${isAbn?'900':'700'}">${val}</span>
         </td>
         <td style="font-size:14px;font-weight:700;color:#000000;padding:2px 8px;width:30%;border:none;border-bottom:1px solid #e0e0e0">${f.normal||'—'}</td>
       </tr>`;
