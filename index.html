@@ -539,9 +539,9 @@ body.light-mode #req-float-btn { box-shadow: 0 4px 20px rgba(0,95,153,0.35), 0 2
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 3px;
-  width: 62px;
-  height: 62px;
+  gap: 2px;
+  width: 54px;
+  height: 54px;
   border-radius: 50%;
   border: 2px solid transparent;
   cursor: pointer;
@@ -555,12 +555,12 @@ body.light-mode #req-float-btn { box-shadow: 0 4px 20px rgba(0,95,153,0.35), 0 2
   will-change: transform;
 }
 .req-pill-ic {
-  font-size: 18px;
+  font-size: 16px;
   line-height: 1;
   pointer-events: none;
 }
 .req-pill-lbl {
-  font-size: 9.5px;
+  font-size: 9px;
   font-weight: 800;
   letter-spacing: 0.2px;
   line-height: 1;
@@ -598,8 +598,8 @@ body.light-mode #req-float-btn { box-shadow: 0 4px 20px rgba(0,95,153,0.35), 0 2
   display: flex;
   align-items: center;
   gap: 6px;
-  height: 42px;
-  padding: 0 10px 0 6px;
+  height: 36px;
+  padding: 0 8px 0 6px;
   background: rgba(255,255,255,0.05);
   border: 1.5px solid var(--primary);
   border-radius: 21px;
@@ -635,6 +635,7 @@ body.light-mode #req-float-btn { box-shadow: 0 4px 20px rgba(0,95,153,0.35), 0 2
   position: static !important;
   transform: none !important;
   top: auto !important;
+  left: auto !important;
   font-size: 10px;
   flex-shrink: 0;
 }
@@ -2638,7 +2639,7 @@ body.light-mode .wnb-text .wnb-char.neon-trail {
               <button onclick="clearDateFilter()" class="btn btn-s btn-sm" style="width:100%">↩ إلغاء الفلتر</button>
             </div>
           </div>
-          <div class="srch-box" style="width:240px"><span class="srch-ic">🔍</span><input class="srch-inp" lang="ar" dir="rtl" placeholder="ابحث باسم أو هاتف أو رقم ملف..." oninput="searchPatients(this.value)"></div>
+          <div class="srch-box" style="width:240px"><span class="srch-ic">🔍</span><input class="srch-inp" id="pts-srch-inp" lang="ar" dir="rtl" placeholder="ابحث باسم أو هاتف أو رقم ملف..." oninput="searchPatients(this.value)"><button type="button" class="lang-toggle-btn" id="pts-srch-ltb" onclick="toggleInputLang('pts-srch-inp','pts-srch-ltb')" title="تبديل لغة الإدخال">ع</button></div>
           <button class="btn btn-p" onclick="startNewPatient()">➕ مريض جديد</button>
         </div>
       </div>
@@ -2655,7 +2656,7 @@ body.light-mode .wnb-text .wnb-char.neon-trail {
 
     <!-- REQUESTS -->
     <div class="sec" id="sec-requests">
-      <div class="req-sticky-bar" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;flex-wrap:wrap;gap:10px;position:sticky;top:72px;z-index:8000;background:transparent;padding:10px 0 10px 0;box-shadow:none;">
+      <div class="req-sticky-bar" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;flex-wrap:wrap;gap:8px;position:sticky;top:60px;z-index:8000;background:transparent;padding:4px 0 4px 0;box-shadow:none;">
         <div class="req-float-pills">
           <button class="req-pill req-pill-today active" data-filter="today" onclick="filterReq('today',this)"><span class="req-pill-ic">📅</span><span class="req-pill-lbl">اليوم</span></button>
           <button class="req-pill req-pill-pending" data-filter="pending" onclick="filterReq('pending',this)"><span class="req-pill-ic">⏳</span><span class="req-pill-lbl">معلقة</span></button>
@@ -21032,6 +21033,7 @@ function _printViaIframe(html){
     'res-add-test-srch' : 'en',
     // ٥- بحث المريض في الصفحة الرئيسية → عربي (srch-inp بدون id تُعالج بالكلاس)
     'req-srch-inp'      : 'ar',
+    'pts-srch-inp'      : 'ar',
     'print-search-inp'  : 'ar',
     'del-pt-srch'       : 'ar',
     'ps-search'         : 'ar',
