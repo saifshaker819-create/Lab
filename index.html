@@ -204,6 +204,10 @@ body.light-mode .btn-s:hover { background:#e0eef8; border-color:var(--primary); 
 body.light-mode .hbtn { background:#f0f3f7; border-color:#ccd4dc; color:#5a6a7a; }
 body.light-mode .hbtn:hover { background:#e0eef8; color:var(--primary); border-color:var(--primary); }
 
+body.light-mode .hdr{background:linear-gradient(135deg,rgba(230,242,255,0.99) 0%,rgba(215,235,255,0.99) 50%,rgba(230,242,255,0.99) 100%)!important;border-bottom-color:rgba(0,110,200,0.3)!important;box-shadow:0 2px 16px rgba(0,0,0,0.08),inset 0 1px 0 rgba(0,110,200,0.1)!important;}
+body.light-mode .hdr .wnb-line{background:linear-gradient(90deg,transparent,rgba(0,100,200,0.35),transparent)!important;}
+body.light-mode .hdr .wnb-bg-layer{background:radial-gradient(ellipse at 50% 50%,rgba(0,110,200,0.07) 0%,transparent 70%)!important;}
+body.light-mode .hdr .wnb-icon{filter:drop-shadow(0 0 6px rgba(0,100,200,0.4))!important;}
 body.light-mode .uavatar { box-shadow:0 0 10px rgba(0,136,170,0.2); }
 body.light-mode .tabs { background:#edf0f4; }
 body.light-mode .tab { color:#5a6a7a; }
@@ -1155,7 +1159,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .dot{width:7px;height:7px;border-radius:50%;background:var(--success);animation:pulse 3s infinite;}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.45}}
 .main{flex:1;margin-right:var(--sidebar-w);min-height:100vh;display:flex;flex-direction:column;}
-.hdr{background:rgba(4,8,20,0.85);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);padding:18px 32px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:9999;gap:10px;overflow:visible;}
+.hdr{background:linear-gradient(135deg,rgba(4,8,20,0.97) 0%,rgba(0,20,40,0.97) 50%,rgba(4,8,20,0.97) 100%);backdrop-filter:blur(20px);border-bottom:1px solid rgba(0,212,255,0.25);padding:18px 32px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:9999;gap:10px;overflow:visible;box-shadow:0 2px 20px rgba(0,0,0,0.5),inset 0 1px 0 rgba(0,212,255,0.08);}
 .hdr-left{display:flex;flex-direction:column;flex:1;min-width:0;}
 .page-title{font-size:11px;font-weight:800;}
 .page-bc{font-size:11px;color:var(--text2);margin-top:1px;}
@@ -1750,6 +1754,7 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield;}
 
 @media(max-width:480px){
   .hdr{padding:8px 10px;}
+  .hdr .wnb-content{display:none!important;}
   .hdr-right{gap:4px;}
   .hbtn{width:32px!important;height:32px!important;font-size:13px!important;}
 
@@ -2415,13 +2420,25 @@ body.light-mode .wnb-text .wnb-char.neon-trail {
 <div id="sidebar-overlay" onclick="document.getElementById('sidebar').classList.remove('open');this.classList.remove('show')"></div>
 
 <div class="main">
-  <div class="hdr">
-    <div class="hdr-left">
+  <div class="hdr" style="position:relative;">
+    <!-- طبقة الخلفية المتحركة للبانر -->
+    <div class="wnb-bg-layer" style="position:absolute;inset:0;pointer-events:none;z-index:0;background:radial-gradient(ellipse at 50% 50%,rgba(0,212,255,0.05) 0%,transparent 70%);"></div>
+    <div class="wnb-line wnb-line-top" style="position:absolute;left:0;right:0;top:0;height:1px;background:linear-gradient(90deg,transparent,rgba(0,212,255,0.4),transparent);animation:wnb-line-scan 4s ease-in-out infinite;z-index:0;"></div>
+    <div class="wnb-line wnb-line-bottom" style="position:absolute;left:0;right:0;bottom:0;height:1px;background:linear-gradient(90deg,transparent,rgba(0,212,255,0.4),transparent);animation:wnb-line-scan 4s ease-in-out infinite;animation-delay:2s;z-index:0;"></div>
+    <div class="hdr-left" style="position:relative;z-index:1;">
       <button id="hamburger-btn" onclick="document.getElementById('sidebar').classList.toggle('open');document.getElementById('sidebar-overlay').classList.toggle('show')" style="display:none;background:none;border:1px solid var(--border);color:var(--text);border-radius:8px;width:36px;height:36px;font-size:18px;cursor:pointer;margin-left:8px;flex-shrink:0">☰</button>
       <div class="page-title" id="ptitle">لوحة التحكم</div>
       <div class="page-bc" id="pbc">الرئيسية / لوحة التحكم</div>
     </div>
-    <div class="hdr-right">
+    <!-- نص النيون في وسط الهيدر -->
+    <div class="wnb-content" style="position:absolute;left:50%;transform:translateX(-50%);z-index:1;pointer-events:none;display:flex;align-items:center;gap:10px;">
+      <div class="wnb-icon" style="font-size:18px;filter:drop-shadow(0 0 6px rgba(0,212,255,0.5));animation:wnb-icon-pulse 3s ease-in-out infinite alternate;">🧪</div>
+      <div class="wnb-text-wrap">
+        <p class="wnb-text" id="wnb-hdr-text-el" style="font-size:clamp(12px,1.4vw,17px);">أهلاً وسهلاً بكم في نظام MedLab Pro</p>
+      </div>
+      <div class="wnb-icon" style="font-size:18px;filter:drop-shadow(0 0 6px rgba(0,212,255,0.5));animation:wnb-icon-pulse 3s ease-in-out infinite alternate;">⚕️</div>
+    </div>
+    <div class="hdr-right" style="position:relative;z-index:1;">
 
       <div style="position:relative">
         <button class="hbtn" id="notif-bell-btn" onclick="toggleNotifPanel(event)">🔔<div class="ndot" id="notif-dot" style="display:none"></div></button>
@@ -2451,22 +2468,6 @@ body.light-mode .wnb-text .wnb-char.neon-trail {
 
     <!-- DASHBOARD -->
     <div class="sec active" id="sec-dashboard">
-
-      <!-- ══════════════ بانر الترحيب النيون — لوحة التحكم ══════════════ -->
-      <div class="welcome-neon-banner" id="wnb-dash-banner">
-        <div class="wnb-bg-layer"></div>
-        <div class="wnb-particles" id="wnb-particles-dash"></div>
-        <div class="wnb-content">
-          <div class="wnb-icon">🧪</div>
-          <div class="wnb-text-wrap">
-            <p class="wnb-text" id="wnb-dash-text-el">أهلاً وسهلاً بكم في نظام MedLab Pro</p>
-          </div>
-          <div class="wnb-icon wnb-icon-alt">⚕️</div>
-        </div>
-        <div class="wnb-line wnb-line-top"></div>
-        <div class="wnb-line wnb-line-bottom"></div>
-      </div>
-      <!-- ══════════════════════════════════════════════ -->
 
       <div class="stats" id="dash-stats">
         <div class="scard" style="--cc:rgba(0,212,255,0.22)"><div class="scard-lbl" style="font-size:14px;color:#000;font-weight:800">المرضى اليوم</div><div class="scard-val" id="ds-today" style="color:var(--primary);font-size:22px;font-weight:900">0</div><div class="scard-sub up">↑ جديد</div><div class="scard-ic">👥</div></div>
@@ -2535,21 +2536,7 @@ body.light-mode .wnb-text .wnb-char.neon-trail {
         </div>
       </div>
 
-      <!-- ══════════════ بانر الترحيب النيون — الطلبات ══════════════ -->
-      <div class="welcome-neon-banner wnb-requests" id="wnb-requests-banner">
-        <div class="wnb-bg-layer"></div>
-        <div class="wnb-particles wnb-p2" id="wnb-particles-req"></div>
-        <div class="wnb-content">
-          <div class="wnb-icon wnb-icon-alt">📋</div>
-          <div class="wnb-text-wrap">
-            <p class="wnb-text" id="wnb-req-text-el">أهلاً وسهلاً بكم في نظام MedLab Pro</p>
-          </div>
-          <div class="wnb-icon wnb-icon-alt">🧬</div>
-        </div>
-        <div class="wnb-line wnb-line-top"></div>
-        <div class="wnb-line wnb-line-bottom"></div>
-      </div>
-      <!-- ══════════════════════════════════════════ -->
+
 
       <div class="gc">
         <div style="overflow-x:auto">
@@ -26817,17 +26804,10 @@ function _wnbRebuild(textElId, newText) {
 function initNeonBanners() {
   const saved = localStorage.getItem(NEON_BANNER_KEY) || NEON_BANNER_DEFAULT;
 
-  /* لوحة التحكم */
-  const dashEl = document.getElementById('wnb-dash-text-el');
-  if (dashEl) { dashEl.textContent = saved; }
-  _wnbMakeParticles('wnb-particles-dash');
-  _wnbAnimate('wnb-dash-text-el');
-
-  /* الطلبات */
-  const reqEl = document.getElementById('wnb-req-text-el');
-  if (reqEl) { reqEl.textContent = saved; }
-  _wnbMakeParticles('wnb-particles-req');
-  _wnbAnimate('wnb-req-text-el');
+  /* الشريط العلوي */
+  const hdrEl = document.getElementById('wnb-hdr-text-el');
+  if (hdrEl) { hdrEl.textContent = saved; }
+  _wnbAnimate('wnb-hdr-text-el');
 
   /* حقل الأدمن */
   const inp = document.getElementById('admin-neon-text-inp');
@@ -26846,8 +26826,7 @@ function saveNeonBannerText() {
   localStorage.setItem(NEON_BANNER_KEY, val);
 
   /* تطبيق فوري على البانرَين */
-  _wnbRebuild('wnb-dash-text-el', val);
-  _wnbRebuild('wnb-req-text-el',  val);
+  _wnbRebuild('wnb-hdr-text-el', val);
 
   /* رسالة النجاح */
   const msg = document.getElementById('admin-neon-save-msg');
@@ -26862,8 +26841,7 @@ function resetNeonBannerText() {
   const prev = document.getElementById('admin-neon-preview');
   if (inp)  inp.value = NEON_BANNER_DEFAULT;
   if (prev) prev.textContent = NEON_BANNER_DEFAULT;
-  _wnbRebuild('wnb-dash-text-el', NEON_BANNER_DEFAULT);
-  _wnbRebuild('wnb-req-text-el',  NEON_BANNER_DEFAULT);
+  _wnbRebuild('wnb-hdr-text-el', NEON_BANNER_DEFAULT);
   showNotif('↩ تمت الإعادة','تم استعادة النص الافتراضي','success');
 }
 
