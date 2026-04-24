@@ -499,9 +499,8 @@ body.light-mode{color:#000000!important;}
 body.light-mode *:not(a):not(.btn-p):not(.btn-ok):not(.ni.active):not(.ni.active *):not(.bdg-ok):not(.bdg-d):not(.bdg-w):not(.primary):not([style*="color:var(--primary)"]):not([style*="color:#cc"]):not([style*="color:#00"]){
   color:inherit;
 }
-body.light-mode #sec-requests .req-sticky-bar{background:var(--bg-body)!important;}
 /* ضمان ظهور شريط البحث في الطلبات فوق البانر دائماً */
-#sec-requests .req-sticky-bar{z-index:8000!important;isolation:isolate;}
+#sec-requests .req-sticky-bar{z-index:8000!important;isolation:isolate;background:transparent!important;box-shadow:none!important;}
 
 /* ── زر البحث العائم في قسم الطلبات ── */
 #req-float-btn {
@@ -660,7 +659,6 @@ body.light-mode .req-srch-pill {
   box-shadow: 0 3px 12px rgba(0,0,0,0.1);
 }
 body.light-mode .req-srch-pill-inp { color: #000; }
-body.light-mode #sec-requests .req-sticky-bar{background:var(--bg-body)!important;}
 
 /* نافذة البحث العائمة */
 #req-float-search-box {
@@ -2657,7 +2655,7 @@ body.light-mode .wnb-text .wnb-char.neon-trail {
 
     <!-- REQUESTS -->
     <div class="sec" id="sec-requests">
-      <div class="req-sticky-bar" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;flex-wrap:wrap;gap:10px;position:sticky;top:72px;z-index:8000;background:var(--bg-dark);padding:10px 0 10px 0;box-shadow:0 4px 16px rgba(4,8,20,0.98);">
+      <div class="req-sticky-bar" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;flex-wrap:wrap;gap:10px;position:sticky;top:72px;z-index:8000;background:transparent;padding:10px 0 10px 0;box-shadow:none;">
         <div class="req-float-pills">
           <button class="req-pill req-pill-today active" data-filter="today" onclick="filterReq('today',this)"><span class="req-pill-ic">📅</span><span class="req-pill-lbl">اليوم</span></button>
           <button class="req-pill req-pill-pending" data-filter="pending" onclick="filterReq('pending',this)"><span class="req-pill-ic">⏳</span><span class="req-pill-lbl">معلقة</span></button>
