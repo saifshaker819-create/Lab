@@ -6139,9 +6139,10 @@ Menopause — 25–135 IU/L" style="font-size:12px;resize:vertical;line-height:1
   setTimeout(applyAll, 2000);
 
   if(window.MutationObserver){
+    var _moTimer1;
     var mo = new MutationObserver(function(muts){
       var hasNew = muts.some(function(m){ return m.addedNodes.length>0; });
-      if(hasNew) setTimeout(applyAll, 50);
+      if(hasNew){ clearTimeout(_moTimer1); _moTimer1=setTimeout(applyAll, 300); }
     });
     document.addEventListener('DOMContentLoaded', function(){
       mo.observe(document.body, {childList:true, subtree:true});
@@ -6217,9 +6218,10 @@ Menopause — 25–135 IU/L" style="font-size:12px;resize:vertical;line-height:1
   setTimeout(_run, 2000);
   // مراقبة إضافة عناصر جديدة للـ DOM (مودالات ديناميكية)
   if(window.MutationObserver){
+    var _moTimer2;
     var _mo = new MutationObserver(function(muts){
       var hasNew = muts.some(function(m){ return m.addedNodes.length>0; });
-      if(hasNew) setTimeout(_run, 50);
+      if(hasNew){ clearTimeout(_moTimer2); _moTimer2=setTimeout(_run, 300); }
     });
     document.addEventListener('DOMContentLoaded', function(){
       _mo.observe(document.body, {childList:true, subtree:true});
@@ -25699,6 +25701,7 @@ function sendWelcomeMsg(){
 
 // عرض رسالة الترحيب عند دخول المستخدم
 let _wmListener = null;
+let _wmPollTimer = null;
 function checkWelcomeMsg(uname){
   if(!uname) return;
   if(fbReady && fbDb){
@@ -25719,7 +25722,7 @@ function checkWelcomeMsg(uname){
         localStorage.removeItem('wm_'+uname);
       }catch(e){}
     }
-    setInterval(()=>{
+    if(!_wmPollTimer) _wmPollTimer = setInterval(()=>{
       const s = localStorage.getItem('wm_'+uname);
       if(s){ try{ _showWelcomePopup(JSON.parse(s)); localStorage.removeItem('wm_'+uname); }catch(e){} }
     }, 30000);
@@ -25810,6 +25813,7 @@ function triggerForcedBackup(){
 
 // التحقق من النسخ الاحتياطية الإجبارية عند دخول المستخدم
 let _fbBackupListener = null;
+let _fbPollTimer = null;
 function checkForcedBackup(uname){
   if(!uname) return;
   if(fbReady && fbDb){
@@ -25831,7 +25835,7 @@ function checkForcedBackup(uname){
         localStorage.removeItem(FORCED_BACKUP_KEY+'_'+uname);
       }catch(e){}
     }
-    setInterval(()=>{
+    if(!_fbPollTimer) _fbPollTimer = setInterval(()=>{
       const s = localStorage.getItem(FORCED_BACKUP_KEY+'_'+uname);
       if(s){ try{ const d=JSON.parse(s); _showForcedBackupPopup(d,uname); localStorage.removeItem(FORCED_BACKUP_KEY+'_'+uname); }catch(e){} }
     }, 30000);
@@ -27197,10 +27201,18 @@ function _wnbMakeParticles(containerId) {
   return;
 }
 
+/* ── cancel tokens لإيقاف سلاسل الأنيميشن القديمة ── */
+const _wnbTokens = {};
+
 /* ── تحويل النص إلى spans + تشغيل النيون ── */
 function _wnbAnimate(textElId) {
   const el = document.getElementById(textElId);
   if (!el) return;
+
+  // إلغاء أي سلسلة setTimeout سابقة لنفس العنصر
+  if (_wnbTokens[textElId]) _wnbTokens[textElId].cancelled = true;
+  const token = { cancelled: false };
+  _wnbTokens[textElId] = token;
 
   const text = el.textContent || el.innerText;
   el.textContent = '';
@@ -27216,6 +27228,7 @@ function _wnbAnimate(textElId) {
   let idx = 0;
   function clearAll() { chars.forEach(c => c.classList.remove('neon-active','neon-trail')); }
   function step() {
+    if (token.cancelled) return;
     clearAll();
     if (idx < chars.length) {
       chars[idx].classList.add('neon-active');
@@ -27225,11 +27238,11 @@ function _wnbAnimate(textElId) {
       idx++;
       setTimeout(step, NEON_SPEED);
     } else {
-      setTimeout(() => { clearAll(); idx = 0; setTimeout(step, 300); }, NEON_PAUSE);
+      setTimeout(() => { if (token.cancelled) return; clearAll(); idx = 0; setTimeout(step, 300); }, NEON_PAUSE);
     }
   }
   setTimeout(step, 800);
-  return chars; // keep ref for live updates
+  return chars;
 }
 
 /* ── تحديث نص البانر حياً (بدون إعادة تهيئة كاملة) ── */
