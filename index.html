@@ -16846,7 +16846,9 @@ function openConv(cid, on, ou){
   if(fbDb) fbDb.ref('uc/'+meUsername+'/'+cid).update({ ur:0 });
   listenMessages(cid);
   if(fbDb){
-    fbDb.ref('dir/'+ou+'/online').on('value', function(s){
+    if(window._onlineStatusRef) window._onlineStatusRef.off();
+    window._onlineStatusRef = fbDb.ref('dir/'+ou+'/online');
+    window._onlineStatusRef.on('value', function(s){
       var el=document.getElementById('chat-conv-status');
       if(el) el.textContent=s.val()?'● متصل الآن':'● غير متصل';
     });
@@ -21346,21 +21348,34 @@ function _printViaIframe(html){
   document.addEventListener('DOMContentLoaded', applyAllStatic);
 
   // MutationObserver للحقول التي تُضاف ديناميكياً (مثل wp-name, wp-age-y)
+  var _obsTimer;
   const obs = new MutationObserver(function(mutations){
+    var hasInputs = false;
     mutations.forEach(function(m){
       m.addedNodes.forEach(function(node){
         if(!node.querySelectorAll) return;
-        node.querySelectorAll('input,textarea').forEach(function(el){
-          if(el.id && FIELD_LANG[el.id]) applyLang(el, FIELD_LANG[el.id]);
-          if(el.classList.contains('res-input')) applyLang(el, 'en');
-        });
-        // تطبيق على العنصر نفسه إن كان input
-        if((node.tagName==='INPUT'||node.tagName==='TEXTAREA')){
-          if(node.id && FIELD_LANG[node.id]) applyLang(node, FIELD_LANG[node.id]);
-          if(node.classList && node.classList.contains('res-input')) applyLang(node, 'en');
-        }
+        if(node.querySelectorAll('input,textarea').length || node.tagName==='INPUT' || node.tagName==='TEXTAREA')
+          hasInputs = true;
       });
     });
+    if(hasInputs){
+      clearTimeout(_obsTimer);
+      _obsTimer = setTimeout(function(){
+        mutations.forEach(function(m){
+          m.addedNodes.forEach(function(node){
+            if(!node.querySelectorAll) return;
+            node.querySelectorAll('input,textarea').forEach(function(el){
+              if(el.id && FIELD_LANG[el.id]) applyLang(el, FIELD_LANG[el.id]);
+              if(el.classList.contains('res-input')) applyLang(el, 'en');
+            });
+            if((node.tagName==='INPUT'||node.tagName==='TEXTAREA')){
+              if(node.id && FIELD_LANG[node.id]) applyLang(node, FIELD_LANG[node.id]);
+              if(node.classList && node.classList.contains('res-input')) applyLang(node, 'en');
+            }
+          });
+        });
+      }, 300);
+    }
   });
   obs.observe(document.body||document.documentElement, {childList:true, subtree:true});
 })();
@@ -21506,14 +21521,14 @@ function toggleInputLang(inputId, btnId){
   setTimeout(injectAll, 3000);
 
   if(window.MutationObserver){
+    var _injectTimer;
     var mo = new MutationObserver(function(muts){
-      muts.forEach(function(m){
-        m.addedNodes.forEach(function(node){
-          if(!node.querySelectorAll) return;
-          node.querySelectorAll('input,textarea').forEach(injectBtn);
-          if(node.tagName==='INPUT'||node.tagName==='TEXTAREA') injectBtn(node);
+      var hasInputs = muts.some(function(m){
+        return Array.from(m.addedNodes).some(function(n){
+          return n.querySelectorAll && (n.querySelectorAll('input,textarea').length || n.tagName==='INPUT' || n.tagName==='TEXTAREA');
         });
       });
+      if(hasInputs){ clearTimeout(_injectTimer); _injectTimer=setTimeout(function(){ muts.forEach(function(m){ m.addedNodes.forEach(function(node){ if(!node.querySelectorAll)return; node.querySelectorAll('input,textarea').forEach(injectBtn); if(node.tagName==='INPUT'||node.tagName==='TEXTAREA') injectBtn(node); }); }); },300); }
     });
     document.addEventListener('DOMContentLoaded', function(){
       mo.observe(document.body, {childList:true, subtree:true});
@@ -26507,9 +26522,10 @@ if (typeof pages !== 'undefined' && !pages['esr']) {
   });
 
   if(window.MutationObserver){
+    var _restoreTimer;
     var _mo=new MutationObserver(function(){
       var map=loadLangs();
-      if(Object.keys(map).length) setTimeout(restoreAll,80);
+      if(Object.keys(map).length){ clearTimeout(_restoreTimer); _restoreTimer=setTimeout(restoreAll,300); }
     });
     document.addEventListener('DOMContentLoaded',function(){
       _mo.observe(document.body,{childList:true,subtree:true});
