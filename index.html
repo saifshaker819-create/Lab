@@ -22189,6 +22189,7 @@ function openWaitScreen(){
   +'<meta name="viewport" content="width=device-width,initial-scale=1">'
   +'<title>شاشة الانتظار — MedLab Pro</title>'
   +'<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">'
+  +'<script src="https://code.responsivevoice.org/responsivevoice.js?key=u9E3wppl"><\/script>'
   +'<style>'
   +'*{margin:0;padding:0;box-sizing:border-box;}'
   +'html,body{height:100%;}'
@@ -22480,30 +22481,17 @@ function openWaitScreen(){
   +'function _doSpeak(item){'
   +'try{'
   +'var phrase = "السيد " + item.name + "، تحاليلك جاهزة، يرجى التوجه إلى الاستقبال";'
-  /* ── الطريقة الأولى: Google Translate TTS (مجانية، تعمل دائماً بدون أصوات نظام) ── */
+  /* ── الطريقة الأولى: ResponsiveVoice (تعمل دون مشاكل CORS) ── */
+  +'if(window.responsiveVoice && window.responsiveVoice.speak){'
   +'try{'
-  +'var encoded = encodeURIComponent(phrase);'
-  +'var url = "https://translate.google.com/translate_tts?ie=UTF-8&tl=ar&client=tw-ob&q=" + encoded;'
-  +'if(!window._ttsAudio){'
-  +'window._ttsAudio = new Audio();'
-  +'window._ttsAudio.volume = 1.0;'
-  +'}'
-  +'window._ttsAudio.src = url;'
-  +'var playPromise = window._ttsAudio.play();'
-  +'if(playPromise && playPromise.then){'
-  +'playPromise.then(function(){'
-  +'try{ console.log("[MedLab] ✅ تم النطق عبر Google TTS"); }catch(_){}'
-  +'}).catch(function(err){'
-  /* فشل Google TTS → جرّب Speech Synthesis API */
-  +'try{ console.warn("[MedLab] فشل Google TTS:", err); }catch(_){}'
-  +'_speakViaSpeechAPI(phrase);'
-  +'});'
-  +'}'
+  +'window.responsiveVoice.cancel();'
+  +'window.responsiveVoice.speak(phrase, "Arabic Male", { rate: 0.95, volume: 1.0 });'
+  +'try{ console.log("[MedLab] ✅ ResponsiveVoice speaks:", phrase); }catch(_){}'
   +'return;'
-  +'}catch(e1){'
-  /* جرّب fallback */
-  +'_speakViaSpeechAPI(phrase);'
+  +'}catch(eRV){ try{ console.warn("RV err:",eRV); }catch(_){} }'
   +'}'
+  /* ── الطريقة الثانية (احتياطي): Speech Synthesis API ── */
+  +'_speakViaSpeechAPI(phrase);'
   +'}catch(e){}'
   +'}'
   /* ── احتياطي: نطق عبر Speech Synthesis API (للحالات بدون إنترنت) ── */
@@ -22621,29 +22609,28 @@ function openWaitScreen(){
   +'try{ console.warn(e); }catch(_){}'
   +'}'
   +'}'
-  /* ── إعلان التفعيل (يستخدم Google TTS أولاً، ثم Speech API احتياطياً) ── */
+  /* ── إعلان التفعيل ── */
   +'function _waitForArVoiceAndAnnounce(attempt){'
-  /* محاولة فورية مع Google TTS عبر الإنترنت */
-  +'try{'
   +'var phrase = "تم تفعيل الناطق الصوتي بنجاح";'
-  +'var url = "https://translate.google.com/translate_tts?ie=UTF-8&tl=ar&client=tw-ob&q=" + encodeURIComponent(phrase);'
-  +'if(!window._ttsAudio){ window._ttsAudio = new Audio(); window._ttsAudio.volume = 1.0; }'
-  +'window._ttsAudio.src = url;'
-  +'var p = window._ttsAudio.play();'
-  +'if(p && p.then){'
-  +'p.then(function(){'
-  /* ✅ نجح Google TTS — اعرض رسالة خضراء */
-  +'try{ console.log("[MedLab] ✅ Google TTS يعمل"); }catch(_){}'
-  +'_showVoiceStatusOnline(true);'
-  +'}).catch(function(err){'
-  /* فشل Google TTS — جرّب أصوات المتصفح */
-  +'try{ console.warn("[MedLab] فشل Google TTS:", err); }catch(_){}'
-  +'_tryBrowserVoice();'
+  /* ── الطريقة الأولى: ResponsiveVoice ── */
+  +'if(window.responsiveVoice && window.responsiveVoice.speak){'
+  +'try{'
+  +'window.responsiveVoice.cancel();'
+  +'window.responsiveVoice.speak(phrase, "Arabic Male", { rate: 0.95, volume: 1.0,'
+  +'onstart: function(){ try{ console.log("[MedLab] ✅ ResponsiveVoice started"); }catch(_){} },'
+  +'onerror: function(e){ try{ console.warn("[MedLab] RV error:",e); }catch(_){} _tryBrowserVoice(); }'
   +'});'
+  +'_showVoiceStatusOnline(true);'
+  +'return;'
+  +'}catch(eRV){ try{ console.warn("RV err:",eRV); }catch(_){} }'
   +'}'
-  +'}catch(e){'
+  /* ResponsiveVoice غير متاح → انتظر محاولة أخرى */
+  +'if(attempt < 5){'
+  +'setTimeout(function(){ _waitForArVoiceAndAnnounce(attempt+1); }, 800);'
+  +'return;'
+  +'}'
+  /* فشل تماماً → جرّب أصوات المتصفح */
   +'_tryBrowserVoice();'
-  +'}'
   +'}'
   /* ── محاولة استخدام صوت المتصفح كاحتياطي ── */
   +'function _tryBrowserVoice(){'
@@ -22662,7 +22649,7 @@ function openWaitScreen(){
   +'_showVoiceStatus(false, voices.length);'
   +'}'
   +'}'
-  /* ── عرض حالة Google TTS الأخضر (يختفي بعد 5 ثوان) ── */
+  /* ── عرض حالة Online TTS الأخضر (يختفي بعد 5 ثوان) ── */
   +'function _showVoiceStatusOnline(ok){'
   +'try{'
   +'var d = document.getElementById("voice-status");'
@@ -22673,7 +22660,7 @@ function openWaitScreen(){
   +'document.body.appendChild(d);'
   +'}'
   +'d.style.borderColor = "rgba(0,232,122,0.4)";'
-  +'d.innerHTML = "✅ <span style=\\"color:#00e87a\\">الناطق الصوتي يعمل</span><br><span style=\\"opacity:0.6;font-weight:400\\">يستخدم Google TTS عبر الإنترنت</span>";'
+  +'d.innerHTML = "✅ <span style=\\"color:#00e87a\\">الناطق الصوتي يعمل</span><br><span style=\\"opacity:0.6;font-weight:400\\">يستخدم خدمة الصوت السحابية</span>";'
   +'setTimeout(function(){ if(d.parentNode) d.parentNode.removeChild(d); }, 5000);'
   +'}catch(e){}'
   +'}'
