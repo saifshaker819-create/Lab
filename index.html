@@ -3576,7 +3576,7 @@ body.light-mode .wnb-text .wnb-char.neon-trail {
               <!-- صورة الرأس -->
               <div class="fg">
                 <label class="fl">🖼️ صورة رأس الورقة</label>
-                <div style="font-size:10px;color:var(--text2);margin-bottom:6px">تملأ الصورة المساحة كاملةً تلقائياً — يُنصح بعرض 794px وارتفاع 120px</div>
+                <div style="font-size:10px;color:var(--text2);margin-bottom:6px">تملأ الصورة المساحة كاملةً تلقائياً — يُنصح بعرض 794px وارتفاع 160px</div>
                 <input type="file" id="st-header-img" accept="image/*" onchange="loadHeaderImg(this)" class="fc" style="padding:7px">
                 <div id="header-img-preview" style="margin-top:8px;display:none">
                   <img id="header-img-show" style="max-height:80px;border-radius:8px;border:1px solid var(--border);width:100%;object-fit:fill;background:#fff;">
@@ -4297,6 +4297,49 @@ body.light-mode .wnb-text .wnb-char.neon-trail {
                 <div style="display:flex;align-items:center;gap:8px;cursor:pointer" onclick="wsScrollSpeedChange('fast')">
                   <div id="ws-speed-radio-fast" style="width:18px;height:18px;border-radius:50%;border:2px solid var(--primary);background:transparent;flex-shrink:0;display:flex;align-items:center;justify-content:center"><div id="ws-speed-dot-fast" style="width:9px;height:9px;border-radius:50%;background:transparent"></div></div>
                   <span style="font-size:13px;font-weight:700">سريع</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- ①.٥ الإشعار الصوتي -->
+            <div style="background:var(--bg-glass);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:14px">
+              <div style="font-size:13px;font-weight:800;color:var(--primary);margin-bottom:6px">🔊 الإشعار الصوتي عند جاهزية المريض</div>
+              <div style="font-size:11px;color:var(--text2);margin-bottom:14px;line-height:1.7">
+                عندما يصبح أي مريض <b>جاهزاً ✅</b> ستظهر بطاقة كبيرة على شاشة التلفاز بـ <b>اسم المريض</b> + <b>صوت جرس تنبيه</b> 🔔.<br>
+                <span style="color:var(--success)">💡 اختياري:</span> يمكنك إضافة تسجيل صوتي بصوتك (مرة واحدة) سيُشغّل بعد الجرس مع كل مريض. مثلاً: "تحاليلك جاهزة، يرجى التوجه إلى الاستقبال".
+              </div>
+
+              <!-- زر التشغيل/الإيقاف -->
+              <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:14px;padding-bottom:14px;border-bottom:1px dashed var(--border)">
+                <div style="display:flex;align-items:center;gap:8px;cursor:pointer" onclick="wsSpeakToggle(true)">
+                  <div id="ws-speak-radio-on" style="width:18px;height:18px;border-radius:50%;border:2px solid var(--primary);background:transparent;flex-shrink:0;display:flex;align-items:center;justify-content:center"><div id="ws-speak-dot-on" style="width:9px;height:9px;border-radius:50%;background:transparent"></div></div>
+                  <span style="font-size:13px;font-weight:700">🔊 تشغيل الإشعار الصوتي</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;cursor:pointer" onclick="wsSpeakToggle(false)">
+                  <div id="ws-speak-radio-off" style="width:18px;height:18px;border-radius:50%;border:2px solid var(--primary);background:transparent;flex-shrink:0;display:flex;align-items:center;justify-content:center"><div id="ws-speak-dot-off" style="width:9px;height:9px;border-radius:50%;background:transparent"></div></div>
+                  <span style="font-size:13px;font-weight:700">🔇 إيقاف الإشعار الصوتي</span>
+                </div>
+              </div>
+
+              <!-- التسجيل الصوتي المخصص (اختياري) -->
+              <div style="background:rgba(0,212,255,0.04);border:1px solid rgba(0,212,255,0.15);border-radius:10px;padding:14px">
+                <div style="font-size:13px;font-weight:800;color:var(--primary);margin-bottom:8px">🎙️ تسجيل صوتي مخصص <span style="font-size:10px;color:var(--text2);font-weight:600">(اختياري)</span></div>
+                <div style="font-size:11px;color:var(--text2);margin-bottom:12px;line-height:1.7">
+                  سجّل جملة بصوتك مرة واحدة (مثلاً: "تحاليلك جاهزة، يرجى التوجه إلى الاستقبال") وستُشغَّل تلقائياً مع كل مريض جاهز.
+                </div>
+
+                <div id="ws-rec-status" style="display:none;background:rgba(255,68,68,0.1);border:1px solid rgba(255,68,68,0.3);border-radius:8px;padding:10px;margin-bottom:10px;text-align:center;font-size:13px;font-weight:800;color:#ff4444">
+                  <span style="display:inline-block;width:10px;height:10px;background:#ff4444;border-radius:50%;margin-left:8px;animation:rec-pulse 1s infinite"></span>
+                  جاري التسجيل... <span id="ws-rec-time">00:00</span>
+                </div>
+                <style>@keyframes rec-pulse{0%,100%{opacity:1}50%{opacity:0.3}}</style>
+
+                <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+                  <button id="ws-rec-start" class="btn btn-sm" style="background:#ff4444;color:#fff;border:none;font-weight:800" onclick="wsStartRecording()">🎙️ بدء التسجيل</button>
+                  <button id="ws-rec-stop" class="btn btn-sm" style="background:#666;color:#fff;border:none;font-weight:800;display:none" onclick="wsStopRecording()">⏹️ إيقاف التسجيل</button>
+                  <button id="ws-rec-play" class="btn btn-sm btn-s" onclick="wsPlayRecording()" style="display:none">▶️ تشغيل</button>
+                  <button id="ws-rec-delete" class="btn btn-sm btn-d" onclick="wsDeleteRecording()" style="display:none">🗑️ حذف</button>
+                  <span id="ws-rec-info" style="font-size:11px;color:var(--text2);margin-right:auto"></span>
                 </div>
               </div>
             </div>
@@ -6413,6 +6456,16 @@ const DB={
         // بيانات كبيرة: IDB فقط — امسح من localStorage فوراً
         localStorage.removeItem(pk);
         IDB.set(pk,v).catch(e=>console.warn('[DB] IDB set error',k,e));
+      } else if(k==='settings' && v && typeof v==='object'){
+        // الإعدادات: استبعد الحقول الكبيرة من localStorage (تذهب لـ IDB عبر setBig)
+        const slim={};
+        for(const key in v){
+          if(key==='headerImg'||key==='footerImg'||
+             key==='_uaFieldsCustom'||key==='_stoolFieldsCustom'||key==='_semenFieldsCustom') continue;
+          slim[key]=v[key];
+        }
+        const compressed=LZS.compress(JSON.stringify(slim));
+        localStorage.setItem(pk,compressed);
       } else {
         // إعدادات خفيفة: localStorage
         const compressed=LZS.compress(JSON.stringify(v));
@@ -6447,6 +6500,85 @@ const DB={
 // load/save — نفس الواجهة القديمة بالضبط (لا يتغير باقي الكود)
 function load(k,def){return DB.get(k)||def;}
 function save(k,v){DB.set(k,v);}
+
+// ══════════════════════════════════════════════════════════════
+// BIG settings on IDB (صور الرأس/التذييل + الحقول المخصصة لتحاليل الإدرار/البراز/المنوي)
+// تذهب مباشرة لـ IDB بمفاتيح مستقلة، ولا تُخزَّن في كائن settings (لتفادي امتلاء localStorage)
+// ══════════════════════════════════════════════════════════════
+const _BIG_KEYS=new Set(['headerImg','footerImg','uaFieldsCustom','stoolFieldsCustom','semenFieldsCustom']);
+const _BIG_MC={};   // كاش ذاكرة فوري لقيم BIG (بدون تأخير)
+
+async function getBig(k){
+  try{
+    const pk=DB._pfx()+'big_'+k;
+    if(_BIG_MC[pk]!==undefined) return _BIG_MC[pk];
+    const v=await IDB.get(pk);
+    _BIG_MC[pk]=(v===null?'':v);
+    return _BIG_MC[pk];
+  }catch{return '';}
+}
+
+async function setBig(k,v){
+  try{
+    const pk=DB._pfx()+'big_'+k;
+    _BIG_MC[pk]=v;     // كاش فوري
+    await IDB.set(pk,v);
+    return true;
+  }catch(e){
+    console.warn('[MedLab] setBig error',k,e);
+    return false;
+  }
+}
+
+async function delBig(k){
+  try{
+    const pk=DB._pfx()+'big_'+k;
+    delete _BIG_MC[pk];
+    await IDB.del(pk);
+    return true;
+  }catch{return false;}
+}
+
+// قراءة متزامنة من الكاش (تُستدعى من شفرة الطباعة بعد تحميل القيم)
+function getBigCached(k){
+  const pk=DB._pfx()+'big_'+k;
+  return _BIG_MC[pk]||'';
+}
+
+// تحميل كل قيم BIG من IDB إلى الكاش، مع هجرة من settings القديمة
+async function loadAllBigToCache(){
+  try{
+    // هجرة: انقل القيم القديمة من settings إلى IDB إن وُجدت
+    const migrations=[
+      {settingsKey:'headerImg',         bigKey:'headerImg'},
+      {settingsKey:'footerImg',         bigKey:'footerImg'},
+      {settingsKey:'_uaFieldsCustom',   bigKey:'uaFieldsCustom'},
+      {settingsKey:'_stoolFieldsCustom',bigKey:'stoolFieldsCustom'},
+      {settingsKey:'_semenFieldsCustom',bigKey:'semenFieldsCustom'},
+    ];
+    let settingsChanged=false;
+    for(const {settingsKey,bigKey} of migrations){
+      const old=settings[settingsKey];
+      if(old){
+        // إذا لم يكن في IDB بعد، انقله
+        const existing=await IDB.get(DB._pfx()+'big_'+bigKey);
+        if(existing===null||existing===undefined||existing===''){
+          await IDB.set(DB._pfx()+'big_'+bigKey, old);
+        }
+        delete settings[settingsKey];
+        settingsChanged=true;
+      }
+    }
+    if(settingsChanged){ try{ save('settings',settings); }catch{} }
+
+    // حمّل كل القيم لتكون متاحة بشكل متزامن من الكاش
+    for(const k of _BIG_KEYS){
+      const pk=DB._pfx()+'big_'+k;
+      const v=await IDB.get(pk);
+      _BIG_MC[pk]=(v===null||v===undefined?'':v);
+    }
+  }catch(e){console.warn('[MedLab] loadAllBigToCache error',e);}
+}
 
 // مفاتيح البيانات الرئيسية (للتوافق مع الكود القديم)
 const _ARCHIVE_KEYS=[..._IDB_KEYS];
@@ -7303,6 +7435,34 @@ function startApp(){
   loadInvPtDropdown();
   updateDashboard();
   updateBadges();
+
+  // ── تحميل القيم الكبيرة (الصور + الحقول المخصصة) من IDB، ثم إعادة تطبيقها ──
+  loadAllBigToCache().then(()=>{
+    // 1) الصور: ضعها في settings (للطباعة) واعرضها في الإعدادات
+    const hImg = getBigCached('headerImg');
+    if(hImg){
+      settings.headerImg = hImg;
+      const showH = document.getElementById('header-img-show');
+      const prvH  = document.getElementById('header-img-preview');
+      if(showH) showH.src = hImg;
+      if(prvH)  prvH.style.display = 'block';
+    }
+    const fImg = getBigCached('footerImg');
+    if(fImg){
+      settings.footerImg = fImg;
+      const showF = document.getElementById('footer-img-show');
+      const prvF  = document.getElementById('footer-img-preview');
+      if(showF) showF.src = fImg;
+      if(prvF)  prvF.style.display = 'block';
+    }
+    // 2) الحقول المخصصة لتحاليل الإدرار/البراز/المنوي
+    applyCustomExamFields();
+    // إعادة رسم محرّرات الحقول إن كانت مفتوحة حالياً
+    try{ if(document.getElementById('ua-fields-editor'))    renderUAFieldsEditor();    }catch{}
+    try{ if(document.getElementById('stool-fields-editor')) renderStoolFieldsEditor(); }catch{}
+    try{ if(document.getElementById('semen-fields-editor')) renderSemenFieldsEditor(); }catch{}
+  }).catch(e=>console.warn('[MedLab] loadAllBigToCache failed',e));
+
   setTimeout(()=>showNotif('مرحباً','النظام جاهز للعمل 🔬','success'),500);
   // تهيئة عداد ESR بعد تعيين المستخدم (لضمان صحة prefix التخزين)
   setTimeout(function(){
@@ -9324,7 +9484,16 @@ function openViewResultsModal(rid){
   document.getElementById('vr-title').innerHTML=`📊 نتائج ${r.id} - ${r.patientName} ${printed?'<span class="bdg bdg-ok" style="margin-right:8px">🖨️ مطبوع</span>':'<span class="bdg bdg-w" style="margin-right:8px">⏸ غير مطبوع</span>'}`;
 
   // جلب آخر 4 طلبات مكتملة لنفس المريض (غير الطلب الحالي)
-  const prevReqs=requests.filter(req=>req.patientId===pt.id&&req.id!==rid&&req.status==='done').sort((a,b)=>new Date(b.resultDate||b.date)-new Date(a.resultDate||a.date));
+  // استبعاد أي طلب بنفس تاريخ الطلب الحالي (لا يُحسب كنتيجة "سابقة")
+  const _curDayVR = ((r.resultDate||r.date||'')+'').slice(0,10);
+  const prevReqs=requests.filter(req=>{
+    if(req.patientId!==pt.id) return false;
+    if(req.id===rid) return false;
+    if(req.status!=='done') return false;
+    const rDay = ((req.resultDate||req.date||'')+'').slice(0,10);
+    if(_curDayVR && rDay && rDay===_curDayVR) return false;
+    return true;
+  }).sort((a,b)=>new Date(b.resultDate||b.date)-new Date(a.resultDate||a.date));
 
   let rows='';
   const reqTests=r.tests.map(tid=>tests.find(t=>t.id===tid)).filter(Boolean);
@@ -9751,8 +9920,16 @@ function loadResultEntry(){
   const ptGender=pt.gender||'male';
   const tbody=document.getElementById('res-entry-tbody');
   // جلب جميع الطلبات المكتملة لنفس المريض مرتبة من الأحدث
-  const _24hAgo=Date.now()-24*60*60*1000;
-  const prevReqs=requests.filter(r=>r.patientId===pt.id&&r.id!==id&&r.status==='done'&&new Date(r.resultDate||r.date).getTime()<_24hAgo).sort((a,b)=>new Date(b.resultDate||b.date)-new Date(a.resultDate||a.date));
+  // استبعاد أي طلب بنفس تاريخ الطلب الحالي (نفس اليوم لا يُعدّ نتيجة سابقة)
+  const _curDayRE = ((req.resultDate||req.date||'')+'').slice(0,10);
+  const prevReqs=requests.filter(r=>{
+    if(r.patientId!==pt.id) return false;
+    if(r.id===id) return false;
+    if(r.status!=='done') return false;
+    const rDay = ((r.resultDate||r.date||'')+'').slice(0,10);
+    if(_curDayRE && rDay && rDay===_curDayRE) return false;
+    return true;
+  }).sort((a,b)=>new Date(b.resultDate||b.date)-new Date(a.resultDate||a.date));
   tbody.innerHTML=reqTests.map(t=>{
     // Fix 2: Special exam row — inline button that opens modal without leaving page
     if(t.isSpecialExam){
@@ -10907,7 +11084,18 @@ function buildPrintHTML(req, opts){
   sortedGroupKeys.forEach(k=>{ grouped[k]=sortTestsInGroup(k, grouped[k]); });
   const ptAge    = parseFloat(pt.ageVal)||Math.floor((Date.now()-new Date(pt.dob||0).getTime())/31557600000)||0;
   const ptGender = pt.gender||'male';
-  const prevReqs = requests.filter(r=>r.patientId===pt.id&&r.id!==req.id&&r.status==='done')
+  // ── تاريخ الطلب الحالي (YYYY-MM-DD) لاستبعاد أي نتائج سابقة بنفس اليوم ──
+  // المنطق: إذا أُعيد التحليل في نفس اليوم فالنتيجة الأولى ليست "سابقة" بل نسخة مكررة من نفس الزيارة،
+  // ولا يجب أن تظهر في عمود Last Result.
+  const _curDay = ((req.resultDate||req.date||'')+'').slice(0,10);
+  const prevReqs = requests.filter(r=>{
+                              if(r.patientId!==pt.id) return false;
+                              if(r.id===req.id) return false;
+                              if(r.status!=='done') return false;
+                              const rDay = ((r.resultDate||r.date||'')+'').slice(0,10);
+                              if(_curDay && rDay && rDay===_curDay) return false; // ← نفس اليوم: استبعاد
+                              return true;
+                            })
                            .sort((a,b)=>new Date(b.resultDate||b.date)-new Date(a.resultDate||a.date));
 
   // أحجام الخط من الإعدادات
@@ -10978,7 +11166,7 @@ function buildPrintHTML(req, opts){
   } else if(settings.headerImg&&showHdr){
     // Fix 4: image fills full width AND height (no whitespace)
     hdr=`<div style="width:100%;line-height:0">
-           <img src="${settings.headerImg}" style="width:100%;height:120px;display:block;object-fit:fill">
+           <img src="${settings.headerImg}" style="width:100%;height:160px;display:block;object-fit:fill">
          </div>`;
   } else if(showHdr){
     hdr=`<div style="padding:8px 16px 6px;border-bottom:2px solid #002255;display:flex;justify-content:space-between;align-items:center">
@@ -14045,7 +14233,8 @@ function saveCurrencyNow(){settings.currency=document.getElementById('st-currenc
 // إعدادات شاشة الانتظار — سرعة التمرير وتصفية الأطباء
 // ============================================================
 function _wsGetSettings(){
-  if(!settings.waitScreen) settings.waitScreen={speed:'slow',doctorFilter:null};
+  if(!settings.waitScreen) settings.waitScreen={speed:'slow',doctorFilter:null,speakEnabled:true};
+  if(typeof settings.waitScreen.speakEnabled === 'undefined') settings.waitScreen.speakEnabled = true;
   return settings.waitScreen;
 }
 
@@ -14058,6 +14247,166 @@ function wsScrollSpeedChange(val){
     if(radio) radio.style.borderColor = o===val ? 'var(--primary)' : 'rgba(255,255,255,0.3)';
   });
   _wsGetSettings().speed = val;
+}
+
+// ── الناطق الصوتي: تفعيل/إيقاف ──
+function wsSpeakToggle(enabled){
+  _wsGetSettings().speakEnabled = !!enabled;
+  // تحديث UI
+  var dotOn = document.getElementById('ws-speak-dot-on');
+  var dotOff = document.getElementById('ws-speak-dot-off');
+  var radOn = document.getElementById('ws-speak-radio-on');
+  var radOff = document.getElementById('ws-speak-radio-off');
+  if(dotOn)  dotOn.style.background  = enabled ? 'var(--primary)' : 'transparent';
+  if(dotOff) dotOff.style.background = !enabled ? 'var(--primary)' : 'transparent';
+  if(radOn)  radOn.style.borderColor  = enabled ? 'var(--primary)' : 'rgba(255,255,255,0.3)';
+  if(radOff) radOff.style.borderColor = !enabled ? 'var(--primary)' : 'rgba(255,255,255,0.3)';
+}
+
+// ============================================================
+// تسجيل صوتي مخصص (اختياري) — يُحفظ في localStorage كـ Data URL
+// ============================================================
+let _wsRecorder = null;
+let _wsRecChunks = [];
+let _wsRecStartTime = 0;
+let _wsRecTimer = null;
+const WS_VOICE_KEY = 'medlab_voice_recording';
+
+// تحديث واجهة التسجيل (إظهار/إخفاء الأزرار حسب وجود تسجيل)
+function _wsRefreshRecordUI(){
+  const hasRec = !!localStorage.getItem(WS_VOICE_KEY);
+  const playBtn = document.getElementById('ws-rec-play');
+  const delBtn = document.getElementById('ws-rec-delete');
+  const info = document.getElementById('ws-rec-info');
+  if(playBtn) playBtn.style.display = hasRec ? '' : 'none';
+  if(delBtn) delBtn.style.display = hasRec ? '' : 'none';
+  if(info){
+    if(hasRec){
+      const len = localStorage.getItem(WS_VOICE_KEY).length;
+      const kb = Math.round(len/1024);
+      info.innerHTML = '✅ <span style="color:var(--success);font-weight:800">يوجد تسجيل محفوظ</span> ('+kb+' KB)';
+    } else {
+      info.innerHTML = '<span style="opacity:0.6">لا يوجد تسجيل محفوظ</span>';
+    }
+  }
+}
+
+async function wsStartRecording(){
+  try{
+    if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+      showNotif('غير مدعوم','المتصفح لا يدعم تسجيل الصوت','warning');
+      return;
+    }
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    _wsRecChunks = [];
+    // استخدم MIME المدعوم من المتصفح
+    let mime = 'audio/webm';
+    if(MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) mime = 'audio/webm;codecs=opus';
+    else if(MediaRecorder.isTypeSupported('audio/mp4')) mime = 'audio/mp4';
+    else if(MediaRecorder.isTypeSupported('audio/ogg')) mime = 'audio/ogg';
+
+    _wsRecorder = new MediaRecorder(stream, { mimeType: mime });
+    _wsRecorder.ondataavailable = function(e){ if(e.data && e.data.size > 0) _wsRecChunks.push(e.data); };
+    _wsRecorder.onstop = async function(){
+      try{
+        // إيقاف كل المسارات
+        stream.getTracks().forEach(t => t.stop());
+        const blob = new Blob(_wsRecChunks, { type: mime });
+        // تحويل إلى Data URL وحفظ في localStorage
+        const reader = new FileReader();
+        reader.onload = function(){
+          try{
+            const dataUrl = reader.result;
+            // فحص حجم: حد localStorage عادةً 5MB
+            if(dataUrl.length > 4*1024*1024){
+              showNotif('التسجيل طويل جداً','يجب أن يكون التسجيل أقصر من ~30 ثانية','warning');
+              return;
+            }
+            localStorage.setItem(WS_VOICE_KEY, dataUrl);
+            _wsRefreshRecordUI();
+            showNotif('✅ تم الحفظ','تم حفظ التسجيل بنجاح، سيُستخدم تلقائياً مع كل مريض جاهز','success');
+            // إعلام نافذة شاشة الانتظار بالتحديث
+            try{
+              if(window._waitScreenWin && !window._waitScreenWin.closed){
+                window._waitScreenWin.postMessage({ type:'WQ_VOICE_UPDATE', voice: dataUrl }, '*');
+              }
+            }catch(_){}
+          }catch(err){
+            if(err && err.name === 'QuotaExceededError'){
+              showNotif('المساحة ممتلئة','التسجيل أكبر من المساحة المتاحة. حاول تسجيل أقصر.','danger');
+            } else {
+              showNotif('خطأ','تعذر حفظ التسجيل: '+(err.message||err),'danger');
+            }
+          }
+        };
+        reader.readAsDataURL(blob);
+      }catch(err){
+        showNotif('خطأ','فشل معالجة التسجيل: '+(err.message||err),'danger');
+      }
+    };
+    _wsRecorder.start();
+    _wsRecStartTime = Date.now();
+    // تحديث واجهة المؤقت
+    document.getElementById('ws-rec-status').style.display = '';
+    document.getElementById('ws-rec-start').style.display = 'none';
+    document.getElementById('ws-rec-stop').style.display = '';
+    _wsRecTimer = setInterval(function(){
+      const sec = Math.floor((Date.now() - _wsRecStartTime)/1000);
+      const m = String(Math.floor(sec/60)).padStart(2,'0');
+      const s = String(sec%60).padStart(2,'0');
+      const t = document.getElementById('ws-rec-time');
+      if(t) t.textContent = m+':'+s;
+      // إيقاف تلقائي عند 30 ثانية
+      if(sec >= 30) wsStopRecording();
+    }, 250);
+  }catch(err){
+    if(err && err.name === 'NotAllowedError'){
+      showNotif('الميكروفون مرفوض','يجب السماح للموقع باستخدام الميكروفون','warning');
+    } else {
+      showNotif('خطأ','تعذر بدء التسجيل: '+(err.message||err),'danger');
+    }
+  }
+}
+
+function wsStopRecording(){
+  try{
+    if(_wsRecorder && _wsRecorder.state !== 'inactive'){
+      _wsRecorder.stop();
+    }
+    if(_wsRecTimer){ clearInterval(_wsRecTimer); _wsRecTimer = null; }
+    document.getElementById('ws-rec-status').style.display = 'none';
+    document.getElementById('ws-rec-start').style.display = '';
+    document.getElementById('ws-rec-stop').style.display = 'none';
+  }catch(e){}
+}
+
+function wsPlayRecording(){
+  try{
+    const dataUrl = localStorage.getItem(WS_VOICE_KEY);
+    if(!dataUrl){ showNotif('لا يوجد تسجيل','لم يُحفظ أي تسجيل بعد','warning'); return; }
+    const audio = new Audio(dataUrl);
+    audio.volume = 1.0;
+    audio.play().catch(function(err){
+      showNotif('خطأ','تعذر تشغيل التسجيل: '+(err.message||err),'danger');
+    });
+  }catch(e){}
+}
+
+function wsDeleteRecording(){
+  if(!confirm('هل أنت متأكد من حذف التسجيل الصوتي؟')) return;
+  try{
+    localStorage.removeItem(WS_VOICE_KEY);
+    _wsRefreshRecordUI();
+    showNotif('🗑️ تم الحذف','تم حذف التسجيل، سيتم استخدام الجرس فقط بدون نطق','info');
+    // إعلام نافذة شاشة الانتظار بالحذف
+    try{
+      if(window._waitScreenWin && !window._waitScreenWin.closed){
+        window._waitScreenWin.postMessage({ type:'WQ_VOICE_UPDATE', voice: null }, '*');
+      }
+    }catch(_){}
+  }catch(e){
+    showNotif('خطأ','تعذر حذف التسجيل','danger');
+  }
 }
 
 function wsRefreshDoctorList(){
@@ -14131,6 +14480,10 @@ function _wsInitSettingsUI(){
   var ws = _wsGetSettings();
   // تعيين السرعة
   wsScrollSpeedChange(ws.speed||'slow');
+  // تعيين حالة الناطق الصوتي
+  wsSpeakToggle(ws.speakEnabled !== false);
+  // تحديث واجهة التسجيل الصوتي
+  _wsRefreshRecordUI();
   // تحميل قائمة الأطباء
   wsRefreshDoctorList();
 }
@@ -14428,17 +14781,41 @@ function _confirmDbPin(){
 function loadHeaderImg(input){
   const f=input.files[0];if(!f)return;
   const reader=new FileReader();
-  reader.onload=e=>{settings.headerImg=e.target.result;save('settings',settings);document.getElementById('header-img-show').src=e.target.result;document.getElementById('header-img-preview').style.display='block';showNotif('تم','تم رفع صورة الرأس ✅','success');};
+  reader.onload=async e=>{
+    const dataUrl=e.target.result;
+    settings.headerImg=dataUrl;                // متاح فوراً في الذاكرة لشفرة الطباعة
+    document.getElementById('header-img-show').src=dataUrl;
+    document.getElementById('header-img-preview').style.display='block';
+    const ok=await setBig('headerImg',dataUrl);  // الحفظ الفعلي على IDB
+    showNotif('تم', ok?'تم رفع صورة الرأس وحفظها في قاعدة البيانات ✅':'تم رفع الصورة لكن فشل الحفظ ⚠️', ok?'success':'error');
+  };
   reader.readAsDataURL(f);
 }
 function loadFooterImg(input){
   const f=input.files[0];if(!f)return;
   const reader=new FileReader();
-  reader.onload=e=>{settings.footerImg=e.target.result;save('settings',settings);document.getElementById('footer-img-show').src=e.target.result;document.getElementById('footer-img-preview').style.display='block';showNotif('تم','تم رفع صورة التذييل ✅','success');};
+  reader.onload=async e=>{
+    const dataUrl=e.target.result;
+    settings.footerImg=dataUrl;
+    document.getElementById('footer-img-show').src=dataUrl;
+    document.getElementById('footer-img-preview').style.display='block';
+    const ok=await setBig('footerImg',dataUrl);
+    showNotif('تم', ok?'تم رفع صورة التذييل وحفظها في قاعدة البيانات ✅':'تم رفع الصورة لكن فشل الحفظ ⚠️', ok?'success':'error');
+  };
   reader.readAsDataURL(f);
 }
-function clearHeaderImg(){settings.headerImg='';save('settings',settings);document.getElementById('header-img-preview').style.display='none';document.getElementById('st-header-img').value='';}
-function clearFooterImg(){settings.footerImg='';save('settings',settings);document.getElementById('footer-img-preview').style.display='none';document.getElementById('st-footer-img').value='';}
+function clearHeaderImg(){
+  settings.headerImg='';
+  delBig('headerImg').catch(()=>{});
+  document.getElementById('header-img-preview').style.display='none';
+  document.getElementById('st-header-img').value='';
+}
+function clearFooterImg(){
+  settings.footerImg='';
+  delBig('footerImg').catch(()=>{});
+  document.getElementById('footer-img-preview').style.display='none';
+  document.getElementById('st-footer-img').value='';
+}
 
 // ── دوال التوقيع والتذييل ──────────────────────────────────
 function toggleSignOption(type){
@@ -19044,7 +19421,7 @@ function _buildCultureHTML(cid){
 
   let hdrHTML='';
   if(s.hdrMode==='text'&&s.hdrText) hdrHTML=buildTextHeader(s);
-  else if(s.headerImg) hdrHTML=`<img src="${s.headerImg}" style="width:100%;height:120px;display:block;object-fit:fill">`;
+  else if(s.headerImg) hdrHTML=`<img src="${s.headerImg}" style="width:100%;height:160px;display:block;object-fit:fill">`;
   else hdrHTML=`<div style="background:${color};color:#fff;padding:8px 18px;font-family:Arial,sans-serif;font-size:16px;font-weight:900">${s.name||'Medical Laboratory'}</div>`;
 
   let ftrHTML='';
@@ -19557,7 +19934,7 @@ function _buildUAPrintHTML(r){
   const color=s.hdrText?.color||'#003366';
   let hdrHTML='';
   if(s.hdrMode==='text'&&s.hdrText) hdrHTML=buildTextHeader(s);
-  else if(s.headerImg) hdrHTML=`<img src="${s.headerImg}" style="width:100%;height:120px;display:block;object-fit:fill">`;
+  else if(s.headerImg) hdrHTML=`<img src="${s.headerImg}" style="width:100%;height:160px;display:block;object-fit:fill">`;
   else hdrHTML=`<div style="background:${color};color:#fff;padding:8px 18px;font-size:16px;font-weight:900">${s.name||'Medical Laboratory'}</div>`;
   let ftrHTML='';
   if(s.hdrMode==='text'&&s.hdrText) ftrHTML=buildTextFooter(s);
@@ -20077,7 +20454,7 @@ function _buildStoolPrintHTML(r){
   const color=s.hdrText?.color||'#003366';
   let hdrHTML='';
   if(s.hdrMode==='text'&&s.hdrText) hdrHTML=buildTextHeader(s);
-  else if(s.headerImg) hdrHTML=`<img src="${s.headerImg}" style="width:100%;height:120px;display:block;object-fit:fill">`;
+  else if(s.headerImg) hdrHTML=`<img src="${s.headerImg}" style="width:100%;height:160px;display:block;object-fit:fill">`;
   else hdrHTML=`<div style="background:${color};color:#fff;padding:8px 18px;font-size:16px;font-weight:900">${s.name||'Medical Laboratory'}</div>`;
   let ftrHTML='';
   if(s.hdrMode==='text'&&s.hdrText) ftrHTML=buildTextFooter(s);
@@ -20471,8 +20848,7 @@ function removeUAField(secKey, idx){
   if(!confirm('حذف هذا العنصر؟')) return;
   UA_FIELDS[secKey].fields.splice(idx,1);
   // Save custom UA_FIELDS to settings
-  settings._uaFieldsCustom = JSON.stringify(UA_FIELDS);
-  save('settings', settings);
+  setBig('uaFieldsCustom', JSON.stringify(UA_FIELDS)); delete settings._uaFieldsCustom;
   renderUAFieldsEditor();
   showNotif('تم','تم حذف العنصر ✅','success');
 }
@@ -20481,8 +20857,7 @@ function removeStoolField(secKey, idx){
   if(!STOOL_FIELDS[secKey]||!STOOL_FIELDS[secKey].fields) return;
   if(!confirm('حذف هذا العنصر؟')) return;
   STOOL_FIELDS[secKey].fields.splice(idx,1);
-  settings._stoolFieldsCustom = JSON.stringify(STOOL_FIELDS);
-  save('settings', settings);
+  setBig('stoolFieldsCustom', JSON.stringify(STOOL_FIELDS)); delete settings._stoolFieldsCustom;
   renderStoolFieldsEditor();
   showNotif('تم','تم حذف العنصر ✅','success');
 }
@@ -20496,8 +20871,7 @@ function addUAField(){
   const options=opts?opts.split('|').map(o=>o.trim()).filter(Boolean):['None','Present'];
   const id='custom_'+Date.now();
   UA_FIELDS[secKey].fields.push({id, label, type:'select', options, normal:options[0]});
-  settings._uaFieldsCustom = JSON.stringify(UA_FIELDS);
-  save('settings', settings);
+  setBig('uaFieldsCustom', JSON.stringify(UA_FIELDS)); delete settings._uaFieldsCustom;
   document.getElementById('ua-new-label').value='';
   document.getElementById('ua-new-opts').value='';
   renderUAFieldsEditor();
@@ -20513,8 +20887,7 @@ function addStoolField(){
   const options=opts?opts.split('|').map(o=>o.trim()).filter(Boolean):['None','Present'];
   const id='custom_'+Date.now();
   STOOL_FIELDS[secKey].fields.push({id, label, type:'select', options, normal:options[0]});
-  settings._stoolFieldsCustom = JSON.stringify(STOOL_FIELDS);
-  save('settings', settings);
+  setBig('stoolFieldsCustom', JSON.stringify(STOOL_FIELDS)); delete settings._stoolFieldsCustom;
   document.getElementById('stool-new-label').value='';
   document.getElementById('stool-new-opts').value='';
   renderStoolFieldsEditor();
@@ -20523,21 +20896,26 @@ function addStoolField(){
 
 // Apply saved custom fields on startup
 function applyCustomExamFields(){
+  // قراءة من كاش IDB (الذي تم تحميله مسبقاً عبر loadAllBigToCache)
+  // مع توافق رجعي مع settings._uaFieldsCustom القديمة
   try{
-    if(settings._uaFieldsCustom){
-      const saved=JSON.parse(settings._uaFieldsCustom);
+    const ua = getBigCached('uaFieldsCustom') || settings._uaFieldsCustom;
+    if(ua){
+      const saved = (typeof ua==='string') ? JSON.parse(ua) : ua;
       Object.keys(saved).forEach(k=>{ if(UA_FIELDS[k]) UA_FIELDS[k].fields=saved[k].fields; });
     }
   }catch(e){}
   try{
-    if(settings._stoolFieldsCustom){
-      const saved=JSON.parse(settings._stoolFieldsCustom);
+    const st = getBigCached('stoolFieldsCustom') || settings._stoolFieldsCustom;
+    if(st){
+      const saved = (typeof st==='string') ? JSON.parse(st) : st;
       Object.keys(saved).forEach(k=>{ if(STOOL_FIELDS[k]) STOOL_FIELDS[k].fields=saved[k].fields; });
     }
   }catch(e){}
   try{
-    if(settings._semenFieldsCustom){
-      const saved=JSON.parse(settings._semenFieldsCustom);
+    const sm = getBigCached('semenFieldsCustom') || settings._semenFieldsCustom;
+    if(sm){
+      const saved = (typeof sm==='string') ? JSON.parse(sm) : sm;
       Object.keys(saved).forEach(k=>{ if(SEMEN_FIELDS[k]) SEMEN_FIELDS[k].fields=saved[k].fields; });
     }
   }catch(e){}
@@ -20636,9 +21014,8 @@ function _efDrop(e,examType){
   var item=fields.splice(srcIdx,1)[0];
   fields.splice(dstIdx,0,item);
   // حفظ
-  var settingsKey=examType==='ua'?'_uaFieldsCustom':examType==='stool'?'_stoolFieldsCustom':'_semenFieldsCustom';
-  settings[settingsKey]=JSON.stringify(FIELDS);
-  save('settings',settings);
+  var bigKey=examType==='ua'?'uaFieldsCustom':examType==='stool'?'stoolFieldsCustom':'semenFieldsCustom';
+  setBig(bigKey, JSON.stringify(FIELDS));
   // إعادة رسم
   if(examType==='ua') renderUAFieldsEditor();
   else if(examType==='stool') renderStoolFieldsEditor();
@@ -20672,9 +21049,8 @@ function saveExamFieldEdit(examType, secKey, fieldIdx){
   f.options = options;
   f.normal  = normal || options[0];
   // حفظ
-  const settingsKey = examType==='ua'?'_uaFieldsCustom':examType==='stool'?'_stoolFieldsCustom':'_semenFieldsCustom';
-  settings[settingsKey] = JSON.stringify(FIELDS);
-  save('settings', settings);
+  const bigKey = examType==='ua'?'uaFieldsCustom':examType==='stool'?'stoolFieldsCustom':'semenFieldsCustom';
+  setBig(bigKey, JSON.stringify(FIELDS));
   // إغلاق المودال وإعادة رسم المحرر
   const ov = document.getElementById('_ef_edit_overlay'); if(ov) ov.remove();
   if(examType==='ua') renderUAFieldsEditor();
@@ -20712,8 +21088,7 @@ function removeSemenField(secKey, idx){
   if(!SEMEN_FIELDS[secKey]||!SEMEN_FIELDS[secKey].fields) return;
   if(!confirm('Delete this field?')) return;
   SEMEN_FIELDS[secKey].fields.splice(idx,1);
-  settings._semenFieldsCustom = JSON.stringify(SEMEN_FIELDS);
-  save('settings', settings);
+  setBig('semenFieldsCustom', JSON.stringify(SEMEN_FIELDS)); delete settings._semenFieldsCustom;
   renderSemenFieldsEditor();
   showNotif('Done','Field deleted ✅','success');
 }
@@ -20727,8 +21102,7 @@ function addSemenField(){
   const options=opts?opts.split('|').map(o=>o.trim()).filter(Boolean):['None','Present'];
   const id='custom_'+Date.now();
   SEMEN_FIELDS[secKey].fields.push({id, label, type:'select', options, normal:options[0]});
-  settings._semenFieldsCustom = JSON.stringify(SEMEN_FIELDS);
-  save('settings', settings);
+  setBig('semenFieldsCustom', JSON.stringify(SEMEN_FIELDS)); delete settings._semenFieldsCustom;
   document.getElementById('semen-new-label').value='';
   document.getElementById('semen-new-opts').value='';
   renderSemenFieldsEditor();
@@ -21230,7 +21604,7 @@ function _buildSemenPrintHTML(r){
   const color=s.hdrText?.color||'#003366';
   let hdrHTML='';
   if(s.hdrMode==='text'&&s.hdrText) hdrHTML=buildTextHeader(s);
-  else if(s.headerImg) hdrHTML=`<img src="${s.headerImg}" style="width:100%;height:120px;display:block;object-fit:fill">`;
+  else if(s.headerImg) hdrHTML=`<img src="${s.headerImg}" style="width:100%;height:160px;display:block;object-fit:fill">`;
   else hdrHTML=`<div style="background:${color};color:#fff;padding:8px 18px;font-size:16px;font-weight:900">${s.name||'Medical Laboratory'}</div>`;
   let ftrHTML='';
   if(s.hdrMode==='text'&&s.hdrText) ftrHTML=buildTextFooter(s);
@@ -22137,11 +22511,24 @@ function openWaitScreen(){
   +'.live{display:inline-flex;align-items:center;gap:6px;color:rgba(0,232,122,0.7);font-weight:700;}'
   +'.ldot{width:7px;height:7px;background:#00e87a;border-radius:50%;animation:livepulse 2s infinite;}'
   +'@keyframes livepulse{0%,100%{opacity:1}50%{opacity:0.25}}'
+  /* ── طبقة عرض اسم المريض الجاهز عند النطق ── */
+  +'.call-toast{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%) scale(0.85);background:linear-gradient(135deg,rgba(0,232,122,0.95),rgba(0,180,90,0.95));color:#fff;padding:34px 60px;border-radius:24px;box-shadow:0 20px 80px rgba(0,232,122,0.5),0 0 200px rgba(0,232,122,0.3);z-index:9999;text-align:center;opacity:0;pointer-events:none;transition:all 0.45s cubic-bezier(0.34,1.56,0.64,1);border:2px solid rgba(255,255,255,0.25);min-width:520px;}'
+  +'.call-toast.show{opacity:1;transform:translate(-50%,-50%) scale(1);}'
+  +'.call-toast .ct-ic{font-size:64px;margin-bottom:8px;animation:bell 0.6s ease-in-out infinite alternate;}'
+  +'@keyframes bell{0%{transform:rotate(-12deg)}100%{transform:rotate(12deg)}}'
+  +'.call-toast .ct-ttl{font-size:18px;font-weight:700;opacity:0.92;margin-bottom:10px;letter-spacing:1px;}'
+  +'.call-toast .ct-name{font-size:42px;font-weight:900;line-height:1.2;margin-bottom:8px;text-shadow:0 4px 14px rgba(0,0,0,0.3);}'
+  +'.call-toast .ct-sub{font-size:15px;opacity:0.85;font-weight:600;}'
+  /* صف المريض الجاري نداؤه */
+  +'tr.calling-row td{background:rgba(0,232,122,0.18) !important;animation:rowGlow 1.2s ease-in-out infinite alternate;}'
+  +'@keyframes rowGlow{0%{box-shadow:inset 0 0 0 rgba(0,232,122,0)}100%{box-shadow:inset 0 0 30px rgba(0,232,122,0.4)}}'
   +'</style></head><body>'
   +'<div class="hdr">'
   +'<div class="logo"><div class="logo-ic">🔬</div><div><h1>شاشة قاعة الانتظار</h1><p>MedLab Pro — وضع HDMI</p></div></div>'
   +'<div><div class="clock" id="wsclock">--:--:--</div><div class="date-lbl" id="wsdate"></div></div>'
   +'<div style="display:flex;align-items:center;gap:10px">'
+  +'<div id="voice-badge" class="hdmi-badge" style="background:rgba(0,232,122,0.08);border-color:rgba(0,232,122,0.25);color:#00e87a;display:none"><div class="hdmi-dot" style="background:#00e87a"></div>🔊 الناطق نشط</div>'
+  +'<button id="voice-unlock-btn" class="fs-btn" onclick="_unlockVoice()" title="تفعيل الصوت" style="display:none;background:rgba(255,204,0,0.12);border-color:rgba(255,204,0,0.3);color:#ffcc00;width:auto;padding:0 14px;font-size:13px;font-weight:700;gap:6px">🔊 اضغط لتفعيل الصوت</button>'
   +'<div class="hdmi-badge"><div class="hdmi-dot"></div>📺 HDMI نشط</div>'
   +'<button class="fs-btn" onclick="toggleFS()" title="ملء الشاشة / F11">⛶</button>'
   +'</div>'
@@ -22157,6 +22544,12 @@ function openWaitScreen(){
   +'<span class="live"><span class="ldot"></span> البيانات حية</span>'
   +'<span>⏳ انتظار &nbsp;|&nbsp; 🔬 جاري التحليل &nbsp;|&nbsp; ✅ جاهز</span>'
   +'<span>MedLab Pro &copy; '+yr+'</span>'
+  +'</div>'
+  +'<div id="call-toast" class="call-toast" aria-live="polite">'
+  +'<div class="ct-ic">🔔</div>'
+  +'<div class="ct-ttl">📣 نداء للمريض</div>'
+  +'<div class="ct-name" id="ct-name">—</div>'
+  +'<div class="ct-sub">تحاليلك جاهزة، يرجى التوجه إلى الاستقبال</div>'
   +'</div>'
   +'<script>'
   +'function tick(){var n=new Date();'
@@ -22191,6 +22584,8 @@ function openWaitScreen(){
   +'_inner=document.getElementById("hdmi-scroll-inner");'
   +'_pos=0;'
   +'if(_inner)_inner.style.transform="translateY(0px)";'
+  /* إخفاء النسخة المكررة عندما تكون السرعة = 0 (وضع ثابت) */
+  +'_updateDupVisibility();'
   +'setTimeout(function(){'
   +'var orig=document.getElementById("hdmi-orig");'
   +'_totalH=orig?orig.offsetHeight:0;'
@@ -22205,6 +22600,14 @@ function openWaitScreen(){
   +'}'
   +'_raf=requestAnimationFrame(_scrollTick);'
   +'}'
+  /* ── إخفاء/إظهار النسخة المكررة بناءً على السرعة ── */
+  +'function _updateDupVisibility(){'
+  +'try{'
+  +'var dup = document.getElementById("hdmi-dup");'
+  +'if(!dup) return;'
+  +'dup.style.display = (_spd > 0) ? "block" : "none";'
+  +'}catch(e){}'
+  +'}'
   +'(function initScroll(){'
   +'_inner=document.getElementById("hdmi-scroll-inner");'
   +'if(_inner){'
@@ -22215,23 +22618,264 @@ function openWaitScreen(){
   +'},200);'
   +'}'
   +'})();'
+  /* ── الناطق الصوتي للمرضى الجاهزين ── */
+  +'var _announcedIds = {};'        /* المرضى الذين تم نطقهم بالفعل في هذه الجلسة */
+  +'var _firstSnapshot = true;'     /* أول استقبال للبيانات: نسجّل القائمة فقط دون نطق (لتجنب نطق كل الجاهزين السابقين عند فتح الشاشة) */
+  +'var _speakEnabled = true;'      /* الحالة الحالية للناطق */
+  +'var _speakQueue = [];'          /* طابور النطق */
+  +'var _speakBusy = false;'        /* هل النطق نشط الآن */
+  +'var _voiceUnlocked = false;'    /* هل تم فك القيد عن تشغيل الصوت تلقائياً */
+  +'var _arVoice = null;'           /* لم يعد مستخدماً — احتفظنا بالمتغير لتجنب أخطاء */
+  /* ── تطبيع الاسم العربي قبل النطق: إزالة أي شيء بين قوسين، حذف الرموز، توحيد المسافات ── */
+  +'function _normalizeName(name){'
+  +'if(!name) return "";'
+  +'var s = String(name);'
+  +'s = s.replace(/\\([^)]*\\)/g,"");'        /* إزالة ما بين الأقواس الإنجليزية */
+  +'s = s.replace(/\\[[^\\]]*\\]/g,"");'      /* إزالة ما بين القوسين المربعين */
+  +'s = s.replace(/[A-Za-z0-9_\\-\\.]/g," ");' /* إزالة الأحرف اللاتينية والأرقام */
+  +'s = s.replace(/[^\\u0600-\\u06FF\\s]/g," ");' /* الإبقاء على الحروف العربية والمسافات فقط */
+  +'s = s.replace(/\\s+/g," ").trim();'
+  +'return s;'
+  +'}'
+  /* ── إخراج العنصر التالي من طابور النطق وتشغيله ── */
+  +'function _speakNext(){'
+  +'if(_speakBusy) return;'
+  +'if(!_speakEnabled){ _speakQueue = []; return; }'
+  +'var item = _speakQueue.shift();'
+  +'if(!item) return;'
+  +'_speakBusy = true;'
+  /* عرض البطاقة على الشاشة */
+  +'var toast = document.getElementById("call-toast");'
+  +'var nameEl = document.getElementById("ct-name");'
+  +'if(nameEl) nameEl.textContent = item.displayName || item.name;'
+  +'if(toast) toast.classList.add("show");'
+  /* تمييز صف المريض في الجدول */
+  +'_highlightRow(item.id, true);'
+  /* ① صوت تنبيه (جرس) — يُسمع دائماً */
+  +'try{ _playChime(); }catch(_){}'
+  /* ② تشغيل التسجيل المخصص (إن وُجد) — بعد ثانيتين من الجرس */
+  +'setTimeout(function(){ try{ _doSpeak(item); }catch(_){ } }, 2000);'
+  /* ③ البطاقة تبقى ظاهرة 10 ثوانٍ كاملة بغض النظر عن نتيجة الصوت */
+  +'setTimeout(function(){'
+  +'if(toast) toast.classList.remove("show");'
+  +'_highlightRow(item.id, false);'
+  +'try{ window.speechSynthesis && window.speechSynthesis.cancel(); }catch(_){}'
+  +'_speakBusy = false;'
+  +'setTimeout(_speakNext, 700);'    /* فجوة قبل التالي */
+  +'}, 10000);'                       /* ⏱️ 10 ثوان */
+  +'}'
+  /* ── جرس تنبيه (دينج-دونج) عبر Web Audio API — يعمل على أي نظام ── */
+  +'function _playChime(){'
+  +'try{'
+  +'if(!window._audioCtx){'
+  +'var Ctx = window.AudioContext || window.webkitAudioContext;'
+  +'if(!Ctx) return;'
+  +'window._audioCtx = new Ctx();'
+  +'}'
+  +'var ctx = window._audioCtx;'
+  +'if(ctx.state === "suspended"){ try{ ctx.resume(); }catch(_){} }'
+  +'function _tone(freq, startT, durT, vol){'
+  +'var o = ctx.createOscillator();'
+  +'var g = ctx.createGain();'
+  +'o.type = "sine";'
+  +'o.frequency.value = freq;'
+  +'var t0 = ctx.currentTime + startT;'
+  +'g.gain.setValueAtTime(0, t0);'
+  +'g.gain.linearRampToValueAtTime(vol, t0+0.04);'
+  +'g.gain.exponentialRampToValueAtTime(0.001, t0+durT);'
+  +'o.connect(g); g.connect(ctx.destination);'
+  +'o.start(t0);'
+  +'o.stop(t0 + durT + 0.05);'
+  +'}'
+  /* جرس كلاسيكي ding-dong */
+  +'_tone(880, 0, 0.40, 0.55);'
+  +'_tone(660, 0.35, 0.55, 0.55);'
+  +'}catch(e){}'
+  +'}'
+  /* ── تشغيل التسجيل الصوتي المخصص (إن وُجد) ── */
+  /* لم نعد نحاول النطق التلقائي — فقط تشغيل تسجيل المستخدم إن سجّله */
+  +'function _doSpeak(item){'
+  +'try{'
+  /* البحث عن التسجيل المخصص في localStorage */
+  +'var customAudio = null;'
+  +'try{ customAudio = localStorage.getItem("medlab_voice_recording"); }catch(_){}'
+  +'if(!customAudio) return;'                /* لا تسجيل → اكتفِ بالجرس + البطاقة */
+  +'var audio = document.getElementById("_tts_audio");'
+  +'if(!audio){'
+  +'audio = document.createElement("audio");'
+  +'audio.id = "_tts_audio";'
+  +'audio.style.display = "none";'
+  +'audio.preload = "auto";'
+  +'document.body.appendChild(audio);'
+  +'}'
+  +'audio.src = customAudio;'
+  +'audio.volume = 1.0;'
+  +'audio.play().catch(function(err){'
+  +'try{ console.warn("[MedLab] فشل تشغيل التسجيل:", err && err.message); }catch(_){}'
+  +'});'
+  +'}catch(e){}'
+  +'}'
+  /* ── تمييز صف المريض المنادى ── */
+  +'function _highlightRow(rid, on){'
+  +'try{'
+  +'var rows = document.querySelectorAll("#hdmi-orig tr, #hdmi-dup tr");'
+  +'rows.forEach(function(tr){'
+  +'var idCell = tr.children && tr.children[1];'
+  +'if(!idCell) return;'
+  +'if((idCell.textContent||"").trim() === String(rid)){'
+  +'if(on) tr.classList.add("calling-row"); else tr.classList.remove("calling-row");'
+  +'}'
+  +'});'
+  +'}catch(e){}'
+  +'}'
+  /* ── إضافة مريض إلى طابور النطق ── */
+  +'function _enqueueSpeak(req){'
+  +'if(!_speakEnabled) return;'
+  +'var displayName = (req.name||"").trim();'
+  +'var nName = _normalizeName(displayName);'
+  +'if(!nName) nName = displayName;'  /* إذا فشل التطبيع نستخدم الأصلي */
+  +'if(!nName) return;'
+  +'_speakQueue.push({ id: req.id, name: nName, displayName: displayName });'
+  +'_speakNext();'
+  +'}'
+  /* ── تحديث شارة حالة الصوت في الهيدر ── */
+  +'function _updateVoiceBadges(){'
+  +'var badge = document.getElementById("voice-badge");'
+  +'var unlock = document.getElementById("voice-unlock-btn");'
+  +'if(!_speakEnabled){'
+  +'if(badge) badge.style.display = "none";'
+  +'if(unlock) unlock.style.display = "none";'
+  +'return;'
+  +'}'
+  /* الناطق مفعّل */
+  +'if(_voiceUnlocked){'
+  +'if(badge) badge.style.display = "flex";'
+  +'if(unlock) unlock.style.display = "none";'
+  +'}else{'
+  +'if(badge) badge.style.display = "none";'
+  +'if(unlock) unlock.style.display = "inline-flex";'
+  +'}'
+  +'}'
+  /* ── فك قيد الصوت بنقرة المستخدم (لتجاوز سياسات autoplay) ── */
+  +'function _unlockVoice(){'
+  +'try{'
+  /* ① فك قيد Web Audio API (للجرس) */
+  +'try{'
+  +'var Ctx = window.AudioContext || window.webkitAudioContext;'
+  +'if(Ctx && !window._audioCtx) window._audioCtx = new Ctx();'
+  +'if(window._audioCtx && window._audioCtx.state === "suspended"){ window._audioCtx.resume(); }'
+  +'}catch(_){}'
+  /* ② تشغيل الجرس الترحيبي */
+  +'try{ _playChime(); }catch(_){}'
+  /* ③ تشغيل التسجيل المخصص إن وُجد */
+  +'try{'
+  +'var customAudio = localStorage.getItem("medlab_voice_recording");'
+  +'if(customAudio){'
+  +'var audio = document.getElementById("_tts_audio");'
+  +'if(!audio){'
+  +'audio = document.createElement("audio");'
+  +'audio.id = "_tts_audio";'
+  +'audio.style.display = "none";'
+  +'document.body.appendChild(audio);'
+  +'}'
+  +'audio.src = customAudio;'
+  +'audio.volume = 1.0;'
+  +'setTimeout(function(){ try{ audio.play(); }catch(_){} }, 2000);'
+  +'}'
+  +'}catch(_){}'
+  +'_voiceUnlocked = true;'
+  +'_updateVoiceBadges();'
+  +'_showVoiceStatusMsg();'
+  +'}catch(e){}'
+  +'}'
+  /* ── عرض رسالة بسيطة "تم تفعيل الصوت" ── */
+  +'function _showVoiceStatusMsg(){'
+  +'try{'
+  +'var d = document.getElementById("voice-status");'
+  +'if(!d){'
+  +'d = document.createElement("div");'
+  +'d.id = "voice-status";'
+  +'d.style.cssText = "position:fixed;bottom:14px;right:14px;background:rgba(4,8,20,0.95);border:1px solid rgba(0,232,122,0.4);color:#fff;padding:10px 14px;border-radius:10px;font-size:12px;font-weight:700;z-index:9998;max-width:340px;line-height:1.6;box-shadow:0 8px 30px rgba(0,0,0,0.5)";'
+  +'document.body.appendChild(d);'
+  +'}'
+  +'var hasRecording = false;'
+  +'try{ hasRecording = !!localStorage.getItem("medlab_voice_recording"); }catch(_){}'
+  +'if(hasRecording){'
+  +'d.innerHTML = "✅ <span style=\\"color:#00e87a\\">تم تفعيل الصوت</span><br><span style=\\"opacity:0.7;font-weight:400\\">الجرس + التسجيل المخصص جاهزان</span>";'
+  +'}else{'
+  +'d.innerHTML = "✅ <span style=\\"color:#00e87a\\">تم تفعيل الجرس</span><br><span style=\\"opacity:0.7;font-weight:400\\">يمكنك إضافة تسجيل صوتي من الإعدادات (اختياري)</span>";'
+  +'}'
+  +'setTimeout(function(){ if(d.parentNode) d.parentNode.removeChild(d); }, 6000);'
+  +'}catch(e){}'
+  +'}'
+  /* استدعاء أول لتحديث الشارات */
+  +'setTimeout(_updateVoiceBadges, 300);'
+  /* ── معالج الرسائل من النافذة الأم ── */
   +'window.addEventListener("message",function(e){'
-  +'if(!e.data||e.data.type!=="WQ_UPDATE")return;'
+  +'if(!e.data) return;'
+  /* رسالة تحديث التسجيل الصوتي */
+  +'if(e.data.type === "WQ_VOICE_UPDATE"){'
+  +'try{'
+  +'if(e.data.voice){ localStorage.setItem("medlab_voice_recording", e.data.voice); }'
+  +'else{ localStorage.removeItem("medlab_voice_recording"); }'
+  +'}catch(_){}'
+  +'return;'
+  +'}'
+  +'if(e.data.type!=="WQ_UPDATE")return;'
   +'var c=e.data.cnt;'
   +'document.getElementById("wsp").textContent=c.pending;'
   +'document.getElementById("wsi").textContent=c.inprogress;'
   +'document.getElementById("wsd").textContent=c.done;'
   +'document.getElementById("wst").textContent=c.total;'
-  +'if(typeof e.data.scrollSpeed==="number"){_spd=e.data.scrollSpeed;}'
+  +'if(typeof e.data.scrollSpeed==="number"){_spd=e.data.scrollSpeed; _updateDupVisibility();}'
   +'var newRows=e.data.rows||"";'
   +'if(newRows!==_lastRows){'
   +'_lastRows=newRows;'
   +'_buildMarquee(newRows||null);'
   +'}'
+  /* ── منطق الناطق الصوتي ── */
+  +'if(typeof e.data.speakEnabled === "boolean"){'
+  +'var prev = _speakEnabled;'
+  +'_speakEnabled = e.data.speakEnabled;'
+  +'if(!_speakEnabled){'
+  /* أُوقف الصوت → امسح الطابور وأوقف النطق فوراً */
+  +'_speakQueue = [];'
+  +'try{ window.speechSynthesis && window.speechSynthesis.cancel(); }catch(_){}'
+  +'_speakBusy = false;'
+  +'var toast=document.getElementById("call-toast"); if(toast) toast.classList.remove("show");'
+  +'}'
+  +'_updateVoiceBadges();'
+  +'}'
+  +'var doneList = e.data.doneList || [];'
+  +'if(_firstSnapshot){'
+  /* أول استقبال: سجّل كل الجاهزين الحاليين دون نطقهم */
+  +'doneList.forEach(function(p){ _announcedIds[p.id] = true; });'
+  +'_firstSnapshot = false;'
+  +'}else if(_speakEnabled){'
+  /* اكتشف الجاهزين الجدد فقط ونطقهم */
+  +'doneList.forEach(function(p){'
+  +'if(!_announcedIds[p.id]){'
+  +'_announcedIds[p.id] = true;'
+  +'_enqueueSpeak(p);'
+  +'}'
+  +'});'
+  +'}else{'
+  /* الصوت مغلق: سجّل الجاهزين دون نطق لتجنب نطقهم لاحقاً عند تفعيل الصوت */
+  +'doneList.forEach(function(p){ _announcedIds[p.id] = true; });'
+  +'}'
   +'});'
   +'<\/script></body></html>');
   win.document.close();
-  setTimeout(function(){ _pushWaitScreenData(); }, 1000);
+  setTimeout(function(){
+    _pushWaitScreenData();
+    // إرسال التسجيل المخصص (إن وُجد) إلى نافذة شاشة الانتظار
+    try{
+      var voice = localStorage.getItem('medlab_voice_recording');
+      if(voice && win && !win.closed){
+        win.postMessage({ type:'WQ_VOICE_UPDATE', voice: voice }, '*');
+      }
+    }catch(_){}
+  }, 1000);
   if(window._wsInterval) clearInterval(window._wsInterval);
   window._wsInterval = setInterval(function(){
     if(!window._waitScreenWin||window._waitScreenWin.closed){ clearInterval(window._wsInterval); return; }
@@ -22293,7 +22937,22 @@ function _pushWaitScreenData(){
           +'<td><span class="pill '+sC+'">'+sL+'</span></td></tr>';
       }).join('');
   }
-  try{ win.postMessage({type:'WQ_UPDATE', rows, cnt, scrollSpeed:_wsGetScrollSpeed()}, '*'); }catch(e){}
+  // قائمة المرضى الجاهزين (للناطق الصوتي)
+  var doneList = filteredReqs
+    .filter(function(r){ return r.status==='done'; })
+    .map(function(r){ return { id: r.id, name: (r.patientName||'').toString() }; });
+  var ws = (settings&&settings.waitScreen)||{};
+  var speakEnabled = ws.speakEnabled !== false;
+  try{
+    win.postMessage({
+      type:'WQ_UPDATE',
+      rows: rows,
+      cnt: cnt,
+      scrollSpeed: _wsGetScrollSpeed(),
+      doneList: doneList,
+      speakEnabled: speakEnabled
+    }, '*');
+  }catch(e){}
 }
 
 function updateWaitScreen(){ _pushWaitScreenData(); }
