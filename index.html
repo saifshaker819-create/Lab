@@ -22347,14 +22347,42 @@ function openWaitScreen(){
   +'if(!("speechSynthesis" in window)) return null;'
   +'var voices = window.speechSynthesis.getVoices()||[];'
   +'if(!voices.length) return null;'
-  /* تفضيل: ar-SA > ar-EG > أي ar > أي صوت يحتوي Arabic */
-  +'var pri = ["ar-SA","ar-EG","ar-AE","ar-JO","ar-IQ","ar-KW","ar-BH","ar-OM","ar-QA","ar-LB","ar-LY","ar-MA","ar-DZ","ar-TN","ar-YE","ar-SY","ar-PS"];'
-  +'for(var i=0;i<pri.length;i++){'
-  +'var v = voices.find(function(x){ return (x.lang||"").toLowerCase() === pri[i].toLowerCase(); });'
-  +'if(v) return v;'
-  +'}'
-  +'var anyAr = voices.find(function(x){ return /^ar(-|_)/i.test(x.lang||"") || /arabic/i.test(x.name||""); });'
-  +'return anyAr || null;'
+  /* مرشحات: أي صوت يبدو عربياً (lang أو name) */
+  +'var allAr = voices.filter(function(x){'
+  +'var lang = (x.lang||"").toLowerCase();'
+  +'var name = (x.name||"").toLowerCase();'
+  +'if(lang.indexOf("ar")===0) return true;'                /* lang يبدأ بـ ar */
+  +'if(lang.indexOf("ar-")>=0 || lang.indexOf("ar_")>=0) return true;'
+  +'if(name.indexOf("arabic")>=0) return true;'             /* الاسم يحتوي arabic */
+  +'if(name.indexOf("عرب")>=0) return true;'                /* الاسم بالعربي */
+  /* أصوات Microsoft Online المعروفة */
+  +'if(name.indexOf("hamed")>=0) return true;'
+  +'if(name.indexOf("zariyah")>=0) return true;'
+  +'if(name.indexOf("salma")>=0) return true;'
+  +'if(name.indexOf("naayf")>=0) return true;'
+  +'if(name.indexOf("hoda")>=0) return true;'
+  +'if(name.indexOf("shakir")>=0) return true;'
+  +'if(name.indexOf("amany")>=0) return true;'
+  +'if(name.indexOf("laila")>=0) return true;'
+  +'if(name.indexOf("rana")>=0) return true;'
+  +'if(name.indexOf("fatima")>=0) return true;'
+  +'if(name.indexOf("taim")>=0) return true;'
+  +'if(name.indexOf("sabah")>=0) return true;'
+  +'if(name.indexOf("ali")>=0 && (lang.indexOf("ar")>=0||name.indexOf("bahrain")>=0)) return true;'
+  +'return false;'
+  +'});'
+  +'if(!allAr.length) return null;'
+  /* تفضيلات: أصوات Online (Natural/Neural) أولاً، ثم ar-SA، ثم ar-EG، ثم أي عربي */
+  +'var natural = allAr.find(function(x){'
+  +'var n = (x.name||"").toLowerCase();'
+  +'return n.indexOf("natural")>=0 || n.indexOf("neural")>=0 || n.indexOf("online")>=0;'
+  +'});'
+  +'if(natural) return natural;'
+  +'var sa = allAr.find(function(x){ return (x.lang||"").toLowerCase().indexOf("ar-sa")>=0; });'
+  +'if(sa) return sa;'
+  +'var eg = allAr.find(function(x){ return (x.lang||"").toLowerCase().indexOf("ar-eg")>=0; });'
+  +'if(eg) return eg;'
+  +'return allAr[0];'                                        /* أي صوت عربي */
   +'}catch(e){ return null; }'
   +'}'
   /* ── تحميل الأصوات (تأتي بشكل غير متزامن في بعض المتصفحات، خصوصاً Edge مع أصوات السحابة) ── */
@@ -22556,6 +22584,12 @@ function openWaitScreen(){
   +'_updateVoiceBadges();'
   +'return;'
   +'}'
+  /* تسجيل تشخيصي في console — لمساعدة المطوّر */
+  +'try{'
+  +'var allVoices = window.speechSynthesis.getVoices()||[];'
+  +'console.log("[MedLab] إجمالي الأصوات: " + allVoices.length);'
+  +'allVoices.forEach(function(v,i){ console.log("  ["+i+"] " + v.name + " | " + v.lang); });'
+  +'}catch(_){}'
   /* تحفيز تحميل الأصوات (Edge يحتاج هذا) */
   +'_kickStartVoices();'
   /* بدء آلية إبقاء TTS نشطة */
