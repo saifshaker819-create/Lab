@@ -4301,6 +4301,26 @@ body.light-mode .wnb-text .wnb-char.neon-trail {
               </div>
             </div>
 
+            <!-- ①.٥ الناطق الصوتي -->
+            <div style="background:var(--bg-glass);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:14px">
+              <div style="font-size:13px;font-weight:800;color:var(--primary);margin-bottom:6px">🔊 الناطق الصوتي للمرضى الجاهزين</div>
+              <div style="font-size:11px;color:var(--text2);margin-bottom:14px;line-height:1.7">
+                عند تفعيل هذا الخيار: عندما تصبح تحاليل أي مريض <b>جاهزة ✅</b> سيتم نطق اسمه باللغة العربية بصوت واضح على شاشة الانتظار، لتنبيه المريض لاستلام النتائج.<br>
+                <span style="color:var(--warning)">💡 يجب أن تسمح المتصفح بتشغيل الصوت في نافذة شاشة الانتظار</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+                <div style="display:flex;align-items:center;gap:8px;cursor:pointer" onclick="wsSpeakToggle(true)">
+                  <div id="ws-speak-radio-on" style="width:18px;height:18px;border-radius:50%;border:2px solid var(--primary);background:transparent;flex-shrink:0;display:flex;align-items:center;justify-content:center"><div id="ws-speak-dot-on" style="width:9px;height:9px;border-radius:50%;background:transparent"></div></div>
+                  <span style="font-size:13px;font-weight:700">🔊 تشغيل الناطق الصوتي</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;cursor:pointer" onclick="wsSpeakToggle(false)">
+                  <div id="ws-speak-radio-off" style="width:18px;height:18px;border-radius:50%;border:2px solid var(--primary);background:transparent;flex-shrink:0;display:flex;align-items:center;justify-content:center"><div id="ws-speak-dot-off" style="width:9px;height:9px;border-radius:50%;background:transparent"></div></div>
+                  <span style="font-size:13px;font-weight:700">🔇 إيقاف الناطق الصوتي</span>
+                </div>
+                <button class="btn btn-sm btn-s" onclick="wsTestSpeak()" style="margin-right:auto">🎤 تجربة الصوت</button>
+              </div>
+            </div>
+
             <!-- ② تصفية المرضى حسب الطبيب -->
             <div style="background:var(--bg-glass);border:1px solid var(--border);border-radius:12px;padding:16px">
               <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;flex-wrap:wrap;gap:8px">
@@ -9324,7 +9344,16 @@ function openViewResultsModal(rid){
   document.getElementById('vr-title').innerHTML=`📊 نتائج ${r.id} - ${r.patientName} ${printed?'<span class="bdg bdg-ok" style="margin-right:8px">🖨️ مطبوع</span>':'<span class="bdg bdg-w" style="margin-right:8px">⏸ غير مطبوع</span>'}`;
 
   // جلب آخر 4 طلبات مكتملة لنفس المريض (غير الطلب الحالي)
-  const prevReqs=requests.filter(req=>req.patientId===pt.id&&req.id!==rid&&req.status==='done').sort((a,b)=>new Date(b.resultDate||b.date)-new Date(a.resultDate||a.date));
+  // استبعاد أي طلب بنفس تاريخ الطلب الحالي (لا يُحسب كنتيجة "سابقة")
+  const _curDayVR = ((r.resultDate||r.date||'')+'').slice(0,10);
+  const prevReqs=requests.filter(req=>{
+    if(req.patientId!==pt.id) return false;
+    if(req.id===rid) return false;
+    if(req.status!=='done') return false;
+    const rDay = ((req.resultDate||req.date||'')+'').slice(0,10);
+    if(_curDayVR && rDay && rDay===_curDayVR) return false;
+    return true;
+  }).sort((a,b)=>new Date(b.resultDate||b.date)-new Date(a.resultDate||a.date));
 
   let rows='';
   const reqTests=r.tests.map(tid=>tests.find(t=>t.id===tid)).filter(Boolean);
@@ -9751,8 +9780,16 @@ function loadResultEntry(){
   const ptGender=pt.gender||'male';
   const tbody=document.getElementById('res-entry-tbody');
   // جلب جميع الطلبات المكتملة لنفس المريض مرتبة من الأحدث
-  const _24hAgo=Date.now()-24*60*60*1000;
-  const prevReqs=requests.filter(r=>r.patientId===pt.id&&r.id!==id&&r.status==='done'&&new Date(r.resultDate||r.date).getTime()<_24hAgo).sort((a,b)=>new Date(b.resultDate||b.date)-new Date(a.resultDate||a.date));
+  // استبعاد أي طلب بنفس تاريخ الطلب الحالي (نفس اليوم لا يُعدّ نتيجة سابقة)
+  const _curDayRE = ((req.resultDate||req.date||'')+'').slice(0,10);
+  const prevReqs=requests.filter(r=>{
+    if(r.patientId!==pt.id) return false;
+    if(r.id===id) return false;
+    if(r.status!=='done') return false;
+    const rDay = ((r.resultDate||r.date||'')+'').slice(0,10);
+    if(_curDayRE && rDay && rDay===_curDayRE) return false;
+    return true;
+  }).sort((a,b)=>new Date(b.resultDate||b.date)-new Date(a.resultDate||a.date));
   tbody.innerHTML=reqTests.map(t=>{
     // Fix 2: Special exam row — inline button that opens modal without leaving page
     if(t.isSpecialExam){
@@ -10907,7 +10944,18 @@ function buildPrintHTML(req, opts){
   sortedGroupKeys.forEach(k=>{ grouped[k]=sortTestsInGroup(k, grouped[k]); });
   const ptAge    = parseFloat(pt.ageVal)||Math.floor((Date.now()-new Date(pt.dob||0).getTime())/31557600000)||0;
   const ptGender = pt.gender||'male';
-  const prevReqs = requests.filter(r=>r.patientId===pt.id&&r.id!==req.id&&r.status==='done')
+  // ── تاريخ الطلب الحالي (YYYY-MM-DD) لاستبعاد أي نتائج سابقة بنفس اليوم ──
+  // المنطق: إذا أُعيد التحليل في نفس اليوم فالنتيجة الأولى ليست "سابقة" بل نسخة مكررة من نفس الزيارة،
+  // ولا يجب أن تظهر في عمود Last Result.
+  const _curDay = ((req.resultDate||req.date||'')+'').slice(0,10);
+  const prevReqs = requests.filter(r=>{
+                              if(r.patientId!==pt.id) return false;
+                              if(r.id===req.id) return false;
+                              if(r.status!=='done') return false;
+                              const rDay = ((r.resultDate||r.date||'')+'').slice(0,10);
+                              if(_curDay && rDay && rDay===_curDay) return false; // ← نفس اليوم: استبعاد
+                              return true;
+                            })
                            .sort((a,b)=>new Date(b.resultDate||b.date)-new Date(a.resultDate||a.date));
 
   // أحجام الخط من الإعدادات
@@ -14045,7 +14093,8 @@ function saveCurrencyNow(){settings.currency=document.getElementById('st-currenc
 // إعدادات شاشة الانتظار — سرعة التمرير وتصفية الأطباء
 // ============================================================
 function _wsGetSettings(){
-  if(!settings.waitScreen) settings.waitScreen={speed:'slow',doctorFilter:null};
+  if(!settings.waitScreen) settings.waitScreen={speed:'slow',doctorFilter:null,speakEnabled:true};
+  if(typeof settings.waitScreen.speakEnabled === 'undefined') settings.waitScreen.speakEnabled = true;
   return settings.waitScreen;
 }
 
@@ -14058,6 +14107,44 @@ function wsScrollSpeedChange(val){
     if(radio) radio.style.borderColor = o===val ? 'var(--primary)' : 'rgba(255,255,255,0.3)';
   });
   _wsGetSettings().speed = val;
+}
+
+// ── الناطق الصوتي: تفعيل/إيقاف ──
+function wsSpeakToggle(enabled){
+  _wsGetSettings().speakEnabled = !!enabled;
+  // تحديث UI
+  var dotOn = document.getElementById('ws-speak-dot-on');
+  var dotOff = document.getElementById('ws-speak-dot-off');
+  var radOn = document.getElementById('ws-speak-radio-on');
+  var radOff = document.getElementById('ws-speak-radio-off');
+  if(dotOn)  dotOn.style.background  = enabled ? 'var(--primary)' : 'transparent';
+  if(dotOff) dotOff.style.background = !enabled ? 'var(--primary)' : 'transparent';
+  if(radOn)  radOn.style.borderColor  = enabled ? 'var(--primary)' : 'rgba(255,255,255,0.3)';
+  if(radOff) radOff.style.borderColor = !enabled ? 'var(--primary)' : 'rgba(255,255,255,0.3)';
+}
+
+// ── تجربة الناطق الصوتي ──
+function wsTestSpeak(){
+  if(!('speechSynthesis' in window)){
+    showNotif('غير مدعوم','المتصفح الحالي لا يدعم الناطق الصوتي','warning');
+    return;
+  }
+  try{
+    window.speechSynthesis.cancel();
+    var u = new SpeechSynthesisUtterance('السيد المريض، تحاليلك جاهزة، يرجى التوجه إلى الاستقبال لاستلام النتائج');
+    u.lang = 'ar-SA';
+    u.rate = 0.9;
+    u.pitch = 1.0;
+    u.volume = 1.0;
+    // محاولة اختيار صوت عربي إن وُجد
+    var voices = window.speechSynthesis.getVoices();
+    var arVoice = voices.find(function(v){ return /ar(-|_)/i.test(v.lang) || /arabic/i.test(v.name); });
+    if(arVoice) u.voice = arVoice;
+    window.speechSynthesis.speak(u);
+    showNotif('تجربة الصوت','🎤 جاري تشغيل عينة صوتية...','info');
+  }catch(e){
+    showNotif('خطأ','تعذر تشغيل الصوت: '+e.message,'danger');
+  }
 }
 
 function wsRefreshDoctorList(){
@@ -14131,6 +14218,8 @@ function _wsInitSettingsUI(){
   var ws = _wsGetSettings();
   // تعيين السرعة
   wsScrollSpeedChange(ws.speed||'slow');
+  // تعيين حالة الناطق الصوتي
+  wsSpeakToggle(ws.speakEnabled !== false);
   // تحميل قائمة الأطباء
   wsRefreshDoctorList();
 }
@@ -22137,11 +22226,24 @@ function openWaitScreen(){
   +'.live{display:inline-flex;align-items:center;gap:6px;color:rgba(0,232,122,0.7);font-weight:700;}'
   +'.ldot{width:7px;height:7px;background:#00e87a;border-radius:50%;animation:livepulse 2s infinite;}'
   +'@keyframes livepulse{0%,100%{opacity:1}50%{opacity:0.25}}'
+  /* ── طبقة عرض اسم المريض الجاهز عند النطق ── */
+  +'.call-toast{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%) scale(0.85);background:linear-gradient(135deg,rgba(0,232,122,0.95),rgba(0,180,90,0.95));color:#fff;padding:34px 60px;border-radius:24px;box-shadow:0 20px 80px rgba(0,232,122,0.5),0 0 200px rgba(0,232,122,0.3);z-index:9999;text-align:center;opacity:0;pointer-events:none;transition:all 0.45s cubic-bezier(0.34,1.56,0.64,1);border:2px solid rgba(255,255,255,0.25);min-width:520px;}'
+  +'.call-toast.show{opacity:1;transform:translate(-50%,-50%) scale(1);}'
+  +'.call-toast .ct-ic{font-size:64px;margin-bottom:8px;animation:bell 0.6s ease-in-out infinite alternate;}'
+  +'@keyframes bell{0%{transform:rotate(-12deg)}100%{transform:rotate(12deg)}}'
+  +'.call-toast .ct-ttl{font-size:18px;font-weight:700;opacity:0.92;margin-bottom:10px;letter-spacing:1px;}'
+  +'.call-toast .ct-name{font-size:42px;font-weight:900;line-height:1.2;margin-bottom:8px;text-shadow:0 4px 14px rgba(0,0,0,0.3);}'
+  +'.call-toast .ct-sub{font-size:15px;opacity:0.85;font-weight:600;}'
+  /* صف المريض الجاري نداؤه */
+  +'tr.calling-row td{background:rgba(0,232,122,0.18) !important;animation:rowGlow 1.2s ease-in-out infinite alternate;}'
+  +'@keyframes rowGlow{0%{box-shadow:inset 0 0 0 rgba(0,232,122,0)}100%{box-shadow:inset 0 0 30px rgba(0,232,122,0.4)}}'
   +'</style></head><body>'
   +'<div class="hdr">'
   +'<div class="logo"><div class="logo-ic">🔬</div><div><h1>شاشة قاعة الانتظار</h1><p>MedLab Pro — وضع HDMI</p></div></div>'
   +'<div><div class="clock" id="wsclock">--:--:--</div><div class="date-lbl" id="wsdate"></div></div>'
   +'<div style="display:flex;align-items:center;gap:10px">'
+  +'<div id="voice-badge" class="hdmi-badge" style="background:rgba(0,232,122,0.08);border-color:rgba(0,232,122,0.25);color:#00e87a;display:none"><div class="hdmi-dot" style="background:#00e87a"></div>🔊 الناطق نشط</div>'
+  +'<button id="voice-unlock-btn" class="fs-btn" onclick="_unlockVoice()" title="تفعيل الصوت" style="display:none;background:rgba(255,204,0,0.12);border-color:rgba(255,204,0,0.3);color:#ffcc00;width:auto;padding:0 14px;font-size:13px;font-weight:700;gap:6px">🔊 اضغط لتفعيل الصوت</button>'
   +'<div class="hdmi-badge"><div class="hdmi-dot"></div>📺 HDMI نشط</div>'
   +'<button class="fs-btn" onclick="toggleFS()" title="ملء الشاشة / F11">⛶</button>'
   +'</div>'
@@ -22157,6 +22259,12 @@ function openWaitScreen(){
   +'<span class="live"><span class="ldot"></span> البيانات حية</span>'
   +'<span>⏳ انتظار &nbsp;|&nbsp; 🔬 جاري التحليل &nbsp;|&nbsp; ✅ جاهز</span>'
   +'<span>MedLab Pro &copy; '+yr+'</span>'
+  +'</div>'
+  +'<div id="call-toast" class="call-toast" aria-live="polite">'
+  +'<div class="ct-ic">🔔</div>'
+  +'<div class="ct-ttl">📣 نداء للمريض</div>'
+  +'<div class="ct-name" id="ct-name">—</div>'
+  +'<div class="ct-sub">تحاليلك جاهزة، يرجى التوجه إلى الاستقبال</div>'
   +'</div>'
   +'<script>'
   +'function tick(){var n=new Date();'
@@ -22215,6 +22323,168 @@ function openWaitScreen(){
   +'},200);'
   +'}'
   +'})();'
+  /* ── الناطق الصوتي للمرضى الجاهزين ── */
+  +'var _announcedIds = {};'        /* المرضى الذين تم نطقهم بالفعل في هذه الجلسة */
+  +'var _firstSnapshot = true;'     /* أول استقبال للبيانات: نسجّل القائمة فقط دون نطق (لتجنب نطق كل الجاهزين السابقين عند فتح الشاشة) */
+  +'var _speakEnabled = true;'      /* الحالة الحالية للناطق */
+  +'var _speakQueue = [];'          /* طابور النطق */
+  +'var _speakBusy = false;'        /* هل النطق نشط الآن */
+  +'var _voiceUnlocked = false;'    /* هل تم فك القيد عن تشغيل الصوت تلقائياً */
+  +'var _arVoice = null;'           /* الصوت العربي المختار */
+  /* ── اختيار الصوت العربي الأنسب من الأصوات المتاحة في المتصفح ── */
+  +'function _pickArVoice(){'
+  +'try{'
+  +'if(!("speechSynthesis" in window)) return null;'
+  +'var voices = window.speechSynthesis.getVoices()||[];'
+  +'if(!voices.length) return null;'
+  /* تفضيل: ar-SA > ar-EG > أي ar > أي صوت يحتوي Arabic */
+  +'var pri = ["ar-SA","ar-EG","ar-AE","ar-JO","ar-IQ","ar-KW","ar-BH","ar-OM","ar-QA","ar-LB","ar-LY","ar-MA","ar-DZ","ar-TN","ar-YE","ar-SY","ar-PS"];'
+  +'for(var i=0;i<pri.length;i++){'
+  +'var v = voices.find(function(x){ return (x.lang||"").toLowerCase() === pri[i].toLowerCase(); });'
+  +'if(v) return v;'
+  +'}'
+  +'var anyAr = voices.find(function(x){ return /^ar(-|_)/i.test(x.lang||"") || /arabic/i.test(x.name||""); });'
+  +'return anyAr || null;'
+  +'}catch(e){ return null; }'
+  +'}'
+  /* ── تحميل الأصوات (تأتي بشكل غير متزامن في بعض المتصفحات) ── */
+  +'function _loadVoices(){'
+  +'_arVoice = _pickArVoice();'
+  +'if("speechSynthesis" in window && typeof window.speechSynthesis.onvoiceschanged !== "undefined"){'
+  +'window.speechSynthesis.onvoiceschanged = function(){ _arVoice = _pickArVoice(); };'
+  +'}'
+  +'}'
+  +'_loadVoices();'
+  /* ── تطبيع الاسم العربي قبل النطق: إزالة أي شيء بين قوسين، حذف الرموز، توحيد المسافات ── */
+  +'function _normalizeName(name){'
+  +'if(!name) return "";'
+  +'var s = String(name);'
+  +'s = s.replace(/\\([^)]*\\)/g,"");'        /* إزالة ما بين الأقواس الإنجليزية */
+  +'s = s.replace(/\\[[^\\]]*\\]/g,"");'      /* إزالة ما بين القوسين المربعين */
+  +'s = s.replace(/[A-Za-z0-9_\\-\\.]/g," ");' /* إزالة الأحرف اللاتينية والأرقام */
+  +'s = s.replace(/[^\\u0600-\\u06FF\\s]/g," ");' /* الإبقاء على الحروف العربية والمسافات فقط */
+  +'s = s.replace(/\\s+/g," ").trim();'
+  +'return s;'
+  +'}'
+  /* ── إخراج العنصر التالي من طابور النطق وتشغيله ── */
+  +'function _speakNext(){'
+  +'if(_speakBusy) return;'
+  +'if(!_speakEnabled){ _speakQueue = []; return; }'
+  +'if(!("speechSynthesis" in window)) return;'
+  +'var item = _speakQueue.shift();'
+  +'if(!item) return;'
+  +'_speakBusy = true;'
+  /* عرض البطاقة على الشاشة */
+  +'var toast = document.getElementById("call-toast");'
+  +'var nameEl = document.getElementById("ct-name");'
+  +'if(nameEl) nameEl.textContent = item.displayName || item.name;'
+  +'if(toast) toast.classList.add("show");'
+  /* تمييز صف المريض في الجدول */
+  +'_highlightRow(item.id, true);'
+  +'try{'
+  +'window.speechSynthesis.cancel();'
+  /* الجملة الأولى: الإعلان */
+  +'var phrase = "السيد " + item.name + "، تحاليلك جاهزة، يرجى التوجه إلى الاستقبال";'
+  +'var u = new SpeechSynthesisUtterance(phrase);'
+  +'u.lang = (_arVoice && _arVoice.lang) ? _arVoice.lang : "ar-SA";'
+  +'u.rate = 0.88;'
+  +'u.pitch = 1.0;'
+  +'u.volume = 1.0;'
+  +'if(_arVoice) u.voice = _arVoice;'
+  +'u.onend = function(){'
+  /* بعد انتهاء النطق: انتظر قليلاً ثم أخفِ البطاقة وانتقل للتالي */
+  +'setTimeout(function(){'
+  +'if(toast) toast.classList.remove("show");'
+  +'_highlightRow(item.id, false);'
+  +'_speakBusy = false;'
+  +'setTimeout(_speakNext, 600);'
+  +'}, 1200);'
+  +'};'
+  +'u.onerror = function(){'
+  +'if(toast) toast.classList.remove("show");'
+  +'_highlightRow(item.id, false);'
+  +'_speakBusy = false;'
+  +'setTimeout(_speakNext, 400);'
+  +'};'
+  +'window.speechSynthesis.speak(u);'
+  /* احتياطي: إذا لم يصدر onend خلال 12 ثانية، أكمل بأي حال */
+  +'setTimeout(function(){'
+  +'if(_speakBusy){'
+  +'if(toast) toast.classList.remove("show");'
+  +'_highlightRow(item.id, false);'
+  +'_speakBusy = false;'
+  +'_speakNext();'
+  +'}'
+  +'}, 12000);'
+  +'}catch(err){'
+  +'if(toast) toast.classList.remove("show");'
+  +'_highlightRow(item.id, false);'
+  +'_speakBusy = false;'
+  +'setTimeout(_speakNext, 400);'
+  +'}'
+  +'}'
+  /* ── تمييز صف المريض المنادى ── */
+  +'function _highlightRow(rid, on){'
+  +'try{'
+  +'var rows = document.querySelectorAll("#hdmi-orig tr, #hdmi-dup tr");'
+  +'rows.forEach(function(tr){'
+  +'var idCell = tr.children && tr.children[1];'
+  +'if(!idCell) return;'
+  +'if((idCell.textContent||"").trim() === String(rid)){'
+  +'if(on) tr.classList.add("calling-row"); else tr.classList.remove("calling-row");'
+  +'}'
+  +'});'
+  +'}catch(e){}'
+  +'}'
+  /* ── إضافة مريض إلى طابور النطق ── */
+  +'function _enqueueSpeak(req){'
+  +'if(!_speakEnabled) return;'
+  +'var displayName = (req.name||"").trim();'
+  +'var nName = _normalizeName(displayName);'
+  +'if(!nName) nName = displayName;'  /* إذا فشل التطبيع نستخدم الأصلي */
+  +'if(!nName) return;'
+  +'_speakQueue.push({ id: req.id, name: nName, displayName: displayName });'
+  +'_speakNext();'
+  +'}'
+  /* ── تحديث شارة حالة الصوت في الهيدر ── */
+  +'function _updateVoiceBadges(){'
+  +'var badge = document.getElementById("voice-badge");'
+  +'var unlock = document.getElementById("voice-unlock-btn");'
+  +'if(!_speakEnabled){'
+  +'if(badge) badge.style.display = "none";'
+  +'if(unlock) unlock.style.display = "none";'
+  +'return;'
+  +'}'
+  /* الناطق مفعّل */
+  +'if(_voiceUnlocked){'
+  +'if(badge) badge.style.display = "flex";'
+  +'if(unlock) unlock.style.display = "none";'
+  +'}else{'
+  +'if(badge) badge.style.display = "none";'
+  +'if(unlock) unlock.style.display = "inline-flex";'
+  +'}'
+  +'}'
+  /* ── فك قيد الصوت بنقرة المستخدم (لتجاوز سياسات autoplay في المتصفحات) ── */
+  +'function _unlockVoice(){'
+  +'try{'
+  +'if(!("speechSynthesis" in window)){'
+  +'alert("المتصفح لا يدعم الناطق الصوتي");'
+  +'return;'
+  +'}'
+  +'_arVoice = _pickArVoice();'
+  +'var u = new SpeechSynthesisUtterance("تم تفعيل الناطق الصوتي");'
+  +'u.lang = (_arVoice && _arVoice.lang) ? _arVoice.lang : "ar-SA";'
+  +'u.rate = 0.95; u.volume = 1.0;'
+  +'if(_arVoice) u.voice = _arVoice;'
+  +'window.speechSynthesis.cancel();'
+  +'window.speechSynthesis.speak(u);'
+  +'_voiceUnlocked = true;'
+  +'_updateVoiceBadges();'
+  +'}catch(e){}'
+  +'}'
+  /* استدعاء أول لتحديث الشارات */
+  +'setTimeout(_updateVoiceBadges, 300);'
+  /* ── معالج الرسائل من النافذة الأم ── */
   +'window.addEventListener("message",function(e){'
   +'if(!e.data||e.data.type!=="WQ_UPDATE")return;'
   +'var c=e.data.cnt;'
@@ -22227,6 +22497,36 @@ function openWaitScreen(){
   +'if(newRows!==_lastRows){'
   +'_lastRows=newRows;'
   +'_buildMarquee(newRows||null);'
+  +'}'
+  /* ── منطق الناطق الصوتي ── */
+  +'if(typeof e.data.speakEnabled === "boolean"){'
+  +'var prev = _speakEnabled;'
+  +'_speakEnabled = e.data.speakEnabled;'
+  +'if(!_speakEnabled){'
+  /* أُوقف الصوت → امسح الطابور وأوقف النطق فوراً */
+  +'_speakQueue = [];'
+  +'try{ window.speechSynthesis && window.speechSynthesis.cancel(); }catch(_){}'
+  +'_speakBusy = false;'
+  +'var toast=document.getElementById("call-toast"); if(toast) toast.classList.remove("show");'
+  +'}'
+  +'_updateVoiceBadges();'
+  +'}'
+  +'var doneList = e.data.doneList || [];'
+  +'if(_firstSnapshot){'
+  /* أول استقبال: سجّل كل الجاهزين الحاليين دون نطقهم */
+  +'doneList.forEach(function(p){ _announcedIds[p.id] = true; });'
+  +'_firstSnapshot = false;'
+  +'}else if(_speakEnabled){'
+  /* اكتشف الجاهزين الجدد فقط ونطقهم */
+  +'doneList.forEach(function(p){'
+  +'if(!_announcedIds[p.id]){'
+  +'_announcedIds[p.id] = true;'
+  +'_enqueueSpeak(p);'
+  +'}'
+  +'});'
+  +'}else{'
+  /* الصوت مغلق: سجّل الجاهزين دون نطق لتجنب نطقهم لاحقاً عند تفعيل الصوت */
+  +'doneList.forEach(function(p){ _announcedIds[p.id] = true; });'
   +'}'
   +'});'
   +'<\/script></body></html>');
@@ -22293,7 +22593,22 @@ function _pushWaitScreenData(){
           +'<td><span class="pill '+sC+'">'+sL+'</span></td></tr>';
       }).join('');
   }
-  try{ win.postMessage({type:'WQ_UPDATE', rows, cnt, scrollSpeed:_wsGetScrollSpeed()}, '*'); }catch(e){}
+  // قائمة المرضى الجاهزين (للناطق الصوتي)
+  var doneList = filteredReqs
+    .filter(function(r){ return r.status==='done'; })
+    .map(function(r){ return { id: r.id, name: (r.patientName||'').toString() }; });
+  var ws = (settings&&settings.waitScreen)||{};
+  var speakEnabled = ws.speakEnabled !== false;
+  try{
+    win.postMessage({
+      type:'WQ_UPDATE',
+      rows: rows,
+      cnt: cnt,
+      scrollSpeed: _wsGetScrollSpeed(),
+      doneList: doneList,
+      speakEnabled: speakEnabled
+    }, '*');
+  }catch(e){}
 }
 
 function updateWaitScreen(){ _pushWaitScreenData(); }
