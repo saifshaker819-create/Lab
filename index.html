@@ -22299,6 +22299,8 @@ function openWaitScreen(){
   +'_inner=document.getElementById("hdmi-scroll-inner");'
   +'_pos=0;'
   +'if(_inner)_inner.style.transform="translateY(0px)";'
+  /* إخفاء النسخة المكررة عندما تكون السرعة = 0 (وضع ثابت) */
+  +'_updateDupVisibility();'
   +'setTimeout(function(){'
   +'var orig=document.getElementById("hdmi-orig");'
   +'_totalH=orig?orig.offsetHeight:0;'
@@ -22312,6 +22314,14 @@ function openWaitScreen(){
   +'_inner.style.transform="translateY(-"+_pos+"px)";'
   +'}'
   +'_raf=requestAnimationFrame(_scrollTick);'
+  +'}'
+  /* ── إخفاء/إظهار النسخة المكررة بناءً على السرعة ── */
+  +'function _updateDupVisibility(){'
+  +'try{'
+  +'var dup = document.getElementById("hdmi-dup");'
+  +'if(!dup) return;'
+  +'dup.style.display = (_spd > 0) ? "block" : "none";'
+  +'}catch(e){}'
   +'}'
   +'(function initScroll(){'
   +'_inner=document.getElementById("hdmi-scroll-inner");'
@@ -22347,7 +22357,7 @@ function openWaitScreen(){
   +'return anyAr || null;'
   +'}catch(e){ return null; }'
   +'}'
-  /* ── تحميل الأصوات (تأتي بشكل غير متزامن في بعض المتصفحات) ── */
+  /* ── تحميل الأصوات (تأتي بشكل غير متزامن في بعض المتصفحات، خصوصاً Edge مع أصوات السحابة) ── */
   +'function _loadVoices(){'
   +'_arVoice = _pickArVoice();'
   +'if("speechSynthesis" in window && typeof window.speechSynthesis.onvoiceschanged !== "undefined"){'
@@ -22355,6 +22365,23 @@ function openWaitScreen(){
   +'}'
   +'}'
   +'_loadVoices();'
+  /* محاولة تحفيز تحميل الأصوات في Edge عبر استدعاء utterance صامت */
+  +'function _kickStartVoices(){'
+  +'try{'
+  +'if(!("speechSynthesis" in window)) return;'
+  /* استدعاء صامت لإجبار المتصفح على تحميل قائمة الأصوات */
+  +'var u = new SpeechSynthesisUtterance(" ");'
+  +'u.volume = 0;'
+  +'window.speechSynthesis.speak(u);'
+  +'window.speechSynthesis.cancel();'
+  +'}catch(_){}'
+  +'}'
+  +'_kickStartVoices();'
+  /* إعادة محاولة قراءة الأصوات بعد فترات متعددة (Edge قد يستغرق 1-5 ثواني) */
+  +'setTimeout(function(){ _arVoice = _pickArVoice(); }, 500);'
+  +'setTimeout(function(){ _arVoice = _pickArVoice(); }, 1500);'
+  +'setTimeout(function(){ _arVoice = _pickArVoice(); }, 3000);'
+  +'setTimeout(function(){ _arVoice = _pickArVoice(); }, 5000);'
   /* ── تطبيع الاسم العربي قبل النطق: إزالة أي شيء بين قوسين، حذف الرموز، توحيد المسافات ── */
   +'function _normalizeName(name){'
   +'if(!name) return "";'
@@ -22529,24 +22556,39 @@ function openWaitScreen(){
   +'_updateVoiceBadges();'
   +'return;'
   +'}'
-  +'_arVoice = _pickArVoice();'
-  /* تشخيص: تحقق من وجود صوت عربي */
-  +'var voices = (window.speechSynthesis.getVoices ? window.speechSynthesis.getVoices() : [])||[];'
-  +'var hasArVoice = !!_arVoice;'
-  +'var u = new SpeechSynthesisUtterance("تم تفعيل الناطق الصوتي");'
-  +'u.lang = (_arVoice && _arVoice.lang) ? _arVoice.lang : "ar-SA";'
-  +'u.rate = 0.95; u.volume = 1.0;'
-  +'if(_arVoice) u.voice = _arVoice;'
-  +'window.speechSynthesis.cancel();'
-  +'setTimeout(function(){ try{ window.speechSynthesis.speak(u); }catch(_){} }, 600);'
+  /* تحفيز تحميل الأصوات (Edge يحتاج هذا) */
+  +'_kickStartVoices();'
   /* بدء آلية إبقاء TTS نشطة */
   +'_keepAlivePump();'
   +'_voiceUnlocked = true;'
   +'_updateVoiceBadges();'
-  /* رسالة تشخيصية تحت الزر */
-  +'_showVoiceStatus(hasArVoice, voices.length);'
+  /* انتظر 2 ثانية لإعطاء Edge وقتاً لجلب أصوات السحابة، ثم افحص ومحاولة النطق */
+  +'_waitForArVoiceAndAnnounce(0);'
   +'}catch(e){'
   +'try{ console.warn(e); }catch(_){}'
+  +'}'
+  +'}'
+  /* ── انتظار تحميل الصوت العربي بمحاولات متعددة ── */
+  +'function _waitForArVoiceAndAnnounce(attempt){'
+  +'_arVoice = _pickArVoice();'
+  +'var voices = (window.speechSynthesis.getVoices ? window.speechSynthesis.getVoices() : [])||[];'
+  +'if(_arVoice){'
+  /* ✅ وُجد صوت عربي → أعلن وأنطق */
+  +'var u = new SpeechSynthesisUtterance("تم تفعيل الناطق الصوتي");'
+  +'u.voice = _arVoice;'
+  +'u.lang = _arVoice.lang || "ar-SA";'
+  +'u.rate = 0.95; u.volume = 1.0;'
+  +'window.speechSynthesis.cancel();'
+  +'setTimeout(function(){ try{ window.speechSynthesis.speak(u); }catch(_){} }, 300);'
+  +'_showVoiceStatus(true, voices.length);'
+  +'return;'
+  +'}'
+  /* لم نجد صوتاً عربياً بعد — حاول مجدداً */
+  +'if(attempt < 6){'
+  +'setTimeout(function(){ _waitForArVoiceAndAnnounce(attempt+1); }, 1000);'
+  +'}else{'
+  /* فشلت كل المحاولات — اعرض الرسالة الصفراء */
+  +'_showVoiceStatus(false, voices.length);'
   +'}'
   +'}'
   /* ── عرض حالة الصوت (تشخيص للمستخدم) ── */
@@ -22579,7 +22621,7 @@ function openWaitScreen(){
   +'document.getElementById("wsi").textContent=c.inprogress;'
   +'document.getElementById("wsd").textContent=c.done;'
   +'document.getElementById("wst").textContent=c.total;'
-  +'if(typeof e.data.scrollSpeed==="number"){_spd=e.data.scrollSpeed;}'
+  +'if(typeof e.data.scrollSpeed==="number"){_spd=e.data.scrollSpeed; _updateDupVisibility();}'
   +'var newRows=e.data.rows||"";'
   +'if(newRows!==_lastRows){'
   +'_lastRows=newRows;'
