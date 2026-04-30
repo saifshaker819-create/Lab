@@ -12453,74 +12453,253 @@ function generatePDFBlob(callback){
       }
 
       try{
-        // ── البحث عن .report-page (صفحات مُولَّدة من runPagination) ──
+        // ── البحث عن .report-page (المحتوى المُولَّد من runPagination) ──
         const reportPages=iDoc.querySelectorAll('.report-page');
         const printFooter=iDoc.getElementById('print-footer');
 
         if(reportPages.length>0){
-          // ── استخراج HTML الذيل + جميع <style> tags من الـ iframe الأصلي ──
-          const footerOuterHTML=printFooter ? printFooter.outerHTML : '';
-          const styleTags=Array.from(iDoc.querySelectorAll('style')).map(s=>s.outerHTML).join('\n');
-          const linkTags=Array.from(iDoc.querySelectorAll('link[rel="stylesheet"]')).map(l=>l.outerHTML).join('\n');
+          // ─────────────────────────────────────────────────────────
+          // الفكرة: ندمج كل الصفحات في حاوية واحدة طويلة، ثم نقطّعها
+          // في مواقع آمنة (بين chunks) بدلاً من قطعها بمسطرة ثابتة
+          // ─────────────────────────────────────────────────────────
 
-          // ── لكل صفحة: ننشئ iframe جديد بحجم A4 مع المحتوى + الذيل بـ position:fixed ──
-          for(let i=0;i<reportPages.length;i++){
-            const pg=reportPages[i];
-            const pgHTML=pg.outerHTML;
+          // 1) نحضّر قائمة بجميع الـ chunks (children مباشرة من report-pages عدا headers والـ spacer)
+          //    هدف القياس: نريد معرفة موقع كل عنصر "قابل للقطع قبله"
+          //    المعيار: العنصر الذي ليس header ولا spacer = نقطة قطع آمنة قبله
 
-            // ─── إنشاء iframe جديد بحجم A4 (794×1123) ──
-            // 794px = 210mm, 1123px = 297mm عند 96dpi
-            const pageIframe=document.createElement('iframe');
-            pageIframe.style.cssText='position:fixed;top:0;left:-99999px;width:794px;height:1123px;border:none;background:#fff;';
-            document.body.appendChild(pageIframe);
-            const pDoc=pageIframe.contentDocument||pageIframe.contentWindow.document;
+          // 2) نلتقط الذيل منفصلاً مع التوقيع
+          let footerCanvas=null;
+          let footerHmm=0;
+          if(printFooter){
+            const ftrWrapper=iDoc.createElement('div');
+            ftrWrapper.style.cssText='position:absolute;top:0;left:-99999px;width:794px;background:#fff;';
+            const ftrClone=printFooter.cloneNode(true);
+            ftrClone.style.cssText='position:relative;width:794px;background:#fff;';
+            // التوقيع: تحويل من position:absolute;bottom:100% إلى static
+            const sigInClone=ftrClone.querySelector('div[style*="position:absolute"][style*="bottom:100%"]');
+            if(sigInClone){
+              sigInClone.style.position='static';
+              sigInClone.style.bottom='auto';
+              sigInClone.style.right='auto';
+              sigInClone.style.float='right';
+              sigInClone.style.padding='4px 14px';
+            }
+            ftrWrapper.appendChild(ftrClone);
+            iDoc.body.appendChild(ftrWrapper);
+            await new Promise(r=>setTimeout(r,150));
 
-            // ─── HTML الصفحة الواحدة: نفس الـ styles + الصفحة + footer ثابت ──
-            // مهم: body.padding مطابق للأصل، الـ #print-footer بـ position:fixed يطفو في الأسفل
-            const pageHTML=`<!DOCTYPE html><html><head><meta charset="UTF-8">
-${linkTags}
-${styleTags}
-<style>
-  html,body{margin:0;padding:0;width:794px;height:1123px;background:#fff;overflow:hidden;}
-  body{padding:4mm 4mm 0 4mm;box-sizing:border-box;}
-  .report-page{width:100%;}
-  /* الذيل ثابت في قاع الـ iframe بنفس قيم الطباعة الأصلية */
-  #print-footer{position:fixed !important;bottom:6mm !important;left:0 !important;right:0 !important;background:#fff !important;z-index:9999 !important;}
-</style>
-</head><body>
-${pgHTML}
-${footerOuterHTML}
-</body></html>`;
-
-            pDoc.open(); pDoc.write(pageHTML); pDoc.close();
-
-            // انتظار جاهزية الخطوط + رسم
-            await new Promise(function(resolve){
-              const waitFonts=(pDoc.fonts && pDoc.fonts.ready) ? pDoc.fonts.ready : Promise.resolve();
-              waitFonts.then(function(){ setTimeout(resolve, 400); }).catch(function(){ setTimeout(resolve, 400); });
-            });
-
-            // ─── التقاط body الـ iframe كاملاً (بحجم A4) ──
-            const pgCanvas=await html2canvas(pDoc.body,{
+            footerCanvas=await html2canvas(ftrWrapper,{
               scale:2,useCORS:true,backgroundColor:'#ffffff',
               logging:false,allowTaint:true,letterRendering:true,
-              width:794,height:1123,
-              windowWidth:794,windowHeight:1123,
-              x:0,y:0,scrollX:0,scrollY:0
+              width:794,windowWidth:794
             });
+            try{ftrWrapper.parentNode.removeChild(ftrWrapper);}catch(e){}
+            if(footerCanvas && footerCanvas.width){
+              footerHmm=(footerCanvas.height/footerCanvas.width)*pageW;
+            }
+          }
 
-            try{document.body.removeChild(pageIframe);}catch(e){}
+          // 3) ندمج محتوى كل الصفحات في حاوية واحدة (بدون .page-footer-spacer)
+          //    ونحدد header HTML من الصفحة الأولى لتكراره في كل صفحة PDF
+          const mergeWrapper=iDoc.createElement('div');
+          mergeWrapper.style.cssText='position:absolute;top:0;left:-99999px;width:794px;background:#fff;padding:4mm 4mm 0 4mm;box-sizing:border-box;';
 
-            if(!pgCanvas || !pgCanvas.width || !pgCanvas.height){
-              throw new Error('فشل التقاط الصفحة '+(i+1));
+          // استخراج header HTML من الصفحة الأولى (أول عنصرين: hdr + ptBox + colHdr)
+          // وفقاً لـ buildPage: html = HDR_HTML + COL_HDR_HTML + chunks
+          // هذه الـ 3 عناصر ثابتة في كل صفحة، لذا نأخذها من الصفحة الأولى
+          const firstPage=reportPages[0];
+          const firstPageChildren=Array.from(firstPage.children);
+          // نعرف أن أول 4-5 عناصر هي: hdr, ptBox, separator, colHdr (حسب buildPrintHTML)
+          // الأمن: نأخذ كل عنصر حتى أول subcat title
+          let headerEndIdx=0;
+          for(let k=0;k<firstPageChildren.length;k++){
+            const el=firstPageChildren[k];
+            // chunks الـ subcat تبدأ بـ div فيه subcat title — نحدد بالنص أو بأن أول child له نص ملون
+            const txt=el.textContent||'';
+            // نأخذ كل العناصر التي ليست spacer وليست تحاليل (ليس فيها كلمة Reference أو نص نتيجة)
+            if(el.classList && el.classList.contains('page-footer-spacer')) break;
+            // نتوقف عند أول chunk حقيقي (يحتوي على دائرة • أو على Reference)
+            if(txt.includes('•') || /\d+\s*-\s*\d+/.test(txt)){ break; }
+            headerEndIdx=k+1;
+          }
+
+          const headerHTMLParts=[];
+          for(let k=0;k<headerEndIdx;k++){
+            headerHTMLParts.push(firstPageChildren[k].outerHTML);
+          }
+          const headerHTML=headerHTMLParts.join('');
+
+          // نضيف الـ header ثم نجمع كل الـ chunks من جميع الصفحات
+          mergeWrapper.innerHTML=headerHTML;
+          // نضع كل الـ chunks بترتيب الصفحات
+          const allChunks=[];
+          for(let p=0;p<reportPages.length;p++){
+            const pgChildren=Array.from(reportPages[p].children);
+            // تخطي header في الصفحات بعد الأولى، وتخطي spacer دائماً
+            const startIdx=(p===0) ? headerEndIdx : headerEndIdx;
+            for(let k=startIdx;k<pgChildren.length;k++){
+              const el=pgChildren[k];
+              if(el.classList && el.classList.contains('page-footer-spacer')) continue;
+              allChunks.push(el);
+            }
+          }
+          // نضيف نسخ الـ chunks إلى mergeWrapper
+          allChunks.forEach(ch=>{
+            mergeWrapper.appendChild(ch.cloneNode(true));
+          });
+
+          iDoc.body.appendChild(mergeWrapper);
+          await new Promise(r=>setTimeout(r,200));
+
+          // 4) قياس مواقع الـ chunks الفعلية بعد الرسم
+          //    headerOffsetEnd = ارتفاع الـ header (بعد أي عنصر header)
+          const allMergedChildren=Array.from(mergeWrapper.children);
+          // أول N عناصر = headerHTMLParts.length = headerEndIdx
+          let headerHeightPx=0;
+          if(headerEndIdx>0 && allMergedChildren[headerEndIdx-1]){
+            const lastHdrEl=allMergedChildren[headerEndIdx-1];
+            headerHeightPx=lastHdrEl.offsetTop+lastHdrEl.offsetHeight;
+          }
+
+          // chunks: من index headerEndIdx إلى النهاية
+          const chunkEls=allMergedChildren.slice(headerEndIdx);
+          // مواقع نهاية كل chunk (offsetTop + offsetHeight)
+          const chunkBoundaries=chunkEls.map(el=>({
+            top: el.offsetTop,
+            bottom: el.offsetTop + el.offsetHeight
+          }));
+
+          // 5) التقاط mergeWrapper كاملاً
+          const totalCanvas=await html2canvas(mergeWrapper,{
+            scale:2,useCORS:true,backgroundColor:'#ffffff',
+            logging:false,allowTaint:true,letterRendering:true,
+            width:794,windowWidth:794
+          });
+
+          if(!totalCanvas || !totalCanvas.width || !totalCanvas.height){
+            try{mergeWrapper.parentNode.removeChild(mergeWrapper);}catch(e){}
+            throw new Error('فشل التقاط المحتوى');
+          }
+
+          // نسبة الـ scale: canvas px / dom px
+          const canvasScale=totalCanvas.width/794;
+          // ارتفاعات بـ canvas pixels
+          const headerHeightCpx=headerHeightPx*canvasScale;
+
+          try{mergeWrapper.parentNode.removeChild(mergeWrapper);}catch(e){}
+
+          // 6) حساب مساحة المحتوى المتاحة في كل صفحة PDF
+          // ارتفاع A4 = 297mm، ناقص 6mm هامش الذيل، ناقص ارتفاع الذيل، ناقص 4mm فاصل أمان
+          const footerY_mm = pageH - footerHmm - 6;
+          const contentMaxH_mm = footerY_mm - 4; // 4mm أمان قبل الذيل
+          // ارتفاع المحتوى المتاح في صفحة جديدة = من 4mm (أعلى) إلى contentMaxH_mm
+          const contentH_mm = contentMaxH_mm - 4; // top padding
+          // كم بكسل canvas يقابل contentH_mm
+          const contentH_cpx = (contentH_mm/pageW)*totalCanvas.width;
+
+          // 7) تقطيع: نمشي على chunks ونجمع منها بقدر contentH_cpx
+          //    عند كل صفحة: نأخذ من srcY بداية الصفحة إلى srcEnd آخر chunk يتسع
+          //    headerHeight يُضاف فقط في الصفحة الأولى من الالتقاط (لأنه ضمن totalCanvas)
+          //    للصفحات اللاحقة: سنرسم الـ header كصورة منفصلة
+          // ولكن التبسيط: سنعيد رسم header في كل صفحة بأخذ هذه المنطقة من totalCanvas
+          const headerImg = (function(){
+            const h=Math.round(headerHeightCpx);
+            if(h<=0) return null;
+            const c=document.createElement('canvas');
+            c.width=totalCanvas.width; c.height=h;
+            const ctx=c.getContext('2d');
+            ctx.fillStyle='#fff'; ctx.fillRect(0,0,c.width,c.height);
+            ctx.drawImage(totalCanvas,0,0,totalCanvas.width,h,0,0,totalCanvas.width,h);
+            return {data:c.toDataURL('image/jpeg',0.95), heightMm: headerHeightPx/794*pageW };
+          })();
+
+          // مواقع الـ chunks بـ canvas pixels
+          const chunkBoundsCpx=chunkBoundaries.map(b=>({
+            top: b.top*canvasScale,
+            bottom: b.bottom*canvasScale
+          }));
+
+          // ابدأ من نهاية الـ header
+          let srcY = headerHeightCpx;
+          const totalH = totalCanvas.height;
+          let pageNum = 0;
+
+          while(srcY < totalH - 1){
+            // المساحة المتاحة في صفحة PDF (بدون header وبدون footer)
+            // الصفحة الأولى تستخدم header الموجود في الصورة الأصلية ضمن totalCanvas من 0 إلى headerHeightCpx
+            // لكن عند التقطيع نحن بعد headerHeightCpx → نحتاج إعادة رسم header في كل صفحة
+            // إذن: كل صفحة = header (من headerImg) + chunks
+            const isFirstPg = (pageNum===0);
+            const headerH_mm = (headerImg ? headerImg.heightMm : 0);
+            const availableH_mm = contentMaxH_mm - 4 - headerH_mm; // top padding 4mm + header
+            const availableH_cpx = (availableH_mm/pageW)*totalCanvas.width;
+
+            // نهاية مرشحة: srcY + availableH_cpx
+            let proposedEnd = srcY + availableH_cpx;
+            // لا نتجاوز نهاية الصورة
+            if(proposedEnd > totalH) proposedEnd = totalH;
+
+            // نبحث عن أكبر chunk.bottom <= proposedEnd
+            let safeEnd = -1;
+            for(let ci=0;ci<chunkBoundsCpx.length;ci++){
+              const cb = chunkBoundsCpx[ci];
+              if(cb.bottom <= proposedEnd && cb.bottom > srcY){
+                safeEnd = cb.bottom;
+              } else if(cb.bottom > proposedEnd){
+                break;
+              }
             }
 
-            // أضف صفحة PDF جديدة لكل صفحة بعد الأولى
-            if(!(isFirstPage && i===0)) doc.addPage();
+            // إذا لم نجد chunk يتسع — اضطرار: ضع chunk واحد كامل (قد يطلع طويل)
+            if(safeEnd <= srcY){
+              // ابحث عن أول chunk.bottom > srcY
+              for(let ci=0;ci<chunkBoundsCpx.length;ci++){
+                if(chunkBoundsCpx[ci].bottom > srcY){
+                  safeEnd = chunkBoundsCpx[ci].bottom;
+                  break;
+                }
+              }
+              if(safeEnd <= srcY) safeEnd = totalH;
+            }
 
-            // الصورة بحجم A4 كاملة بالضبط (794×1123 px = 210×297 mm)
-            const imgData=pgCanvas.toDataURL('image/jpeg',0.95);
-            doc.addImage(imgData,'JPEG',0,0,pageW,pageH);
+            // الصفحة الأخيرة: نأخذ كل ما تبقى
+            if(safeEnd >= totalH - 5) safeEnd = totalH;
+
+            // قص قطعة من srcY إلى safeEnd
+            const sliceH = Math.max(1, Math.round(safeEnd - srcY));
+            const sliceCanvas = document.createElement('canvas');
+            sliceCanvas.width = totalCanvas.width;
+            sliceCanvas.height = sliceH;
+            const sctx = sliceCanvas.getContext('2d');
+            sctx.fillStyle = '#fff';
+            sctx.fillRect(0,0,sliceCanvas.width,sliceCanvas.height);
+            sctx.drawImage(totalCanvas, 0, srcY, totalCanvas.width, sliceH, 0, 0, totalCanvas.width, sliceH);
+            const sliceData = sliceCanvas.toDataURL('image/jpeg',0.95);
+            const sliceH_mm = (sliceH/totalCanvas.width)*pageW;
+
+            // ─── ضع في PDF ───
+            if(!(isFirstPage && pageNum===0)) doc.addPage();
+
+            // ضع الـ header في أعلى كل صفحة
+            let yCursor = 0;
+            if(headerImg){
+              doc.addImage(headerImg.data, 'JPEG', 0, 0, pageW, headerImg.heightMm);
+              yCursor = headerImg.heightMm;
+            }
+            // ضع الشريحة بعد header
+            doc.addImage(sliceData, 'JPEG', 0, yCursor, pageW, sliceH_mm);
+
+            // ضع الذيل
+            if(footerCanvas && footerHmm>0){
+              const ftrData = footerCanvas.toDataURL('image/jpeg',0.95);
+              doc.addImage(ftrData, 'JPEG', 0, footerY_mm, pageW, footerHmm);
+            }
+
+            srcY = safeEnd;
+            pageNum++;
+
+            // أمان: لا نتجاوز 50 صفحة
+            if(pageNum > 50) break;
           }
         } else {
           // ── الحالة 2: HTML بسيط بدون pagination — السلوك القديم ──
