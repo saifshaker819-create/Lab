@@ -12458,56 +12458,98 @@ function generatePDFBlob(callback){
         const printFooter=iDoc.getElementById('print-footer');
 
         if(reportPages.length>0){
-          // ── استخراج HTML الذيل لإعادة استخدامه ──
-          const footerInnerHTML=printFooter ? printFooter.innerHTML : '';
+          // ── 1. التقاط الذيل (footer) منفصلاً مع التوقيع ──
+          // التوقيع داخل الذيل بـ position:absolute; bottom:100% — نضعه بـ position:relative; bottom:auto لالتقاطه كاملاً
+          let footerCanvas=null;
+          let footerImgH_mm=0;
+          if(printFooter){
+            const ftrWrapper=iDoc.createElement('div');
+            ftrWrapper.style.cssText='position:absolute;top:0;left:-99999px;width:794px;background:#fff;padding-top:0;';
+            const ftrClone=printFooter.cloneNode(true);
+            ftrClone.style.cssText='position:relative;width:794px;background:#fff;';
+            // إصلاح التوقيع داخل الذيل (تحويل من absolute إلى relative)
+            const sigInClone=ftrClone.querySelector('div[style*="position:absolute"][style*="bottom:100%"]');
+            if(sigInClone){
+              sigInClone.style.position='relative';
+              sigInClone.style.bottom='auto';
+              sigInClone.style.right='auto';
+              sigInClone.style.float='right';
+              sigInClone.style.zIndex='10';
+            }
+            ftrWrapper.appendChild(ftrClone);
+            iDoc.body.appendChild(ftrWrapper);
 
-          // ── تحويل كل .report-page إلى صفحة A4 كاملة مع الذيل مدمج ──
+            // انتظار صغير لرسم التوقيع
+            await new Promise(r=>setTimeout(r,100));
+
+            footerCanvas=await html2canvas(ftrWrapper,{
+              scale:2,useCORS:true,backgroundColor:'#ffffff',
+              logging:false,allowTaint:true,letterRendering:true,
+              width:794,windowWidth:794
+            });
+            try{ftrWrapper.parentNode.removeChild(ftrWrapper);}catch(e){}
+            if(footerCanvas && footerCanvas.width){
+              footerImgH_mm=(footerCanvas.height/footerCanvas.width)*pageW;
+            }
+          }
+
+          // ── 2. التقاط كل .report-page (المحتوى فقط، بدون الذيل) ──
           for(let i=0;i<reportPages.length;i++){
             const pg=reportPages[i];
 
-            // إنشاء حاوية مؤقتة بحجم A4 كامل
-            const wrapper=iDoc.createElement('div');
-            wrapper.style.cssText='position:absolute;top:0;left:-99999px;width:794px;height:1123px;background:#fff;box-sizing:border-box;overflow:hidden;';
+            // إزالة spacer مؤقتاً قبل الالتقاط (لأن الذيل سيُضاف من PDF)
+            const spacer=pg.querySelector('.page-footer-spacer');
+            const savedSpacerHeight=spacer ? spacer.style.height : null;
+            if(spacer) spacer.style.height='0px';
 
-            // استنساخ الصفحة (المحتوى) ووضعها في الأعلى
-            const pgClone=pg.cloneNode(true);
-            pgClone.style.cssText='position:absolute;top:0;left:0;right:0;width:794px;background:#fff;';
-            // إزالة spacer لأنه لم يعد ضرورياً (الذيل سيكون absolute في الأسفل)
-            const spacer=pgClone.querySelector('.page-footer-spacer');
-            if(spacer) spacer.remove();
-            wrapper.appendChild(pgClone);
-
-            // إنشاء ذيل بـ position:absolute في أسفل الـ wrapper
-            if(footerInnerHTML){
-              const ftr=iDoc.createElement('div');
-              ftr.style.cssText='position:absolute;bottom:6mm;left:0;right:0;background:#fff;line-height:normal;';
-              ftr.innerHTML=footerInnerHTML;
-              wrapper.appendChild(ftr);
-            }
-
-            iDoc.body.appendChild(wrapper);
-
-            // التقاط الصفحة كاملة (A4) مع الذيل والتوقيع بمواقعهم الصحيحة
-            const canvas=await html2canvas(wrapper,{
+            const pgCanvas=await html2canvas(pg,{
               scale:2,useCORS:true,backgroundColor:'#ffffff',
               logging:false,allowTaint:true,letterRendering:true,
-              width:794,height:1123,
-              windowWidth:794,windowHeight:1123
+              width:794,windowWidth:794
             });
 
-            try{wrapper.parentNode.removeChild(wrapper);}catch(e){}
+            // إعادة spacer لحالته
+            if(spacer && savedSpacerHeight!==null) spacer.style.height=savedSpacerHeight;
 
-            if(!canvas || !canvas.width || !canvas.height){
+            if(!pgCanvas || !pgCanvas.width || !pgCanvas.height){
               throw new Error('فشل التقاط الصفحة '+(i+1));
             }
-
-            const imgData=canvas.toDataURL('image/jpeg',0.95);
 
             // أضف صفحة PDF جديدة لكل صفحة بعد الأولى
             if(!(isFirstPage && i===0)) doc.addPage();
 
-            // كل صفحة A4 كاملة (210x297mm) — الصورة تملأها بدقة
-            doc.addImage(imgData,'JPEG',0,0,pageW,pageH);
+            // ── حساب أبعاد المحتوى ──
+            const pgImgH_mm=(pgCanvas.height/pgCanvas.width)*pageW;
+            const pgImgData=pgCanvas.toDataURL('image/jpeg',0.95);
+
+            // ── حساب موقع الذيل ──
+            // الذيل ثابت في الأسفل بـ 6mm من الحافة السفلية
+            const footerY=pageH-footerImgH_mm-6;
+            // المساحة المتاحة للمحتوى
+            const maxContentH=footerY-2; // 2mm فاصل أمان
+
+            if(pgImgH_mm<=maxContentH){
+              // المحتوى يتسع — ضعه كاملاً من الأعلى
+              doc.addImage(pgImgData,'JPEG',0,0,pageW,pgImgH_mm);
+            } else {
+              // المحتوى أطول من المساحة المتاحة — قصّه ليتسع
+              // نأخذ فقط الجزء العلوي من الصورة بقدر maxContentH
+              const cropCanvasPx=Math.round((maxContentH/pgImgH_mm)*pgCanvas.height);
+              const cropCanvas=document.createElement('canvas');
+              cropCanvas.width=pgCanvas.width;
+              cropCanvas.height=cropCanvasPx;
+              const cctx=cropCanvas.getContext('2d');
+              cctx.fillStyle='#ffffff';
+              cctx.fillRect(0,0,cropCanvas.width,cropCanvas.height);
+              cctx.drawImage(pgCanvas,0,0,pgCanvas.width,cropCanvasPx,0,0,pgCanvas.width,cropCanvasPx);
+              doc.addImage(cropCanvas.toDataURL('image/jpeg',0.95),'JPEG',0,0,pageW,maxContentH);
+            }
+
+            // ── إضافة الذيل في الأسفل ──
+            if(footerCanvas && footerImgH_mm>0){
+              const ftrData=footerCanvas.toDataURL('image/jpeg',0.95);
+              doc.addImage(ftrData,'JPEG',0,footerY,pageW,footerImgH_mm);
+            }
           }
         } else {
           // ── الحالة 2: HTML بسيط بدون pagination — السلوك القديم ──
