@@ -12456,54 +12456,81 @@ function generatePDFBlob(callback){
         // ── البحث عن .report-page (صفحات مُولَّدة من runPagination) ──
         const reportPages=iDoc.querySelectorAll('.report-page');
         const printFooter=iDoc.getElementById('print-footer');
-        const footerHTML=printFooter ? printFooter.outerHTML : '';
 
         if(reportPages.length>0){
-          // ── الحالة 1: التقاط كل .report-page منفصلة (HTML من buildPrintHTML) ──
-          // نضيف الذيل (footer) إلى كل صفحة قبل الالتقاط
+          // ── التقاط الذيل (footer) مرة واحدة ──
+          // نخفي كل شيء عدا الذيل لالتقاطه نظيفاً
+          let footerCanvas=null;
+          let footerHmm=0;
+          if(printFooter){
+            // استنساخ الذيل في حاوية مستقلة لالتقاطه
+            const ftrWrapper=iDoc.createElement('div');
+            ftrWrapper.style.cssText='position:absolute;top:0;left:-99999px;width:794px;background:#fff;';
+            const ftrClone=printFooter.cloneNode(true);
+            ftrClone.style.cssText='position:relative;width:794px;background:#fff;';
+            ftrWrapper.appendChild(ftrClone);
+            iDoc.body.appendChild(ftrWrapper);
+            footerCanvas=await html2canvas(ftrWrapper,{
+              scale:2,useCORS:true,backgroundColor:'#ffffff',
+              logging:false,allowTaint:true,letterRendering:true,
+              width:794,windowWidth:794
+            });
+            try{ftrWrapper.parentNode.removeChild(ftrWrapper);}catch(e){}
+            // حساب ارتفاع الذيل بـ mm (210mm = 794px → نسبة)
+            if(footerCanvas && footerCanvas.width){
+              footerHmm=(footerCanvas.height/footerCanvas.width)*pageW;
+            }
+          }
+
+          // ── التقاط كل .report-page منفصلة ──
           for(let i=0;i<reportPages.length;i++){
             const pg=reportPages[i];
 
-            // إنشاء حاوية مؤقتة بحجم A4 كامل لاحتواء الصفحة + الذيل
-            const wrapper=iDoc.createElement('div');
-            wrapper.style.cssText='position:absolute;top:0;left:-99999px;width:794px;height:1123px;background:#fff;box-sizing:border-box;overflow:hidden;';
-            // استنساخ الصفحة
-            const pgClone=pg.cloneNode(true);
-            pgClone.style.cssText=(pgClone.style.cssText||'')+';width:794px;min-height:1123px;box-sizing:border-box;position:relative;';
-            wrapper.appendChild(pgClone);
-            // إضافة الذيل في الأسفل
-            if(footerHTML){
-              const ftrDiv=iDoc.createElement('div');
-              ftrDiv.innerHTML=footerHTML;
-              const ftrEl=ftrDiv.firstElementChild;
-              if(ftrEl){
-                ftrEl.style.cssText=(ftrEl.style.cssText||'')+';position:absolute;bottom:6mm;left:0;right:0;background:#fff;';
-                wrapper.appendChild(ftrEl);
-              }
-            }
-            iDoc.body.appendChild(wrapper);
-
-            // التقاط الصفحة
-            const canvas=await html2canvas(wrapper,{
+            // التقاط الصفحة بحجمها الفعلي (بدون قسر ارتفاع 1123)
+            const pgCanvas=await html2canvas(pg,{
               scale:2,useCORS:true,backgroundColor:'#ffffff',
               logging:false,allowTaint:true,letterRendering:true,
-              width:794,height:1123,
-              windowWidth:794,windowHeight:1123
+              width:794,windowWidth:794
             });
 
-            try{wrapper.parentNode.removeChild(wrapper);}catch(e){}
-
-            if(!canvas || !canvas.width || !canvas.height){
+            if(!pgCanvas || !pgCanvas.width || !pgCanvas.height){
               throw new Error('فشل التقاط الصفحة '+(i+1));
             }
-
-            const imgData=canvas.toDataURL('image/jpeg',0.95);
 
             // أضف صفحة PDF جديدة لكل صفحة بعد الأولى
             if(!(isFirstPage && i===0)) doc.addPage();
 
-            // كل صفحة A4 كاملة (210x297mm)
-            doc.addImage(imgData,'JPEG',0,0,pageW,pageH);
+            // ── حساب أبعاد صورة الصفحة بـ mm ──
+            const pgImgH=(pgCanvas.height/pgCanvas.width)*pageW;
+            const pgImgData=pgCanvas.toDataURL('image/jpeg',0.95);
+
+            // ── المساحة المتاحة للمحتوى = ارتفاع A4 - ارتفاع الذيل - هامش 6mm ──
+            const footerY=pageH-footerHmm-6; // الذيل يبدأ من هنا
+            const maxContentH=footerY; // المحتوى يجب ألا يتجاوز هذا
+
+            if(pgImgH<=maxContentH){
+              // الصفحة قصيرة بما يكفي — ضعها كاملة
+              doc.addImage(pgImgData,'JPEG',0,0,pageW,pgImgH);
+            } else {
+              // الصفحة أطول من المساحة المتاحة — قصّها للأعلى لتتسع
+              // (لا يجب أن يحدث هذا إذا كان runPagination يعمل صحيحاً)
+              // نقصها بحيث نأخذ فقط الجزء العلوي بقدر maxContentH
+              const cropH=Math.round((maxContentH/pageW)*pgCanvas.width); // بـ px
+              const cropCanvas=document.createElement('canvas');
+              cropCanvas.width=pgCanvas.width;
+              cropCanvas.height=Math.round((maxContentH/pgImgH)*pgCanvas.height);
+              const cctx=cropCanvas.getContext('2d');
+              cctx.fillStyle='#ffffff';
+              cctx.fillRect(0,0,cropCanvas.width,cropCanvas.height);
+              cctx.drawImage(pgCanvas,0,0,pgCanvas.width,cropCanvas.height,0,0,pgCanvas.width,cropCanvas.height);
+              doc.addImage(cropCanvas.toDataURL('image/jpeg',0.95),'JPEG',0,0,pageW,maxContentH);
+            }
+
+            // ── إضافة الذيل في الأسفل ──
+            if(footerCanvas && footerHmm>0){
+              const ftrData=footerCanvas.toDataURL('image/jpeg',0.95);
+              doc.addImage(ftrData,'JPEG',0,footerY,pageW,footerHmm);
+            }
           }
         } else {
           // ── الحالة 2: HTML بسيط بدون pagination — السلوك القديم ──
