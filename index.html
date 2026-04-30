@@ -12458,40 +12458,58 @@ function generatePDFBlob(callback){
         const printFooter=iDoc.getElementById('print-footer');
 
         if(reportPages.length>0){
-          // ── التقاط الذيل (footer) مرة واحدة ──
-          // نخفي كل شيء عدا الذيل لالتقاطه نظيفاً
-          let footerCanvas=null;
-          let footerHmm=0;
-          if(printFooter){
-            // استنساخ الذيل في حاوية مستقلة لالتقاطه
-            const ftrWrapper=iDoc.createElement('div');
-            ftrWrapper.style.cssText='position:absolute;top:0;left:-99999px;width:794px;background:#fff;';
-            const ftrClone=printFooter.cloneNode(true);
-            ftrClone.style.cssText='position:relative;width:794px;background:#fff;';
-            ftrWrapper.appendChild(ftrClone);
-            iDoc.body.appendChild(ftrWrapper);
-            footerCanvas=await html2canvas(ftrWrapper,{
-              scale:2,useCORS:true,backgroundColor:'#ffffff',
-              logging:false,allowTaint:true,letterRendering:true,
-              width:794,windowWidth:794
-            });
-            try{ftrWrapper.parentNode.removeChild(ftrWrapper);}catch(e){}
-            // حساب ارتفاع الذيل بـ mm (210mm = 794px → نسبة)
-            if(footerCanvas && footerCanvas.width){
-              footerHmm=(footerCanvas.height/footerCanvas.width)*pageW;
-            }
-          }
+          // ── استخراج HTML الذيل + جميع <style> tags من الـ iframe الأصلي ──
+          const footerOuterHTML=printFooter ? printFooter.outerHTML : '';
+          const styleTags=Array.from(iDoc.querySelectorAll('style')).map(s=>s.outerHTML).join('\n');
+          const linkTags=Array.from(iDoc.querySelectorAll('link[rel="stylesheet"]')).map(l=>l.outerHTML).join('\n');
 
-          // ── التقاط كل .report-page منفصلة ──
+          // ── لكل صفحة: ننشئ iframe جديد بحجم A4 مع المحتوى + الذيل بـ position:fixed ──
           for(let i=0;i<reportPages.length;i++){
             const pg=reportPages[i];
+            const pgHTML=pg.outerHTML;
 
-            // التقاط الصفحة بحجمها الفعلي (بدون قسر ارتفاع 1123)
-            const pgCanvas=await html2canvas(pg,{
+            // ─── إنشاء iframe جديد بحجم A4 (794×1123) ──
+            // 794px = 210mm, 1123px = 297mm عند 96dpi
+            const pageIframe=document.createElement('iframe');
+            pageIframe.style.cssText='position:fixed;top:0;left:-99999px;width:794px;height:1123px;border:none;background:#fff;';
+            document.body.appendChild(pageIframe);
+            const pDoc=pageIframe.contentDocument||pageIframe.contentWindow.document;
+
+            // ─── HTML الصفحة الواحدة: نفس الـ styles + الصفحة + footer ثابت ──
+            // مهم: body.padding مطابق للأصل، الـ #print-footer بـ position:fixed يطفو في الأسفل
+            const pageHTML=`<!DOCTYPE html><html><head><meta charset="UTF-8">
+${linkTags}
+${styleTags}
+<style>
+  html,body{margin:0;padding:0;width:794px;height:1123px;background:#fff;overflow:hidden;}
+  body{padding:4mm 4mm 0 4mm;box-sizing:border-box;}
+  .report-page{width:100%;}
+  /* الذيل ثابت في قاع الـ iframe بنفس قيم الطباعة الأصلية */
+  #print-footer{position:fixed !important;bottom:6mm !important;left:0 !important;right:0 !important;background:#fff !important;z-index:9999 !important;}
+</style>
+</head><body>
+${pgHTML}
+${footerOuterHTML}
+</body></html>`;
+
+            pDoc.open(); pDoc.write(pageHTML); pDoc.close();
+
+            // انتظار جاهزية الخطوط + رسم
+            await new Promise(function(resolve){
+              const waitFonts=(pDoc.fonts && pDoc.fonts.ready) ? pDoc.fonts.ready : Promise.resolve();
+              waitFonts.then(function(){ setTimeout(resolve, 400); }).catch(function(){ setTimeout(resolve, 400); });
+            });
+
+            // ─── التقاط body الـ iframe كاملاً (بحجم A4) ──
+            const pgCanvas=await html2canvas(pDoc.body,{
               scale:2,useCORS:true,backgroundColor:'#ffffff',
               logging:false,allowTaint:true,letterRendering:true,
-              width:794,windowWidth:794
+              width:794,height:1123,
+              windowWidth:794,windowHeight:1123,
+              x:0,y:0,scrollX:0,scrollY:0
             });
+
+            try{document.body.removeChild(pageIframe);}catch(e){}
 
             if(!pgCanvas || !pgCanvas.width || !pgCanvas.height){
               throw new Error('فشل التقاط الصفحة '+(i+1));
@@ -12500,37 +12518,9 @@ function generatePDFBlob(callback){
             // أضف صفحة PDF جديدة لكل صفحة بعد الأولى
             if(!(isFirstPage && i===0)) doc.addPage();
 
-            // ── حساب أبعاد صورة الصفحة بـ mm ──
-            const pgImgH=(pgCanvas.height/pgCanvas.width)*pageW;
-            const pgImgData=pgCanvas.toDataURL('image/jpeg',0.95);
-
-            // ── المساحة المتاحة للمحتوى = ارتفاع A4 - ارتفاع الذيل - هامش 6mm ──
-            const footerY=pageH-footerHmm-6; // الذيل يبدأ من هنا
-            const maxContentH=footerY; // المحتوى يجب ألا يتجاوز هذا
-
-            if(pgImgH<=maxContentH){
-              // الصفحة قصيرة بما يكفي — ضعها كاملة
-              doc.addImage(pgImgData,'JPEG',0,0,pageW,pgImgH);
-            } else {
-              // الصفحة أطول من المساحة المتاحة — قصّها للأعلى لتتسع
-              // (لا يجب أن يحدث هذا إذا كان runPagination يعمل صحيحاً)
-              // نقصها بحيث نأخذ فقط الجزء العلوي بقدر maxContentH
-              const cropH=Math.round((maxContentH/pageW)*pgCanvas.width); // بـ px
-              const cropCanvas=document.createElement('canvas');
-              cropCanvas.width=pgCanvas.width;
-              cropCanvas.height=Math.round((maxContentH/pgImgH)*pgCanvas.height);
-              const cctx=cropCanvas.getContext('2d');
-              cctx.fillStyle='#ffffff';
-              cctx.fillRect(0,0,cropCanvas.width,cropCanvas.height);
-              cctx.drawImage(pgCanvas,0,0,pgCanvas.width,cropCanvas.height,0,0,pgCanvas.width,cropCanvas.height);
-              doc.addImage(cropCanvas.toDataURL('image/jpeg',0.95),'JPEG',0,0,pageW,maxContentH);
-            }
-
-            // ── إضافة الذيل في الأسفل ──
-            if(footerCanvas && footerHmm>0){
-              const ftrData=footerCanvas.toDataURL('image/jpeg',0.95);
-              doc.addImage(ftrData,'JPEG',0,footerY,pageW,footerHmm);
-            }
+            // الصورة بحجم A4 كاملة بالضبط (794×1123 px = 210×297 mm)
+            const imgData=pgCanvas.toDataURL('image/jpeg',0.95);
+            doc.addImage(imgData,'JPEG',0,0,pageW,pageH);
           }
         } else {
           // ── الحالة 2: HTML بسيط بدون pagination — السلوك القديم ──
