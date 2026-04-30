@@ -12445,67 +12445,118 @@ function generatePDFBlob(callback){
       });
     }
 
-    function _capture(){
+    async function _capture(){
       const body=iDoc.body;
-      if(!body || !body.scrollWidth || !body.scrollHeight){
+      if(!body){
         try{document.body.removeChild(iframe);}catch(e){}
-        return onErr(new Error('تعذّر حساب أبعاد التقرير'));
+        return onErr(new Error('تعذّر الوصول لمحتوى التقرير'));
       }
 
-      // اضبط ارتفاع iframe ليطابق المحتوى الفعلي قبل الالتقاط
-      const realH=Math.max(body.scrollHeight, body.offsetHeight, 100);
-      iframe.style.height=realH+'px';
+      try{
+        // ── البحث عن .report-page (صفحات مُولَّدة من runPagination) ──
+        const reportPages=iDoc.querySelectorAll('.report-page');
+        const printFooter=iDoc.getElementById('print-footer');
+        const footerHTML=printFooter ? printFooter.outerHTML : '';
 
-      html2canvas(body,{
-        scale:2,useCORS:true,backgroundColor:'#ffffff',
-        logging:false,allowTaint:true,letterRendering:true,
-        width:794,
-        height:realH,
-        windowWidth:794,
-        windowHeight:realH
-      }).then(function(canvas){
-        try{document.body.removeChild(iframe);}catch(e){}
-        if(!canvas || !canvas.width || !canvas.height || !isFinite(canvas.width) || !isFinite(canvas.height)){
-          return onErr(new Error('فشل التقاط الصفحة (canvas فارغ)'));
-        }
-        const imgData=canvas.toDataURL('image/jpeg',0.95);
-        const imgW=pageW;
-        const imgH=(canvas.height*imgW)/canvas.width;
-        if(!isFinite(imgH) || imgH<=0){
-          return onErr(new Error('أبعاد الصورة غير صالحة'));
-        }
+        if(reportPages.length>0){
+          // ── الحالة 1: التقاط كل .report-page منفصلة (HTML من buildPrintHTML) ──
+          // نضيف الذيل (footer) إلى كل صفحة قبل الالتقاط
+          for(let i=0;i<reportPages.length;i++){
+            const pg=reportPages[i];
 
-        if(!isFirstPage) doc.addPage();
+            // إنشاء حاوية مؤقتة بحجم A4 كامل لاحتواء الصفحة + الذيل
+            const wrapper=iDoc.createElement('div');
+            wrapper.style.cssText='position:absolute;top:0;left:-99999px;width:794px;height:1123px;background:#fff;box-sizing:border-box;overflow:hidden;';
+            // استنساخ الصفحة
+            const pgClone=pg.cloneNode(true);
+            pgClone.style.cssText=(pgClone.style.cssText||'')+';width:794px;min-height:1123px;box-sizing:border-box;position:relative;';
+            wrapper.appendChild(pgClone);
+            // إضافة الذيل في الأسفل
+            if(footerHTML){
+              const ftrDiv=iDoc.createElement('div');
+              ftrDiv.innerHTML=footerHTML;
+              const ftrEl=ftrDiv.firstElementChild;
+              if(ftrEl){
+                ftrEl.style.cssText=(ftrEl.style.cssText||'')+';position:absolute;bottom:6mm;left:0;right:0;background:#fff;';
+                wrapper.appendChild(ftrEl);
+              }
+            }
+            iDoc.body.appendChild(wrapper);
 
-        if(imgH<=pageH){
-          doc.addImage(imgData,'JPEG',0,0,imgW,imgH);
+            // التقاط الصفحة
+            const canvas=await html2canvas(wrapper,{
+              scale:2,useCORS:true,backgroundColor:'#ffffff',
+              logging:false,allowTaint:true,letterRendering:true,
+              width:794,height:1123,
+              windowWidth:794,windowHeight:1123
+            });
+
+            try{wrapper.parentNode.removeChild(wrapper);}catch(e){}
+
+            if(!canvas || !canvas.width || !canvas.height){
+              throw new Error('فشل التقاط الصفحة '+(i+1));
+            }
+
+            const imgData=canvas.toDataURL('image/jpeg',0.95);
+
+            // أضف صفحة PDF جديدة لكل صفحة بعد الأولى
+            if(!(isFirstPage && i===0)) doc.addPage();
+
+            // كل صفحة A4 كاملة (210x297mm)
+            doc.addImage(imgData,'JPEG',0,0,pageW,pageH);
+          }
         } else {
-          // الصورة أطول من A4 — قطّعها بحيث كل شريحة = صفحة A4 كاملة
-          const pageCanvas=document.createElement('canvas');
-          const ctx=pageCanvas.getContext('2d');
-          const scaleFactor=canvas.width/pageW;
-          const pageHeightPx=Math.round(pageH*scaleFactor);
-          let srcY=0;
-          let isFirst=true;
-          while(srcY<canvas.height){
-            if(!isFirst) doc.addPage();
-            const sliceH=Math.min(pageHeightPx, canvas.height-srcY);
-            pageCanvas.width=canvas.width;
-            pageCanvas.height=pageHeightPx;
-            ctx.fillStyle='#ffffff';
-            ctx.fillRect(0,0,pageCanvas.width,pageCanvas.height);
-            ctx.drawImage(canvas,0,srcY,canvas.width,sliceH,0,0,canvas.width,sliceH);
-            const sliceData=pageCanvas.toDataURL('image/jpeg',0.95);
-            doc.addImage(sliceData,'JPEG',0,0,imgW,pageH);
-            srcY+=pageHeightPx;
-            isFirst=false;
+          // ── الحالة 2: HTML بسيط بدون pagination — السلوك القديم ──
+          const realH=Math.max(body.scrollHeight, body.offsetHeight, 100);
+          iframe.style.height=realH+'px';
+
+          const canvas=await html2canvas(body,{
+            scale:2,useCORS:true,backgroundColor:'#ffffff',
+            logging:false,allowTaint:true,letterRendering:true,
+            width:794,height:realH,
+            windowWidth:794,windowHeight:realH
+          });
+
+          if(!canvas || !canvas.width || !canvas.height){
+            throw new Error('canvas فارغ');
+          }
+
+          const imgData=canvas.toDataURL('image/jpeg',0.95);
+          const imgW=pageW;
+          const imgH=(canvas.height*imgW)/canvas.width;
+          if(!isFinite(imgH) || imgH<=0) throw new Error('أبعاد غير صالحة');
+
+          if(!isFirstPage) doc.addPage();
+
+          if(imgH<=pageH){
+            doc.addImage(imgData,'JPEG',0,0,imgW,imgH);
+          } else {
+            const pageCanvas=document.createElement('canvas');
+            const ctx=pageCanvas.getContext('2d');
+            const scaleFactor=canvas.width/pageW;
+            const pageHeightPx=Math.round(pageH*scaleFactor);
+            let srcY=0,isFirst=true;
+            while(srcY<canvas.height){
+              if(!isFirst) doc.addPage();
+              const sliceH=Math.min(pageHeightPx, canvas.height-srcY);
+              pageCanvas.width=canvas.width;
+              pageCanvas.height=pageHeightPx;
+              ctx.fillStyle='#ffffff';
+              ctx.fillRect(0,0,pageCanvas.width,pageCanvas.height);
+              ctx.drawImage(canvas,0,srcY,canvas.width,sliceH,0,0,canvas.width,sliceH);
+              doc.addImage(pageCanvas.toDataURL('image/jpeg',0.95),'JPEG',0,0,imgW,pageH);
+              srcY+=pageHeightPx;
+              isFirst=false;
+            }
           }
         }
+
+        try{document.body.removeChild(iframe);}catch(e){}
         onDone();
-      }).catch(function(err){
+      } catch(err){
         try{document.body.removeChild(iframe);}catch(e){}
         onErr(err);
-      });
+      }
     }
 
     // انتظر load event بدلاً من timeout ثابت
