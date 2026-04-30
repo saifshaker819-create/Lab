@@ -12445,17 +12445,19 @@ function generatePDFBlob(callback){
           // ── هذا لأن position:fixed لا يعمل مع html2canvas — الذيل يلتصق بنهاية كل صفحة ──
           const reportPages=iDoc.querySelectorAll('.report-page');
           const printFooter=iDoc.getElementById('print-footer');
+          let usePageBoundaries=false;
+          let pageBoundaries=[]; // مواقع نهاية كل .report-page بـ DOM pixels
+
           if(reportPages.length>0 && printFooter){
             const footerHTML=printFooter.outerHTML;
             // إخفاء الذيل الأصلي الثابت
             printFooter.style.display='none';
-            // إضافة نسخة من الذيل في نهاية كل صفحة كـ static
-            // وفرض ارتفاع A4 كامل (1123px) على كل صفحة لضمان تقطيع دقيق
+            // إضافة نسخة من الذيل في نهاية كل صفحة وفرض ارتفاع A4 كامل
             reportPages.forEach(function(pg){
               // إزالة page-footer-spacer لأن الذيل سيُضاف فعلياً
               const spacer=pg.querySelector('.page-footer-spacer');
               if(spacer) spacer.remove();
-              // إضافة الذيل
+              // إضافة الذيل بـ position:absolute في الأسفل
               const ftrDiv=iDoc.createElement('div');
               ftrDiv.innerHTML=footerHTML;
               const ftrEl=ftrDiv.firstElementChild;
@@ -12465,6 +12467,7 @@ function generatePDFBlob(callback){
                 ftrEl.style.left='0';
                 ftrEl.style.right='0';
                 ftrEl.style.zIndex='auto';
+                ftrEl.style.display='block';
                 ftrEl.id=''; // إزالة id لمنع تكراره
                 pg.appendChild(ftrEl);
               }
@@ -12475,7 +12478,27 @@ function generatePDFBlob(callback){
               pg.style.maxHeight='1123px';
               pg.style.boxSizing='border-box';
               pg.style.overflow='hidden';
-              pg.style.pageBreakAfter='always';
+              pg.style.margin='0';
+              pg.style.padding=pg.style.padding||'4mm 4mm 0 4mm';
+            });
+            // body بدون padding/margin إضافي
+            body.style.margin='0';
+            body.style.padding='0';
+
+            usePageBoundaries=true;
+          }
+
+          // قياس مواقع .report-page بعد التعديل (للتقطيع الدقيق)
+          if(usePageBoundaries){
+            // إجبار reflow لضمان أن offsetTop محسوبة بناءً على الأنماط الجديدة
+            void body.offsetHeight;
+            const pgList=iDoc.querySelectorAll('.report-page');
+            pageBoundaries=[];
+            pgList.forEach(function(pg){
+              pageBoundaries.push({
+                top: pg.offsetTop,
+                bottom: pg.offsetTop + pg.offsetHeight
+              });
             });
           }
 
@@ -12492,8 +12515,35 @@ function generatePDFBlob(callback){
             if(!canvas || !canvas.width || !canvas.height){
               return onErr(new Error('canvas فارغ'));
             }
-            const imgData=canvas.toDataURL('image/jpeg',0.95);
             const imgW=pageW;
+
+            if(usePageBoundaries && pageBoundaries.length>0){
+              // ── التقطيع الدقيق: حسب offsetTop الفعلي لكل .report-page ──
+              const canvasScale=canvas.width/794; // canvas px لكل DOM px
+              for(let i=0;i<pageBoundaries.length;i++){
+                const pb=pageBoundaries[i];
+                const srcY=Math.round(pb.top*canvasScale);
+                const srcEnd=Math.round(pb.bottom*canvasScale);
+                const sliceH=Math.max(1, srcEnd-srcY);
+
+                if(!(isFirstPage && i===0)) doc.addPage();
+
+                const pageCanvas=document.createElement('canvas');
+                const ctx=pageCanvas.getContext('2d');
+                pageCanvas.width=canvas.width;
+                pageCanvas.height=sliceH;
+                ctx.fillStyle='#ffffff';
+                ctx.fillRect(0,0,pageCanvas.width,pageCanvas.height);
+                ctx.drawImage(canvas, 0, srcY, canvas.width, sliceH, 0, 0, canvas.width, sliceH);
+                const sliceData=pageCanvas.toDataURL('image/jpeg',0.95);
+                doc.addImage(sliceData,'JPEG',0,0,imgW,pageH);
+              }
+              onDone();
+              return;
+            }
+
+            // ── الحالة 2: لا توجد .report-page (HTML بسيط) — السلوك الأصلي ──
+            const imgData=canvas.toDataURL('image/jpeg',0.95);
             const imgH=(canvas.height*imgW)/canvas.width;
             if(!isFinite(imgH) || imgH<=0){
               return onErr(new Error('أبعاد غير صالحة'));
