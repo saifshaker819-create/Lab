@@ -8049,8 +8049,10 @@ function openPatientQuickPanel(pid){
     const reqTests=r.tests.map(tid=>tests.find(t=>t.id===tid)).filter(Boolean);
     const testSummary=reqTests.map(t=>{
       const val=r.results&&r.results[t.id]?r.results[t.id]:'—';
-      const isHigh=t.minVal!==null&&val!=='—'&&parseFloat(val)>t.maxVal;
-      const isLow=t.minVal!==null&&val!=='—'&&parseFloat(val)<t.minVal;
+      // ⭐ تجاهل علامات < > في القيمة عند فحص H/L
+      const _pv8052 = (typeof val==='string' && (val.charAt(0)==='<'||val.charAt(0)==='>')) ? parseFloat(val.substring(1).trim()) : parseFloat(val);
+      const isHigh=t.minVal!==null&&val!=='—'&&_pv8052>t.maxVal;
+      const isLow=t.minVal!==null&&val!=='—'&&_pv8052<t.minVal;
       const cls=isHigh?'color:var(--danger)':isLow?'color:var(--warning)':'color:var(--success)';
       return `<span style="font-size:10px;${cls}">${t.code}:${val}</span>`;
     }).join(' | ');
@@ -9184,8 +9186,10 @@ function viewPatientFullModal(pid){
     const reqTests=r.tests.map(tid=>tests.find(t=>t.id===tid)).filter(Boolean);
     const testRows=reqTests.map(t=>{
       const val=r.results&&r.results[t.id]?r.results[t.id]:'—';
-      const isHigh=t.minVal!==null&&val!=='—'&&parseFloat(val)>t.maxVal;
-      const isLow=t.minVal!==null&&val!=='—'&&parseFloat(val)<t.minVal;
+      // ⭐ تجاهل علامات < > في القيمة عند فحص H/L
+      const _pv8052 = (typeof val==='string' && (val.charAt(0)==='<'||val.charAt(0)==='>')) ? parseFloat(val.substring(1).trim()) : parseFloat(val);
+      const isHigh=t.minVal!==null&&val!=='—'&&_pv8052>t.maxVal;
+      const isLow=t.minVal!==null&&val!=='—'&&_pv8052<t.minVal;
       const cls=isHigh?'color:var(--danger);font-weight:700':isLow?'color:var(--warning);font-weight:700':'color:var(--success)';
       const flag=isHigh?'⬆️':isLow?'⬇️':val!=='—'?'✅':'';
       return `<div style="display:flex;align-items:center;gap:8px;padding:5px 8px;border-bottom:1px solid rgba(255,255,255,0.04)">
@@ -9226,7 +9230,7 @@ function showSingleReqResults(rid){
   reqTests.forEach(t=>{
     const val=r.results[t.id]||'-';
     let flag='',cls='';
-    if(t.minVal!==null&&val!=='-'){const v=parseFloat(val);if(v>t.maxVal){flag='▲ High';cls='color:var(--danger);font-weight:700';}else if(v<t.minVal){flag='▼ Low';cls='color:var(--warning);font-weight:700';}else{flag='Normal';cls='color:var(--success)';}}
+    if(t.minVal!==null&&val!=='-'){const _vR=(typeof val==='string'&&(val.charAt(0)==='<'||val.charAt(0)==='>'))?parseFloat(val.substring(1).trim()):parseFloat(val); const v=_vR; if(v>t.maxVal){flag='▲ High';cls='color:var(--danger);font-weight:700';}else if(v<t.minVal){flag='▼ Low';cls='color:var(--warning);font-weight:700';}else{flag='Normal';cls='color:var(--success)';}}
     else if(val==='Positive'){flag='Positive ⚠️';cls='color:var(--danger);font-weight:700';}else if(val==='Negative'){flag='Negative ✅';cls='color:var(--success)';}
     html+=`<tr><td>${t.nameEn}<br><span style="font-size:9px;color:var(--text2)">${t.code}</span></td><td style="${cls};font-size:14px;font-weight:800">${val}</td><td style="font-size:11px">${t.unit}</td><td style="font-size:11px">${t.ref||'-'}</td><td style="${cls}">${flag}</td></tr>`;
   });
@@ -9599,7 +9603,7 @@ function openViewResultsModal(rid){
     const val=r.results[t.id]||'';
     const isQual=(t.unit==='qualitative'||t.refType==='pos-neg');
     let interp='',cls='';
-    if(!isQual&&val){const v=parseFloat(val);if(v>t.maxVal){interp='⬆️ High';cls='color:var(--danger);font-weight:700';}else if(v<t.minVal){interp='⬇️ Low';cls='color:var(--warning);font-weight:700';}else{interp='✅ Normal';cls='color:var(--success)';}}
+    if(!isQual&&val){const _vR=(typeof val==='string'&&(val.charAt(0)==='<'||val.charAt(0)==='>'))?parseFloat(val.substring(1).trim()):parseFloat(val); const v=_vR; if(v>t.maxVal){interp='⬆️ High';cls='color:var(--danger);font-weight:700';}else if(v<t.minVal){interp='⬇️ Low';cls='color:var(--warning);font-weight:700';}else{interp='✅ Normal';cls='color:var(--success)';}}
     else if(val==='Positive'){interp='⚠️ Positive';cls='color:var(--danger);font-weight:700';}
     else if(val==='Negative'||val==='Non-Reactive'){interp='✅ Negative';cls='color:var(--success)';}
 
@@ -9643,7 +9647,9 @@ function openViewResultsModal(rid){
           +' oninput="vrCheckResult(\''+t.id+'\',this.value);document.getElementById(\'vr-rv-'+t.id+'\').value=\'__manual__\'">'
           +'</div>';
     } else {
-      const iCls=val?(parseFloat(val)>t.maxVal?'res-high':parseFloat(val)<t.minVal?'res-low':'res-ok'):'';
+      // ⭐ استعمل _parseRes ليتجاهل علامات < > عند تحديد class الأولي
+      const _ipv=_parseRes(val);
+      const iCls=val&&!isNaN(_ipv)?(_ipv>t.maxVal?'res-high':_ipv<t.minVal?'res-low':'res-ok'):'';
       // ⭐ مربع النتيجة + زرّا < > على جانبيه لإدراج علامات المقارنة
       inputHtml=`<span class="res-cmp-wrap" style="display:inline-flex;align-items:center;gap:4px;">
         <button type="button" class="cmp-sign-btn" title="أدرج علامة <" onclick="_insertCmpSign('vr-rv-${t.id}','<', function(v){vrCheckResult('${t.id}',v);})">&lt;</button>
@@ -9780,7 +9786,8 @@ function vrCheckResult(tid,val){
     interp.style.cssText=val==='Positive'?'color:var(--danger);font-weight:700':'color:var(--success);font-weight:700';
     _vrAutoSave(); return;
   }
-  const v=parseFloat(val);if(isNaN(v)){interp.textContent='';return;}
+  // ⭐ استعمل _parseRes ليتجاهل علامات < > في البداية
+  const v=_parseRes(val);if(isNaN(v)){interp.textContent='';return;}
   if(v>t.maxVal){interp.textContent='⬆️ High';interp.style.cssText='color:var(--danger);font-weight:700';if(inp)inp.className='res-input res-high';}
   else if(v<t.minVal){interp.textContent='⬇️ Low';interp.style.cssText='color:var(--warning);font-weight:700';if(inp)inp.className='res-input res-low';}
   else{interp.textContent='✅ Normal';interp.style.cssText='color:var(--success);font-weight:700';if(inp)inp.className='res-input res-ok';}
@@ -10087,7 +10094,9 @@ function loadResultEntry(){
         +' oninput="checkResult(\''+t.id+'\',this.value);document.getElementById(\'rv-'+t.id+'\').value=\'__manual__\';_autoSaveResults()">'
         +'</div>';
     } else {
-      const cls=savedVal&&ref.min!==null?(parseFloat(savedVal)>ref.max?'res-high':parseFloat(savedVal)<ref.min?'res-low':'res-ok'):'';
+      // ⭐ استعمل _parseRes ليتجاهل علامات < > عند تحديد class الأولي
+      const _pv = _parseRes(savedVal);
+      const cls=savedVal&&ref.min!==null&&!isNaN(_pv)?(_pv>ref.max?'res-high':_pv<ref.min?'res-low':'res-ok'):'';
       // ⭐ مربع النتيجة + زرّا < > على جانبيه لإدراج علامات المقارنة
       inputHtml=`<span class="res-cmp-wrap" style="display:inline-flex;align-items:center;gap:4px;">
         <button type="button" class="cmp-sign-btn" title="أدرج علامة <" onclick="_insertCmpSign('rv-${t.id}','<', function(v){checkResult('${t.id}',v);})">&lt;</button>
@@ -10323,6 +10332,20 @@ function _insertCmpSign(inputId, sign, onCheck){
   try{ inp.dispatchEvent(new Event('input', {bubbles:true})); }catch(e){}
 }
 
+// ─── _parseRes: تحليل قيمة نتيجة قد تحتوي على علامة < أو > في البداية ───
+// مثلاً "<100" → 100 ، ">5.5" → 5.5 ، "100" → 100 ، "abc" → NaN
+// العلامة بصرية فقط (تظهر في التقرير) ولا تؤثر على منطق H/L/Normal
+function _parseRes(val){
+  if(val===null||val===undefined) return NaN;
+  let s=String(val).trim();
+  if(s.length===0) return NaN;
+  // إزالة < أو > من البداية (يدعم مسافات أيضاً)
+  if(s.charAt(0)==='<'||s.charAt(0)==='>'){
+    s=s.substring(1).trim();
+  }
+  return parseFloat(s);
+}
+
 function checkResult(tid,val){
   const t=tests.find(x=>x.id===tid);
   const inp=document.getElementById('rv-'+tid);
@@ -10332,7 +10355,8 @@ function checkResult(tid,val){
     interp.textContent=val==='Positive'?'⚠️ Positive':val==='Negative'?'✅ Negative':val;
     interp.className=val==='Positive'?'high':'normal';return;
   }
-  const v=parseFloat(val);
+  // ⭐ استعمل _parseRes ليتجاهل علامات < > في البداية
+  const v=_parseRes(val);
   if(isNaN(v)){interp.textContent='';return;}
   // Get current patient ref
   const id=document.getElementById('res-req-sel').value;
@@ -11079,7 +11103,8 @@ function finalizeAndPrint(){
 }
 function getInterp(t,val,gender,age){
   if(t.minVal===null&&!(t.ageRanges&&t.ageRanges.length))return val==='Positive'?'<span class="high">⚠️ Positive</span>':'<span class="normal">✅ Negative</span>';
-  const v=parseFloat(val);if(isNaN(v))return '';
+  // ⭐ تجاهل علامات < > في القيمة عند التفسير
+  const v=_parseRes(val);if(isNaN(v))return '';
   const ref=getPatientRef(t,gender||'male',age||0);
   if(ref.min===null||ref.max===null)return '';
   if(v>ref.max)return '<span class="high">⬆️ High</span>';
@@ -11752,7 +11777,7 @@ function buildPrintHTML(req, opts){
   const footerH = hasFtrImg ? _ftrUserH : hasFtrTxt ? 46 : (settings.hdrMode==='text' ? 48 : 0);
   const totalFooterH = footerH + sigH;
   // هامش سفلي للصفحة = إجمالي ارتفاع الذيل + 6mm احتياطي
-  const pageBottomMm = totalFooterH>0 ? Math.ceil(totalFooterH*0.265+1) : 1;
+  const pageBottomMm = totalFooterH>0 ? Math.ceil(totalFooterH*0.265) : 0;
   const css=`
     /* Google Fonts removed for faster print — using system fonts */
     *{margin:0;padding:0;box-sizing:border-box;}
@@ -11761,10 +11786,11 @@ function buildPrintHTML(req, opts){
     body{font-family:${reportFontFamily};color:#000;font-weight:${reportFontWeight};
          -webkit-print-color-adjust:exact;print-color-adjust:exact;
          padding:1mm 4mm 0 4mm;}
-    /* الذيل ثابت في الحافة السفلية للورقة — مرفوع 6mm لتجنب المنطقة غير المطبوعة */
+    /* الذيل ثابت في الحافة السفلية للورقة — bottom:0 لاستغلال كل المساحة المتاحة */
+    /* مع 0mm margin في @page نضمن أن الذيل يلامس الحافة (الطابعة ستحترم منطقتها غير المطبوعة) */
     #print-footer{
       position:fixed;
-      bottom:1mm;
+      bottom:0;
       left:0;
       right:0;
       background:#ffffff;
@@ -11781,13 +11807,13 @@ function buildPrintHTML(req, opts){
       margin:0;
       padding:0;
     }
-    #print-spacer{height:${totalFooterH+22}px;display:block;}
+    #print-spacer{height:${totalFooterH+12}px;display:block;}
     @media print{
       @page{margin:0 !important;size:A4 portrait;}
       body{padding:1mm 4mm 0 4mm;}
-      #print-footer{position:fixed;bottom:1mm;left:0;right:0;background:#ffffff;z-index:9999;}
+      #print-footer{position:fixed;bottom:0;left:0;right:0;background:#ffffff;z-index:9999;}
       #print-footer img{display:block;width:100%;height:${footerH}px;object-fit:fill;margin:0;padding:0;}
-      #print-spacer{display:block;height:${totalFooterH+22}px;}
+      #print-spacer{display:block;height:${totalFooterH+12}px;}
     }
   `;
 
@@ -12059,9 +12085,15 @@ function buildPrintHTML(req, opts){
 
       let isHigh=false, isLow=false, isQualAbnormal=false;
       if(!isQual&&displayVal!=='—'){
-        const v=parseFloat(displayVal);
-        if(ref.min!==null&&v>ref.max) isHigh=true;
-        else if(ref.min!==null&&v<ref.min) isLow=true;
+        // ⭐ تجاهل علامات < > عند فحص H/L
+        let _pvNum = displayVal;
+        if(typeof _pvNum==='string' && _pvNum.length>0){
+          const _ch = _pvNum.charAt(0);
+          if(_ch==='<' || _ch==='>') _pvNum = _pvNum.substring(1).trim();
+        }
+        const v=parseFloat(_pvNum);
+        if(ref.min!==null&&!isNaN(v)&&v>ref.max) isHigh=true;
+        else if(ref.min!==null&&!isNaN(v)&&v<ref.min) isLow=true;
       } else if(isQual&&displayVal!=='—'){
         // Option-based (qualitative) tests: red box when value differs from normal — no H/L letter
         const _qNormal = t.qualDefault || null;
@@ -12248,7 +12280,7 @@ function buildPrintHTML(req, opts){
     <body>
     <div id="print-content" style="background:#ffffff;font-family:'Inter',Arial,sans-serif;direction:ltr;width:100%;padding:1mm 4mm 0 4mm">
       ${hdr}${ptBox}<!--BLANK_BODY_PLACEHOLDER-->
-      <div id="print-spacer" style="height:${totalFooterH+22}px"></div>
+      <div id="print-spacer" style="height:${totalFooterH+12}px"></div>
     </div>
     <div id="print-footer" style="line-height:normal">
       ${ftrInner}
@@ -12292,7 +12324,7 @@ function buildPrintHTML(req, opts){
     @media print{
       .report-page{page-break-inside:auto;}
       .report-page+.report-page{page-break-before:always;break-before:page;}
-      #print-footer{position:fixed;bottom:1mm;left:0;right:0;background:#ffffff;z-index:9999;}
+      #print-footer{position:fixed;bottom:0;left:0;right:0;background:#ffffff;z-index:9999;}
     }
   `;
 
@@ -12326,7 +12358,8 @@ function buildPrintHTML(req, opts){
       var TOP_MARGIN_PX = Math.round(1 * DPI_RATIO);   // 1mm هامش body (مُقلَّص ليبدأ التقرير من بداية الورقة)
       var BOT_MARGIN_PX = Math.round(1 * DPI_RATIO);   // 1mm هامش سفلي مُقلَّص
       // الذيل + هامش أمان مُصغَّر — لأن الذيل نزل للأسفل أكثر، يمكن الآن استيعاب تحاليل إضافية
-      var FOOTER_RESERVED = TOTAL_FOOTER_H + 25;
+      // قُلِّل من 25 إلى 12 لاستيعاب أكبر عدد من التحاليل قبل الذيل
+      var FOOTER_RESERVED = TOTAL_FOOTER_H + 12;
       var USABLE_H = PAGE_H_PX - TOP_MARGIN_PX - BOT_MARGIN_PX - FOOTER_RESERVED;
 
       // مقاس probe ثابت بـ px يعادل 210mm A4 = ~793.7px (نطرح هامش 4mm من كل جانب = 30.2px)
@@ -12353,7 +12386,7 @@ function buildPrintHTML(req, opts){
         // الملاحظات تظهر في آخر صفحة فقط
         if(isLast && NOTES_HTML) html += NOTES_HTML;
         // spacer يمنع المحتوى من الاختباء خلف الـ footer الثابت
-        html += '<div class="page-footer-spacer" style="height:'+(TOTAL_FOOTER_H+22)+'px"></div>';
+        html += '<div class="page-footer-spacer" style="height:'+(TOTAL_FOOTER_H+12)+'px"></div>';
         div.innerHTML = html;
         return div;
       }
@@ -12379,7 +12412,7 @@ function buildPrintHTML(req, opts){
           p.className = 'report-page';
           p.style.padding = '1mm 4mm 0 4mm';
           p.innerHTML = HDR_HTML + COL_HDR_HTML +
-            '<div class="page-footer-spacer" style="height:'+(TOTAL_FOOTER_H+22)+'px"></div>';
+            '<div class="page-footer-spacer" style="height:'+(TOTAL_FOOTER_H+12)+'px"></div>';
           container.appendChild(p);
           return;
         }
@@ -12575,7 +12608,7 @@ function buildPrintHTML(req, opts){
               }
             }
             if(NOTES_HTML) fhtml += NOTES_HTML;
-            fhtml += '<div class="page-footer-spacer" style="height:'+(TOTAL_FOOTER_H+22)+'px"></div>';
+            fhtml += '<div class="page-footer-spacer" style="height:'+(TOTAL_FOOTER_H+12)+'px"></div>';
             fp.innerHTML = fhtml;
             container.appendChild(fp);
           }
@@ -12631,7 +12664,9 @@ function buildCalcTestPrintHTML(req, calcTest){
   // دالة مساعدة لبناء صف تحليل بنفس تنسيق buildPrintHTML
   function _makeRow(name, val, unit, refTxt, minV, maxV){
     if(!val && val!==0) return '';
-    const v = parseFloat(val);
+    // ⭐ تجاهل علامات < > في القيمة عند فحص H/L
+    const _vR = (typeof val==='string' && (val.charAt(0)==='<'||val.charAt(0)==='>')) ? parseFloat(val.substring(1).trim()) : parseFloat(val);
+    const v = _vR;
     let isHigh=false, isLow=false;
     if(!isNaN(v) && minV!==null && maxV!==null){
       if(v>maxV) isHigh=true;
@@ -13206,7 +13241,7 @@ function generatePDFBlob(callback){
               const ftrEl=ftrDiv.firstElementChild;
               if(ftrEl){
                 ftrEl.style.position='absolute';
-                ftrEl.style.bottom='1mm';
+                ftrEl.style.bottom='0';
                 ftrEl.style.left='0';
                 ftrEl.style.right='0';
                 ftrEl.style.zIndex='auto';
@@ -14656,7 +14691,7 @@ function updateDashboard(){
   const criticals=[];
   requests.filter(r=>r.status==='done').forEach(r=>{
     r.tests.forEach(tid=>{const t=tests.find(x=>x.id===tid);const val=r.results[tid];
-      if(t&&val&&t.minVal!==null){const v=parseFloat(val);if(v>t.maxVal*1.2||v<t.minVal*0.8)criticals.push({req:r,test:t,val});}
+      if(t&&val&&t.minVal!==null){const _vR=(typeof val==='string'&&(val.charAt(0)==='<'||val.charAt(0)==='>'))?parseFloat(val.substring(1).trim()):parseFloat(val); const v=_vR; if(v>t.maxVal*1.2||v<t.minVal*0.8)criticals.push({req:r,test:t,val});}
     });
   });
   // Arabic critical alerts - sorted newest first, show ALL
@@ -20501,11 +20536,12 @@ function _buildCultureHTML(cid){
   const html=`<!DOCTYPE html><html><head><meta charset="UTF-8">
   <style>
     *{margin:0;padding:0;box-sizing:border-box;}
-    html,body{background:#fff;font-family:Arial,sans-serif;color:#000;font-size:16px;height:100%;}
-    body{display:flex;flex-direction:column;min-height:100vh;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
-    .content{flex:1;}
-    .footer{width:100%;margin-top:auto;}
+    html,body{background:#fff;font-family:Arial,sans-serif;color:#000;font-size:16px;}
+    body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+    .content{padding-bottom:${((typeof s.ftrImgH==='number'&&s.ftrImgH>=10&&s.ftrImgH<=80)?s.ftrImgH:50)+8}px;}
+    .footer{position:fixed;bottom:0;left:0;right:0;background:#fff;z-index:9999;line-height:0;}
     @page{margin:0 !important;size:A4 portrait;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+    @media print{ .footer{position:fixed;bottom:0;left:0;right:0;background:#fff;z-index:9999;} }
   </style></head><body>
   <div class="content">
     ${hdrHTML}
@@ -21003,22 +21039,33 @@ function _buildUAPrintHTML(r){
 
   return `<!DOCTYPE html><html><head><meta charset="UTF-8"><style>
     *{margin:0;padding:0;box-sizing:border-box;}
+    /* ⭐ الذيل ثابت أسفل الورقة (position:fixed) — مطابق لتقرير CBC */
     body{font-family:Arial,sans-serif;color:#000;font-size:15px;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+    .ua-content{padding-bottom:${((typeof s.ftrImgH==='number'&&s.ftrImgH>=10&&s.ftrImgH<=80)?s.ftrImgH:50)+8}px;}
+    .ua-footer{position:fixed;bottom:0;left:0;right:0;background:#fff;z-index:9999;line-height:0;}
     @page{margin:1mm 6mm 1mm 6mm;size:A4 portrait;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
-    @media print{body{font-size:13px;} .ua-sec div[style*="font-size:15px"]{font-size:13px !important;} th,td{font-size:13px !important;padding:3px 8px !important;} .ua-title{font-size:13px !important;} .ua-sec-hdr{font-size:14px !important;} }
+    @media print{
+      body{font-size:13px;}
+      .ua-footer{position:fixed;bottom:0;left:0;right:0;background:#fff;z-index:9999;}
+      .ua-sec div[style*="font-size:15px"]{font-size:13px !important;}
+      th,td{font-size:13px !important;padding:3px 8px !important;}
+      .ua-title{font-size:13px !important;} .ua-sec-hdr{font-size:14px !important;}
+    }
   </style></head><body>
-    ${hdrHTML}
-    <div style="border:1.5px solid #b8b8b8;margin:2px 0 3px;padding:4px 10px;background:#fafafa">
-      ${uaPtBox}
+    <div class="ua-content">
+      ${hdrHTML}
+      <div style="border:1.5px solid #b8b8b8;margin:2px 0 3px;padding:4px 10px;background:#fafafa">
+        ${uaPtBox}
+      </div>
+      <div style="color:#cc0000;padding:5px 16px;text-align:center;font-weight:900;font-size:19px;letter-spacing:1px;margin:4px 0;">
+        &#x1F52C; General Urine Examination
+      </div>
+      <div style="margin:0 0 2px;height:2px;background:${color}"></div>
+      <div class="ua-sec">
+        ${Object.values(UA_FIELDS).map(renderSec).join('')}
+      </div>
     </div>
-    <div style="color:#cc0000;padding:5px 16px;text-align:center;font-weight:900;font-size:19px;letter-spacing:1px;margin:4px 0;">
-      &#x1F52C; General Urine Examination
-    </div>
-    <div style="margin:0 0 2px;height:2px;background:${color}"></div>
-    <div class="ua-sec">
-      ${Object.values(UA_FIELDS).map(renderSec).join('')}
-    </div>
-    <div style="margin-top:4px">${ftrHTML}</div>
+    <div class="ua-footer">${ftrHTML}</div>
   </body></html>`;
 }
 
@@ -21538,20 +21585,26 @@ function _buildStoolPrintHTML(r){
 
   return `<!DOCTYPE html><html><head><meta charset="UTF-8"><style>
     *{margin:0;padding:0;box-sizing:border-box;}
+    /* ⭐ الذيل ثابت أسفل الورقة (position:fixed) — مطابق لتقرير CBC */
     body{font-family:Arial,sans-serif;color:#000;font-size:15px;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+    .se-content{padding-bottom:${((typeof s.ftrImgH==='number'&&s.ftrImgH>=10&&s.ftrImgH<=80)?s.ftrImgH:50)+8}px;}
+    .se-footer{position:fixed;bottom:0;left:0;right:0;background:#fff;z-index:9999;line-height:0;}
     @page{margin:1mm 5mm 1mm 5mm;size:A4 portrait;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+    @media print{ .se-footer{position:fixed;bottom:0;left:0;right:0;background:#fff;z-index:9999;} }
   </style></head><body>
-    ${hdrHTML}
-    <div style="border:1.5px solid #b8b8b8;margin:3px 0 4px;padding:4px 10px;background:#fafafa">
-      ${_sPtBox}
+    <div class="se-content">
+      ${hdrHTML}
+      <div style="border:1.5px solid #b8b8b8;margin:3px 0 4px;padding:4px 10px;background:#fafafa">
+        ${_sPtBox}
+      </div>
+      <div style="color:#cc0000;padding:5px 16px;text-align:center;font-weight:900;font-size:19px;letter-spacing:1px;margin:4px 0;">
+        &#x1F9EB; General Stool Examination
+      </div>
+      <div style="margin:0 0 3px;height:2px;background:${color}"></div>
+      <div>${Object.values(STOOL_FIELDS).map(renderSec).join('')}</div>
+      ${r.s_note?`<div style="border:1.5px solid #b8b8b8;padding:5px 12px;margin-top:3px"><span style="font-size:13px;font-weight:800;color:#444">Notes: </span><span style="font-size:13px;color:#333">${r.s_note}</span></div>`:''}
     </div>
-    <div style="color:#cc0000;padding:5px 16px;text-align:center;font-weight:900;font-size:19px;letter-spacing:1px;margin:4px 0;">
-      &#x1F9EB; General Stool Examination
-    </div>
-    <div style="margin:0 0 3px;height:2px;background:${color}"></div>
-    <div>${Object.values(STOOL_FIELDS).map(renderSec).join('')}</div>
-    ${r.s_note?`<div style="border:1.5px solid #b8b8b8;padding:5px 12px;margin-top:3px"><span style="font-size:13px;font-weight:800;color:#444">Notes: </span><span style="font-size:13px;color:#333">${r.s_note}</span></div>`:''}
-    <div style="margin-top:2px">${ftrHTML}</div>
+    <div class="se-footer">${ftrHTML}</div>
   </body></html>`;
 }
 function printStoolReport(id){
@@ -22703,21 +22756,27 @@ function _buildSemenPrintHTML(r){
 
   return `<!DOCTYPE html><html><head><meta charset="UTF-8"><style>
     *{margin:0;padding:0;box-sizing:border-box;}
+    /* ⭐ الذيل ثابت أسفل الورقة (position:fixed) — مطابق لتقرير CBC */
     body{font-family:Arial,sans-serif;color:#000;font-size:15px;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+    .sm-content{padding-bottom:${((typeof s.ftrImgH==='number'&&s.ftrImgH>=10&&s.ftrImgH<=80)?s.ftrImgH:50)+8}px;}
+    .sm-footer{position:fixed;bottom:0;left:0;right:0;background:#fff;z-index:9999;line-height:0;}
     @page{margin:1mm 6mm 1mm 6mm;size:A4 portrait;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+    @media print{ .sm-footer{position:fixed;bottom:0;left:0;right:0;background:#fff;z-index:9999;} }
   </style></head><body>
-    ${hdrHTML}
-    <div style="background:${color};color:#fff;padding:3px 12px;text-align:center;font-weight:900;font-size:14px;letter-spacing:1px">
-      SEMEN ANALYSIS REPORT (SPERMIOGRAM)
+    <div class="sm-content">
+      ${hdrHTML}
+      <div style="background:${color};color:#fff;padding:3px 12px;text-align:center;font-weight:900;font-size:14px;letter-spacing:1px">
+        SEMEN ANALYSIS REPORT (SPERMIOGRAM)
+      </div>
+      <div style="border:1.5px solid #b8b8b8;margin:3px 0 4px;padding:4px 10px;background:#fafafa">
+        ${_smPtBox}
+      </div>
+      <div style="margin:0 0 3px;height:2px;background:${color}"></div>
+      <div>${['specimen','spermCount','motility','morphology','biochemistry','advanced'].map(renderSec).join('')}</div>
+      ${r.s_recommendation?`<div style="border:1.5px solid #b8b8b8;padding:5px 12px;margin-top:3px"><span style="font-size:13px;font-weight:800;color:#996600">📋 Recommendation: </span><span style="font-size:13px;color:#333">${r.s_recommendation}</span></div>`:''}
+      ${r.s_note?`<div style="border:1.5px solid #b8b8b8;padding:5px 12px;margin-top:3px"><span style="font-size:13px;font-weight:800;color:#444">Notes: </span><span style="font-size:13px;color:#333">${r.s_note}</span></div>`:''}
     </div>
-    <div style="border:1.5px solid #b8b8b8;margin:3px 0 4px;padding:4px 10px;background:#fafafa">
-      ${_smPtBox}
-    </div>
-    <div style="margin:0 0 3px;height:2px;background:${color}"></div>
-    <div>${['specimen','spermCount','motility','morphology','biochemistry','advanced'].map(renderSec).join('')}</div>
-    ${r.s_recommendation?`<div style="border:1.5px solid #b8b8b8;padding:5px 12px;margin-top:3px"><span style="font-size:13px;font-weight:800;color:#996600">📋 Recommendation: </span><span style="font-size:13px;color:#333">${r.s_recommendation}</span></div>`:''}
-    ${r.s_note?`<div style="border:1.5px solid #b8b8b8;padding:5px 12px;margin-top:3px"><span style="font-size:13px;font-weight:800;color:#444">Notes: </span><span style="font-size:13px;color:#333">${r.s_note}</span></div>`:''}
-    <div style="margin-top:2px">${ftrHTML}</div>
+    <div class="sm-footer">${ftrHTML}</div>
   </body></html>`;
 }
 function printSemenReport(id){
