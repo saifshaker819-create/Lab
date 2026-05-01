@@ -10492,7 +10492,6 @@ function openGroupingModal(reqId){
   // المجموعة الفرعية مثل: "Liver Functions", "Lipid Profile", "Thyroid Hormones"
   // وليس القسم الرئيسي مثل: "Hematology", "Chemistry"
   const grouped = {};
-  const catOrder = []; // الترتيب الأصلي للمجموعات
   regularTests.forEach(t => {
     const v = (req.results && req.results[t.id]) || '';
     if(!v || !v.toString().trim()) return; // تخطى التحاليل الفارغة
@@ -10500,10 +10499,12 @@ function openGroupingModal(reqId){
     const cat = t.subCat || t.cat || 'Other';
     if(!grouped[cat]){
       grouped[cat] = [];
-      catOrder.push(cat);
     }
     grouped[cat].push(t);
   });
+  // ⭐ ترتيب المجموعات أبجدياً — مطابق لـ buildPrintHTML (السطر 11627)
+  // هذا يضمن أن الترتيب في modal التجميع يطابق ترتيب الطباعة الفعلية
+  const catOrder = Object.keys(grouped).sort((a,b)=>a.localeCompare(b));
 
   if(catOrder.length === 0){
     showNotif('تنبيه','لا توجد تحاليل بنتائج لتجميعها','warning');
