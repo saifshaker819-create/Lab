@@ -3618,9 +3618,9 @@ body.light-mode .wnb-text .wnb-char.neon-trail {
                   <!-- 📏 ارتفاع تذييل التقرير -->
                   <div class="fg" style="background:rgba(0,212,255,0.04);border:1px solid var(--border);border-radius:10px;padding:12px;margin-top:12px;margin-bottom:0">
                     <label class="fl" style="font-size:12px;font-weight:800;color:var(--primary)">📏 ارتفاع تذييل ورقة التقرير</label>
-                    <div style="font-size:10px;color:var(--text2);margin-bottom:8px">القيمة بالبكسل (px) — الحد الأدنى 70 والأقصى 230 — يُطبَّق على جميع التقارير</div>
+                    <div style="font-size:10px;color:var(--text2);margin-bottom:8px">القيمة بالبكسل (px) — الحد الأدنى 10 والأقصى 80 — يُطبَّق على جميع التقارير</div>
                     <div style="display:flex;gap:8px;align-items:center">
-                      <input type="number" id="st-ftr-img-h" class="fc" min="70" max="230" step="1" placeholder="50" style="flex:1">
+                      <input type="number" id="st-ftr-img-h" class="fc" min="10" max="80" step="1" placeholder="50" style="flex:1">
                       <span style="font-size:12px;color:var(--text2);font-weight:700">px</span>
                       <button class="btn btn-p btn-sm" onclick="saveFtrImgHeight()" style="white-space:nowrap;padding:8px 14px">💾 حفظ</button>
                     </div>
@@ -7485,7 +7485,7 @@ function startApp(){
     if(inpHH) inpHH.value = settings.hdrImgH;
 
     const fH = getBigCached('ftrImgH');
-    settings.ftrImgH = (typeof fH==='number' && fH>=HDR_FTR_H_MIN && fH<=HDR_FTR_H_MAX) ? fH : FTR_IMG_H_DEFAULT;
+    settings.ftrImgH = (typeof fH==='number' && fH>=FTR_H_MIN && fH<=FTR_H_MAX) ? fH : FTR_IMG_H_DEFAULT;
     const inpFH = document.getElementById('st-ftr-img-h');
     if(inpFH) inpFH.value = settings.ftrImgH;
 
@@ -11152,7 +11152,7 @@ function buildPrintHTML(req, opts){
   const sigH = 0;
   // زيادة الارتفاعات لتعويض unprintable area في الطابعات
   // قراءة ارتفاع التذييل من الإعدادات (افتراضي 50px لتطابق التقارير الأخرى)
-  const _ftrUserH = (typeof settings.ftrImgH==='number' && settings.ftrImgH>=70 && settings.ftrImgH<=230) ? settings.ftrImgH : 50;
+  const _ftrUserH = (typeof settings.ftrImgH==='number' && settings.ftrImgH>=10 && settings.ftrImgH<=80) ? settings.ftrImgH : 50;
   const footerH = hasFtrImg ? _ftrUserH : hasFtrTxt ? 46 : (settings.hdrMode==='text' ? 48 : 0);
   const totalFooterH = footerH + sigH;
   // هامش سفلي للصفحة = إجمالي ارتفاع الذيل + 6mm احتياطي
@@ -14993,6 +14993,8 @@ const HDR_IMG_H_DEFAULT = 170;
 const FTR_IMG_H_DEFAULT = 50;
 const HDR_FTR_H_MIN = 70;
 const HDR_FTR_H_MAX = 230;
+const FTR_H_MIN = 10;
+const FTR_H_MAX = 80;
 
 async function saveHdrImgHeight(){
   const inp=document.getElementById('st-hdr-img-h');
@@ -15017,8 +15019,8 @@ async function saveFtrImgHeight(){
   if(isNaN(raw)){
     showNotif('تنبيه','أدخل قيمة رقمية صحيحة','warning'); return;
   }
-  if(raw<HDR_FTR_H_MIN||raw>HDR_FTR_H_MAX){
-    showNotif('تنبيه',`القيمة يجب أن تكون بين ${HDR_FTR_H_MIN} و ${HDR_FTR_H_MAX} px`,'warning'); return;
+  if(raw<FTR_H_MIN||raw>FTR_H_MAX){
+    showNotif('تنبيه',`القيمة يجب أن تكون بين ${FTR_H_MIN} و ${FTR_H_MAX} px`,'warning'); return;
   }
   settings.ftrImgH=raw;
   inp.value=raw;
@@ -19635,7 +19637,7 @@ function _buildCultureHTML(cid){
 
   let ftrHTML='';
   if(s.hdrMode==='text'&&s.hdrText) ftrHTML=buildTextFooter(s);
-  else if(s.footerImg) ftrHTML=`<img src="${s.footerImg}" style="width:100%;height:${(typeof s.ftrImgH==='number'&&s.ftrImgH>=70&&s.ftrImgH<=230)?s.ftrImgH:50}px;object-fit:fill;display:block">`;
+  else if(s.footerImg) ftrHTML=`<img src="${s.footerImg}" style="width:100%;height:${(typeof s.ftrImgH==='number'&&s.ftrImgH>=10&&s.ftrImgH<=80)?s.ftrImgH:50}px;object-fit:fill;display:block">`;
   else if(s.footer) ftrHTML=`<div style="padding:4px 16px;font-size:12px;color:#555;border-top:1px solid ${color};text-align:center">${s.footer}</div>`;
 
   // ─── Patient info — same style as regular test print ───────────
@@ -19839,6 +19841,23 @@ function loadUARecords(){ uaRecords = load('uaRecords',[]); }
 function saveUARecords(){ save('uaRecords', uaRecords); }
 
 // UA Fields
+// ── Empty value sentinel for UA/Stool/Semen select fields ──
+// When user picks "فارغ" in any select, we store this sentinel in the record.
+// The print report shows an empty result box (with normal color) but still shows
+// the field name and normal range, so the row layout is preserved.
+const EMPTY_VAL = '__EMPTY__';
+const EMPTY_LABEL = 'فارغ';
+function _isEmptyVal(v){ return v===EMPTY_VAL; }
+function _displayValForReport(v){ return _isEmptyVal(v) ? '' : v; }
+// Return options array with "فارغ" prepended (for select fields only)
+function _withEmptyOption(opts){
+  if(!Array.isArray(opts)) return opts;
+  if(opts[0]===EMPTY_VAL) return opts;
+  return [EMPTY_VAL, ...opts];
+}
+// Return the visible label for a given option value
+function _optLabel(v){ return v===EMPTY_VAL ? EMPTY_LABEL : v; }
+
 const UA_FIELDS = {
   physical: {
     label: 'Physical Examination',
@@ -19918,7 +19937,8 @@ function renderUAList(){
 function _countUAAbn(r){
   let n=0;
   Object.values(UA_FIELDS).forEach(sec=>sec.fields.forEach(f=>{
-    if(f.normal&&r[f.id]&&r[f.id]!==f.normal) n++;
+    // EMPTY_VAL ("فارغ") لا يُعتبر غير طبيعي
+    if(f.normal&&r[f.id]&&r[f.id]!==f.normal&&r[f.id]!==EMPTY_VAL) n++;
   }));
   return n;
 }
@@ -19979,9 +19999,12 @@ function _buildUAModalBody(r, req){
       const isAbn=val&&f.normal&&val!==f.normal;
       const hlStyle=isAbn?'border-color:var(--danger);background:rgba(255,34,68,0.04)':'';
       if(f.type==='select'){
+        // ── خيار "فارغ" يُحقن ديناميكياً في أعلى القائمة ──
+        // عند اختياره: مربع النتيجة في التقرير يكون فارغاً (بدون أحمر)
         html+=`<div class="fg" style="margin-bottom:0">
           <label class="fl" style="font-size:11px">${f.label}${f.unit?` (${f.unit})`:''}</label>
           <select class="fc" id="uaf-${f.id}" style="font-size:12px;${hlStyle}" onchange="uaHighlight('${f.id}','${f.normal||''}')">
+            <option value="${EMPTY_VAL}" ${val===EMPTY_VAL?'selected':''}>${EMPTY_LABEL}</option>
             ${f.options.map(o=>`<option value="${o}" ${val===o?'selected':''}>${o}</option>`).join('')}
           </select>
         </div>`;
@@ -20009,7 +20032,8 @@ function _buildUAModalBody(r, req){
 
 function uaHighlight(fid, normal){
   const el=document.getElementById('uaf-'+fid); if(!el||!normal) return;
-  const isAbn=el.value&&el.value!==normal;
+  // EMPTY_VAL ("فارغ") لا يُعتبر غير طبيعي — يبقى المربع بلون عادي
+  const isAbn=el.value&&el.value!==normal&&el.value!==EMPTY_VAL;
   el.style.borderColor=isAbn?'var(--danger)':'';
   el.style.background=isAbn?'rgba(255,34,68,0.04)':'';
 }
@@ -20147,7 +20171,7 @@ function _buildUAPrintHTML(r){
   else hdrHTML=`<div style="background:${color};color:#fff;padding:8px 18px;font-size:16px;font-weight:900">${s.name||'Medical Laboratory'}</div>`;
   let ftrHTML='';
   if(s.hdrMode==='text'&&s.hdrText) ftrHTML=buildTextFooter(s);
-  else if(s.footerImg) ftrHTML=`<img src="${s.footerImg}" style="width:100%;height:${(typeof s.ftrImgH==='number'&&s.ftrImgH>=70&&s.ftrImgH<=230)?s.ftrImgH:50}px;object-fit:fill;display:block">`;
+  else if(s.footerImg) ftrHTML=`<img src="${s.footerImg}" style="width:100%;height:${(typeof s.ftrImgH==='number'&&s.ftrImgH>=10&&s.ftrImgH<=80)?s.ftrImgH:50}px;object-fit:fill;display:block">`;
 
   const renderSec=(sec)=>{
     const validFields=sec.fields.filter(f=>{
@@ -20158,8 +20182,10 @@ function _buildUAPrintHTML(r){
     });
     if(!validFields.length) return '';
     const rows=validFields.map((f,fi)=>{
-      const val=r[f.id]||'—';
-      const isAbn=f.normal&&val!=='—'&&val!==f.normal;
+      // ── EMPTY_VAL ("فارغ"): يظهر الحقل في الجدول مع مربع نتيجة فارغ بدون تلوين أحمر ──
+      const isEmpty=r[f.id]===EMPTY_VAL;
+      const val=isEmpty?'':(r[f.id]||'—');
+      const isAbn=!isEmpty&&f.normal&&val!=='—'&&val!==f.normal;
       const rowBg=fi%2===0?'#ffffff':'#f9f9f9';
       return `<tr style="background:${rowBg}">
         <td style="font-size:15px;font-weight:700;color:#000000;padding:3px 10px;width:38%;border:none;border-bottom:1px solid #e0e0e0">
@@ -20393,7 +20419,7 @@ function renderStoolList(){
   if(!list.length){body.innerHTML='<div class="empty"><div class="empty-ic">🧫</div><p>لا توجد نتائج</p></div>';return;}
   body.innerHTML=list.map(r=>{
     const parasites=['s_ova','s_cysts','s_trophozoites','s_larvae','s_adults'].some(k=>r[k]&&!r[k].includes('Not detected')&&!r[k].includes('Normal'));
-    const abnCount=Object.values(STOOL_FIELDS).reduce((s,sec)=>s+sec.fields.filter(f=>f.normal&&r[f.id]&&r[f.id]!==f.normal).length,0);
+    const abnCount=Object.values(STOOL_FIELDS).reduce((s,sec)=>s+sec.fields.filter(f=>f.normal&&r[f.id]&&r[f.id]!==f.normal&&r[f.id]!==EMPTY_VAL).length,0);
     return `<div style="background:var(--bg-glass);border:1px solid var(--border);border-radius:12px;padding:14px 18px;margin-bottom:10px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
       <div style="font-size:24px">🧫</div>
       <div style="flex:1;min-width:180px">
@@ -20467,9 +20493,11 @@ function _buildStoolModalBody(r, req){
       const isAbn=val&&f.normal&&val!==f.normal;
       const hlStyle=isAbn?'border-color:var(--danger);background:rgba(255,34,68,0.04)':'';
       if(f.type==='select'){
+        // ── خيار "فارغ" يُحقن ديناميكياً في أعلى القائمة ──
         html+=`<div class="fg" style="margin-bottom:0">
           <label class="fl" style="font-size:11px">${f.label}</label>
           <select class="fc" id="stoolef-${f.id}" style="font-size:12px;${hlStyle}" onchange="stoolHighlight('${f.id}','${f.normal||''}')">
+            <option value="${EMPTY_VAL}" ${val===EMPTY_VAL?'selected':''}>${EMPTY_LABEL}</option>
             ${f.options.map(o=>`<option value="${o}" ${val===o?'selected':''}>${o}</option>`).join('')}
           </select>
         </div>`;
@@ -20523,7 +20551,8 @@ function stoolParaChanged(){
 
 function stoolHighlight(fid,normal){
   const el=document.getElementById('stoolef-'+fid); if(!el||!normal)return;
-  const isAbn=el.value&&el.value!==normal;
+  // EMPTY_VAL ("فارغ") لا يُعتبر غير طبيعي
+  const isAbn=el.value&&el.value!==normal&&el.value!==EMPTY_VAL;
   el.style.borderColor=isAbn?'var(--danger)':'';
   el.style.background=isAbn?'rgba(255,34,68,0.04)':'';
 }
@@ -20667,7 +20696,7 @@ function _buildStoolPrintHTML(r){
   else hdrHTML=`<div style="background:${color};color:#fff;padding:8px 18px;font-size:16px;font-weight:900">${s.name||'Medical Laboratory'}</div>`;
   let ftrHTML='';
   if(s.hdrMode==='text'&&s.hdrText) ftrHTML=buildTextFooter(s);
-  else if(s.footerImg) ftrHTML=`<img src="${s.footerImg}" style="width:100%;height:${(typeof s.ftrImgH==='number'&&s.ftrImgH>=70&&s.ftrImgH<=230)?s.ftrImgH:50}px;object-fit:fill;display:block">`;
+  else if(s.footerImg) ftrHTML=`<img src="${s.footerImg}" style="width:100%;height:${(typeof s.ftrImgH==='number'&&s.ftrImgH>=10&&s.ftrImgH<=80)?s.ftrImgH:50}px;object-fit:fill;display:block">`;
 
   const drName=r.doctorName||pt.doctorName||(doctors&&doctors.find&&doctors.find(d=>d.id===pt.doctorId)?.name)||'';
   const _sNameColor   = s.colorName||'#cc0011';
@@ -20737,8 +20766,10 @@ function _buildStoolPrintHTML(r){
           <td style="font-size:14px;font-weight:700;color:#000000;padding:2px 8px;width:30%;border:none;border-bottom:1px solid #e0e0e0">${f.normal||'—'}</td>
         </tr>`;
       }
-      const val=r[f.id]||'—';
-      const isAbn=f.normal&&val!=='—'&&val!==f.normal;
+      // ── EMPTY_VAL ("فارغ"): مربع نتيجة فارغ بدون تلوين أحمر ──
+      const isEmpty=r[f.id]===EMPTY_VAL;
+      const val=isEmpty?'':(r[f.id]||'—');
+      const isAbn=!isEmpty&&f.normal&&val!=='—'&&val!==f.normal;
       return `<tr style="background:${rowBg}">
         <td style="font-size:14px;font-weight:700;color:#000000;padding:2px 8px;width:38%;border:none;border-bottom:1px solid #e0e0e0"><span style="color:#000;margin-right:5px">■</span>${f.label}</td>
         <td style="font-size:14px;font-weight:700;color:#000000;padding:2px 8px;width:32%;border:none;border-bottom:1px solid #e0e0e0;text-align:center">
@@ -21650,9 +21681,11 @@ function _buildSemenModalBody(r, req){
     sec.fields.forEach(f=>{
       const val = r ? (r[f.id]!==undefined&&r[f.id]!==''?r[f.id]:f.normal||'') : (f.normal||'');
       if(f.type==='select'){
+        // ── خيار "فارغ" يُحقن ديناميكياً في أعلى القائمة ──
         html+=`<div class="fg" style="margin-bottom:0">
           <label class="fl" style="font-size:11px">${f.label}${f.ref?`<span style="color:var(--text2);font-weight:500;font-size:10px"> (${f.ref})</span>`:''}</label>
           <select class="fc" id="semenf-${f.id}" style="font-size:12px">
+            <option value="${EMPTY_VAL}" ${val===EMPTY_VAL?'selected':''}>${EMPTY_LABEL}</option>
             ${f.options.map(o=>`<option value="${o}" ${val===o?'selected':''}>${o}</option>`).join('')}
           </select></div>`;
       } else if(f.type==='number'){
@@ -21817,7 +21850,7 @@ function _buildSemenPrintHTML(r){
   else hdrHTML=`<div style="background:${color};color:#fff;padding:8px 18px;font-size:16px;font-weight:900">${s.name||'Medical Laboratory'}</div>`;
   let ftrHTML='';
   if(s.hdrMode==='text'&&s.hdrText) ftrHTML=buildTextFooter(s);
-  else if(s.footerImg) ftrHTML=`<img src="${s.footerImg}" style="width:100%;height:${(typeof s.ftrImgH==='number'&&s.ftrImgH>=70&&s.ftrImgH<=230)?s.ftrImgH:50}px;object-fit:fill;display:block">`;
+  else if(s.footerImg) ftrHTML=`<img src="${s.footerImg}" style="width:100%;height:${(typeof s.ftrImgH==='number'&&s.ftrImgH>=10&&s.ftrImgH<=80)?s.ftrImgH:50}px;object-fit:fill;display:block">`;
 
   const drName=r.doctorName||pt.doctorName||(doctors&&doctors.find&&doctors.find(d=>d.id===pt.doctorId)?.name)||'';
   const _smNameColor   = s.colorName||'#cc0011';
@@ -21884,11 +21917,16 @@ function _buildSemenPrintHTML(r){
     const validKeys=fieldKeys.filter(fid=>r[fid]&&r[fid]!=='');
     if(!validKeys.length) return '';
     const rows=validKeys.map((fid,fi)=>{
-      const val=r[fid];
+      // ── EMPTY_VAL ("فارغ"): مربع نتيجة فارغ بدون تلوين أحمر ──
+      const isEmpty=r[fid]===EMPTY_VAL;
+      const val=isEmpty?'':r[fid];
       const ref=SEMEN_REFS[fid]||'';
       const numVal=parseFloat(val);
       let abn=false;
-      if(['s_volume','s_conc','s_total_count','s_pr','s_total_motile','s_vitality','s_normal_forms'].includes(fid)){
+      if(isEmpty){
+        // فارغ: لا يُحسب كحالة غير طبيعية إطلاقاً
+        abn=false;
+      } else if(['s_volume','s_conc','s_total_count','s_pr','s_total_motile','s_vitality','s_normal_forms'].includes(fid)){
         const refNum=parseFloat(ref); if(!isNaN(numVal)&&!isNaN(refNum)) abn=numVal<refNum;
       } else if(fid==='s_dna_frag'){ if(!isNaN(numVal)) abn=numVal>15; }
       else if(fid==='s_azoospermia'){ abn=val==='Yes'; }
