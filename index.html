@@ -1861,6 +1861,39 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield;}
   .res-tbl th{padding:7px 8px!important;font-size:10px!important;}
   .res-tbl td{padding:5px 8px!important;}
   .res-input{width:80px!important;font-size:11px!important;}
+/* ── أزرار علامات المقارنة (< >) بجانب مربع النتيجة ── */
+.cmp-sign-btn{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:26px;height:26px;min-width:26px;
+  border:1.5px solid var(--border);
+  border-radius:6px;
+  background:rgba(0,212,255,0.10);
+  color:var(--primary);
+  font-weight:900;font-size:15px;
+  cursor:pointer;padding:0;line-height:1;
+  user-select:none;flex-shrink:0;
+  font-family:Arial,sans-serif;
+  transition:all 0.15s;
+}
+.cmp-sign-btn:hover{
+  background:rgba(0,212,255,0.22);
+  border-color:var(--primary);
+  transform:scale(1.05);
+}
+.cmp-sign-btn:active{
+  transform:scale(0.95);
+  background:rgba(0,212,255,0.30);
+}
+body.light-mode .cmp-sign-btn{
+  background:rgba(0,100,180,0.08);
+  color:#0066aa;
+  border-color:rgba(0,100,180,0.3);
+}
+body.light-mode .cmp-sign-btn:hover{
+  background:rgba(0,100,180,0.18);
+  border-color:#0066aa;
+}
+.res-cmp-wrap{vertical-align:middle;}
 
   /* ── شريط بيانات المريض ── */
   .pt-bar{grid-template-columns:repeat(2,1fr)!important;gap:8px!important;padding:10px!important;}
@@ -9611,7 +9644,12 @@ function openViewResultsModal(rid){
           +'</div>';
     } else {
       const iCls=val?(parseFloat(val)>t.maxVal?'res-high':parseFloat(val)<t.minVal?'res-low':'res-ok'):'';
-      inputHtml=`<input type="text" class="res-input ${iCls}" id="vr-rv-${t.id}" lang="en" inputmode="decimal" value="${val}" oninput="vrCheckResult('${t.id}',this.value)" placeholder="...">`;
+      // ⭐ مربع النتيجة + زرّا < > على جانبيه لإدراج علامات المقارنة
+      inputHtml=`<span class="res-cmp-wrap" style="display:inline-flex;align-items:center;gap:4px;">
+        <button type="button" class="cmp-sign-btn" title="أدرج علامة <" onclick="_insertCmpSign('vr-rv-${t.id}','<', function(v){vrCheckResult('${t.id}',v);})">&lt;</button>
+        <input type="text" class="res-input ${iCls}" id="vr-rv-${t.id}" lang="en" inputmode="text" value="${val}" oninput="vrCheckResult('${t.id}',this.value)" placeholder="...">
+        <button type="button" class="cmp-sign-btn" title="أدرج علامة >" onclick="_insertCmpSign('vr-rv-${t.id}','>', function(v){vrCheckResult('${t.id}',v);})">&gt;</button>
+      </span>`;
     }
 
     rows+=`<div style="display:flex;align-items:flex-start;gap:12px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.05)">
@@ -10050,7 +10088,12 @@ function loadResultEntry(){
         +'</div>';
     } else {
       const cls=savedVal&&ref.min!==null?(parseFloat(savedVal)>ref.max?'res-high':parseFloat(savedVal)<ref.min?'res-low':'res-ok'):'';
-      inputHtml=`<input type="text" class="res-input ${cls}" id="rv-${t.id}" lang="en" inputmode="decimal" value="${savedVal||''}" oninput="checkResult('${t.id}',this.value)" placeholder="...">`;
+      // ⭐ مربع النتيجة + زرّا < > على جانبيه لإدراج علامات المقارنة
+      inputHtml=`<span class="res-cmp-wrap" style="display:inline-flex;align-items:center;gap:4px;">
+        <button type="button" class="cmp-sign-btn" title="أدرج علامة <" onclick="_insertCmpSign('rv-${t.id}','<', function(v){checkResult('${t.id}',v);})">&lt;</button>
+        <input type="text" class="res-input ${cls}" id="rv-${t.id}" lang="en" inputmode="text" value="${savedVal||''}" oninput="checkResult('${t.id}',this.value)" placeholder="...">
+        <button type="button" class="cmp-sign-btn" title="أدرج علامة >" onclick="_insertCmpSign('rv-${t.id}','>', function(v){checkResult('${t.id}',v);})">&gt;</button>
+      </span>`;
     }
     // جمع آخر 4 نتائج لهذا التحليل بالذات لنفس المريض
     const prevForThisTest=prevReqs.filter(pr=>pr.results&&pr.results[t.id]!==undefined&&pr.results[t.id]!=='').slice(0,4);
@@ -10238,6 +10281,48 @@ function _autoSaveResults(){
     updateDashboard(); updateBadges();
   }, 500);
 }
+// ─── إدراج علامة المقارنة (< أو >) في مربع النتيجة ───
+// عند الضغط على زر < أو > بجانب مربع النتيجة:
+// - إذا كان المربع فارغاً: تُدرج العلامة في بداية النص
+// - إذا كانت العلامة موجودة بالفعل في البداية: يُترك الحقل كما هو
+// - إذا كان هناك نص بدون علامة: تُضاف العلامة في البداية
+// - بعد الإدراج: يضع التركيز في النهاية ليتمكن المستخدم من الكتابة مباشرة
+// - يستدعي onCheck لإعادة تشغيل منطق التحقق (checkResult أو vrCheckResult)
+function _insertCmpSign(inputId, sign, onCheck){
+  const inp = document.getElementById(inputId);
+  if(!inp) return;
+  const cur = inp.value || '';
+  const trimmed = cur.replace(/^\s+/, '');
+  let newVal;
+  if(trimmed.length === 0){
+    newVal = sign;
+  } else if(trimmed.charAt(0) === sign){
+    // العلامة موجودة بالفعل — لا شيء
+    newVal = cur;
+  } else if(trimmed.charAt(0) === '<' || trimmed.charAt(0) === '>'){
+    // علامة مقارنة أخرى موجودة — استبدلها
+    newVal = sign + trimmed.substring(1);
+  } else {
+    newVal = sign + trimmed;
+  }
+  inp.value = newVal;
+  // ضع التركيز في نهاية النص
+  inp.focus();
+  try{
+    const len = newVal.length;
+    inp.setSelectionRange(len, len);
+  }catch(e){}
+  // أعد تشغيل onCheck (مثل checkResult / vrCheckResult)
+  if(typeof onCheck === 'function'){
+    try{ onCheck(newVal); }catch(e){ console.error(e); }
+  } else if(typeof onCheck === 'string'){
+    // يدعم تمرير اسم دالة كنص (إذا احتجنا)
+    try{ window[onCheck] && window[onCheck](inp.id.replace(/^[a-z\-]+/, ''), newVal); }catch(e){}
+  }
+  // تشغيل event 'input' ليلتقط أي مستمع آخر (مثل auto-save)
+  try{ inp.dispatchEvent(new Event('input', {bubbles:true})); }catch(e){}
+}
+
 function checkResult(tid,val){
   const t=tests.find(x=>x.id===tid);
   const inp=document.getElementById('rv-'+tid);
