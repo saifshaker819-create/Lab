@@ -12346,17 +12346,38 @@ function buildPrintHTML(req, opts){
           }
           if(unassigned.length > 0) logicalPages.push(unassigned);
 
-          // 4) ⭐ السلوك المطلوب:
-          // - كل صفحة منطقية تأخذ ورقة طباعة (مع رأس كامل)
+          // 4) ⭐ السلوك المطلوب (ذكي):
+          // - كل صفحة منطقية تبدأ في ورقة طباعة جديدة (مع رأس كامل) — افتراضياً
           // - إذا امتلأت الصفحة المنطقية بأكثر من حجم A4، تنقسم على عدة أوراق طباعة
           //   وكل ورقة جديدة تأخذ رأساً كاملاً عبر buildPage
-          // - المجموعات الفرعية تبقى متماسكة: إذا مجموعة لا تستوعب في الباقي،
-          //   تنتقل بكاملها للورقة التالية (لا تنقسم في المنتصف)
+          // - المجموعات الفرعية تبقى متماسكة: لا تنقسم في المنتصف
+          // - استثناء ذكي: إذا الصفحة المنطقية السابقة احتاجت أكثر من ورقة طباعة
+          //   (أي تجاوزت A4 طبيعياً)، فالصفحة المنطقية التالية تكمل في الورقة الأخيرة
+          //   إذا كان فيها مساحة كافية. هذا يحل مشكلة:
+          //   "عندما تحاليل ورقتين أصلاً ونقل مجموعة → لا يجب أن تظهر ورقة ثالثة"
+          var currentPageChunks = [];
+          var currentH = hdrMeasured;
+          var prevLogicalUsedMultiPages = false; // هل الصفحة المنطقية السابقة احتاجت >1 ورقة؟
           for(var lp=0; lp<logicalPages.length; lp++){
             var idxs = logicalPages[lp];
             var isLastLogicalPage = (lp === logicalPages.length - 1);
-            var currentPageChunks = [];
-            var currentH = hdrMeasured;
+            var pagesAtStartOfLogical = pages.length;
+
+            // ── قرار البدء بورقة جديدة أم الإكمال في الحالية ──
+            if(lp > 0){
+              if(prevLogicalUsedMultiPages && currentPageChunks.length > 0){
+                // السابقة استهلكت >1 ورقة → نُكمل في الورقة الحالية إذا أمكن (لا نُجبر ورقة جديدة)
+                // currentPageChunks و currentH يبقيان كما هما
+              } else {
+                // السابقة استهلكت ورقة واحدة فقط → ابدأ ورقة جديدة (force break)
+                if(currentPageChunks.length > 0){
+                  pages.push(currentPageChunks);
+                  currentPageChunks = [];
+                  currentH = hdrMeasured;
+                }
+              }
+            }
+
             for(var ji=0; ji<idxs.length; ji++){
               var jIdx = idxs[ji];
               var chunkObj = CAT_CHUNKS[jIdx];
@@ -12379,8 +12400,14 @@ function buildPrintHTML(req, opts){
                 currentH = hdrMeasured + chunkH + extraH;
               }
             }
-            if(currentPageChunks.length > 0) pages.push(currentPageChunks);
+            // حدّد إن كانت هذه الصفحة المنطقية استهلكت أكثر من ورقة طباعة
+            // (عدد الأوراق المضافة في pages أثناء هذا lp + 1 للورقة الحالية لو فيها محتوى)
+            var addedDuringThisLogical = pages.length - pagesAtStartOfLogical;
+            var totalPagesForLogical = addedDuringThisLogical + (currentPageChunks.length > 0 ? 1 : 0);
+            prevLogicalUsedMultiPages = (totalPagesForLogical > 1);
           }
+          // ادفع آخر ورقة لو فيها محتوى
+          if(currentPageChunks.length > 0) pages.push(currentPageChunks);
         } else {
           // ── النظام الأصلي: pagination تلقائي بالكامل ──
           var currentPageChunksA = [];
