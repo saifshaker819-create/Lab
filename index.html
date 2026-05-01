@@ -11864,14 +11864,17 @@ function buildPrintHTML(req, opts){
     const ci = _visibleCatCount; // استخدم العداد الفعلي للفاصل
     _visibleCatCount++;
 
-    // بداية chunk لهذه المجموعة الفرعية — الفاصل يُضاف داخل الـ chunk نفسه (باستثناء الأولى)
+    // ⭐ فاصل المجموعة الفرعية — يُخزَّن منفصلاً في الـ chunk (catDividerHtml)
+    // ثم في pagination JS: يُضاف فقط إذا الـ chunk ليس أول واحد في ورقته الفعلية
+    // هذا يحل مشكلة الفواصل عند نقل المجموعات يدوياً بين الصفحات
     let _chunkHtml = '';
-    if(ci>0){
+    let _catDividerHtml = '';
+    {
       const _catDotted=settings.div_cat_dotted;
       const _catSolid=settings.div_cat_solid;
-      if(_catSolid)       _chunkHtml+=`<div style="margin:5px 6px;border-top:2px solid #888"></div>`;
-      else if(_catDotted) _chunkHtml+=`<div style="margin:5px 6px;border-top:2px dotted #aab8c8"></div>`;
-      else                _chunkHtml+=`<div style="margin:4px 6px;border-top:1px dotted #aab8c8"></div>`;
+      if(_catSolid)       _catDividerHtml = `<div style="margin:5px 6px;border-top:2px solid #888"></div>`;
+      else if(_catDotted) _catDividerHtml = `<div style="margin:5px 6px;border-top:2px dotted #aab8c8"></div>`;
+      else                _catDividerHtml = `<div style="margin:4px 6px;border-top:1px dotted #aab8c8"></div>`;
     }
     _chunkHtml+=`<div style="margin:4px 6px 0;direction:ltr">
       <div style="padding:3px 10px 2px">
@@ -12104,8 +12107,11 @@ function buildPrintHTML(req, opts){
       }
     });
     // أضف الـ chunk إلى المصفوفة وإلى body
-    // ⭐ كل chunk الآن يحمل اسم المجموعة الفرعية (cat) لدعم خاصية "تجميع" (pageGroups)
-    catChunks.push({cat: cat, html: _chunkHtml});
+    // ⭐ كل chunk يحمل: cat (اسم المجموعة) + html (المحتوى) + catDividerHtml (فاصل المجموعة)
+    // الـ body المباشر (للـ blankBody) يحتوي على الفاصل بشكل صحيح كما كان (لا يتأثر)
+    catChunks.push({cat: cat, html: _chunkHtml, catDividerHtml: _catDividerHtml});
+    // body المباشر يحتفظ بالفاصل (لـ blankBody fallback) — يضيفه إن لم يكن الأول
+    if(_visibleCatCount > 1) body += _catDividerHtml;
     body += _chunkHtml;
   });
   } // end if(!blankBody)
@@ -12247,9 +12253,17 @@ function buildPrintHTML(req, opts){
         div.style.padding = '1mm 4mm 0 4mm';
         var html = HDR_HTML + COL_HDR_HTML;
         for(var i=0;i<chunksForPage.length;i++){
-          // chunksForPage[i] قد يكون object {cat,html} أو string (للتوافق الرجعي)
+          // chunksForPage[i] قد يكون object {cat,html,catDividerHtml} أو string (توافق رجعي)
           var ch = chunksForPage[i];
-          html += (typeof ch === 'string') ? ch : (ch && ch.html ? ch.html : '');
+          if(typeof ch === 'string'){
+            html += ch;
+          } else if(ch && ch.html){
+            // ⭐ أضف فاصل المجموعة قبل الـ chunk فقط إذا ليس أول واحد في هذه الورقة
+            if(i > 0 && ch.catDividerHtml){
+              html += ch.catDividerHtml;
+            }
+            html += ch.html;
+          }
         }
         // الملاحظات تظهر في آخر صفحة فقط
         if(isLast && NOTES_HTML) html += NOTES_HTML;
@@ -12289,11 +12303,15 @@ function buildPrintHTML(req, opts){
         var hdrMeasured = measureHtml(HDR_HTML + COL_HDR_HTML);
         if(!hdrMeasured) hdrMeasured = 220; // fallback آمن
 
-        // ── قياس ارتفاع كل chunk مرة واحدة فقط ──
+        // ── قياس ارتفاع كل chunk (مع فاصل المجموعة لو موجود) ──
+        // نقيس ارتفاع الـ html + catDividerHtml لأن الفاصل يُضاف عملياً قبل الـ chunk
+        // (إلا إذا كان أول chunk في صفحته، لكن نقيس بالأكبر للأمان)
         var chunkHeights = [];
         for(var i=0;i<CAT_CHUNKS.length;i++){
           var ch_i = CAT_CHUNKS[i];
-          var ch_html = (typeof ch_i === 'string') ? ch_i : (ch_i && ch_i.html ? ch_i.html : '');
+          var ch_html = (typeof ch_i === 'string')
+            ? ch_i
+            : (ch_i && ch_i.html ? ((ch_i.catDividerHtml||'') + ch_i.html) : '');
           var h = measureHtml(ch_html);
           chunkHeights.push(h || 60);
         }
@@ -12463,7 +12481,13 @@ function buildPrintHTML(req, opts){
             var fhtml = HDR_HTML + COL_HDR_HTML;
             for(var ii=0;ii<CAT_CHUNKS.length;ii++){
               var fb_ch = CAT_CHUNKS[ii];
-              fhtml += (typeof fb_ch === 'string') ? fb_ch : (fb_ch && fb_ch.html ? fb_ch.html : '');
+              if(typeof fb_ch === 'string'){
+                fhtml += fb_ch;
+              } else if(fb_ch && fb_ch.html){
+                // أضف الفاصل قبل كل chunk عدا الأول
+                if(ii > 0 && fb_ch.catDividerHtml) fhtml += fb_ch.catDividerHtml;
+                fhtml += fb_ch.html;
+              }
             }
             if(NOTES_HTML) fhtml += NOTES_HTML;
             fhtml += '<div class="page-footer-spacer" style="height:'+(TOTAL_FOOTER_H+22)+'px"></div>';
