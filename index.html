@@ -7302,11 +7302,7 @@ function initUserData(){
   inventory=[{id:'i1',name:'HbA1c Reagent',qty:45,unit:'test',min:20,exp:'2025-12-31',sup:'Vista Lab'},{id:'i2',name:'CBC Reagent',qty:200,unit:'test',min:50,exp:'2025-10-30',sup:'MedLab Co'},{id:'i3',name:'TSH Kit',qty:8,unit:'kit',min:10,exp:'2025-09-15',sup:'BioTech'}];
   qcRecords=[]; testGroups=[]; billingRecords=[];
   cultureRecords=[]; uaRecords=[]; stoolExamRecords=[]; semenRecords=[];
-  // ⭐ تطبيق قائمة المحذوفات (من localStorage الفوري) قبل تحميل IDB
-  // بهذا تظل التحاليل المحذوفة محذوفة حتى عند تحديث الصفحة أو رفع نسخة جديدة
-  let _deletedIds = [];
-  try{ _deletedIds = load('deletedTestIds',[]) || []; }catch(e){}
-  tests = ALL_TESTS.filter(t => _deletedIds.indexOf(t.id) < 0);
+  tests=ALL_TESTS.slice();
 
   // ③ نقل أي بيانات قديمة لا تزال في localStorage إلى IDB (مرة واحدة عند التشغيل)
   _migrateLegacyLS();
@@ -7432,25 +7428,13 @@ async function _mergeIDBInBackground(){
       }
     }
     // التحاليل
-    // ⭐ قراءة قائمة المحذوفات من IDB (أحدث من localStorage في حالات المزامنة)
-    let _delIds = [];
-    try{
-      const _delFromIdb = await IDB.get(pfx+'deletedTestIds');
-      if(Array.isArray(_delFromIdb)) _delIds = _delFromIdb;
-      else _delIds = load('deletedTestIds',[]) || [];
-    }catch(e){ _delIds = load('deletedTestIds',[]) || []; }
-    const _delSet = new Set(_delIds);
-
     const idbTests=await IDB.get(pfx+'tests');
     if(idbTests&&Array.isArray(idbTests)&&idbTests.length>0){
       const allMap=new Map(ALL_TESTS.map(function(x){return [x.id,x];}));
-      // ⭐ ابدأ المخطط من idbTests فقط (وليس من tests الذي يحوي ALL_TESTS كاملة)
-      // ثم أضف من ALL_TESTS أي عناصر جديدة لم تكن في idbTests وليست محذوفة
-      const map=new Map();
+      const map=new Map(tests.map(function(x){return [x.id,x];}));
       let tc=false;
       idbTests.forEach(function(t){
         if(!t.id)return;
-        if(_delSet.has(t.id))return; // تخطى المحذوفة
         const orig=allMap.get(t.id);
         const merged=Object.assign({},t);
         if(orig){
@@ -7461,26 +7445,12 @@ async function _mergeIDBInBackground(){
           }
           else{delete merged.isCalc;delete merged.calcFormula;delete merged.calcInputSettings;}
         }
-        map.set(t.id,merged);
-      });
-      // أضف أي عناصر جديدة من ALL_TESTS لم تكن في idbTests وليست محذوفة
-      ALL_TESTS.forEach(function(t){
-        if(!map.has(t.id) && !_delSet.has(t.id)){
-          map.set(t.id, Object.assign({}, t));
+        if(!map.has(t.id)||JSON.stringify(map.get(t.id))!==JSON.stringify(merged)){
+          map.set(t.id,merged); tc=true;
         }
       });
-      tests=[...map.values()];
-      tc=true;
-      changed=true;
+      if(tc){tests=[...map.values()];changed=true;}
       _MC[pfx+'tests']=tests;
-    } else {
-      // لا يوجد idbTests — استخدم ALL_TESTS مع تطبيق المحذوفات
-      const filtered = ALL_TESTS.filter(t => !_delSet.has(t.id));
-      if(filtered.length !== tests.length || filtered.some((t,i)=>tests[i] && t.id !== tests[i].id)){
-        tests = filtered;
-        changed = true;
-        _MC[pfx+'tests']=tests;
-      }
     }
     if(changed){
       renderAll(); updateDashboard(); updateBadges();
@@ -10678,31 +10648,9 @@ function openGroupingModal(reqId){
   // قراءة pageGroups المحفوظ مسبقاً (إن وُجد)
   let savedGroups = Array.isArray(req.pageGroups) ? req.pageGroups.map(g => Array.isArray(g) ? g.slice() : []) : null;
 
-  // ⭐ إذا لم يُحفظ توزيع → نحاكي التوزيع التلقائي للطباعة
-  // حساب تقديري: ~22 صف لكل ورقة A4 (مع رأس وذيل)
-  // لكل مجموعة: 1 صف لاسم المجموعة + N صف للتحاليل
+  // إذا لم يُحفظ توزيع → جميع المجموعات في الصفحة الأولى، صفحة ثانية فارغة
   if(!savedGroups || savedGroups.length === 0){
-    const ROWS_PER_PAGE = 22;        // عدد الصفوف التقريبي في ورقة واحدة
-    const HEADER_ROWS = 1;           // عنوان كل مجموعة فرعية
-    savedGroups = [];
-    let curPage = [];
-    let curRows = 0;
-    catOrder.forEach(cat => {
-      const tests = grouped[cat] || [];
-      const need = HEADER_ROWS + tests.length;
-      // إذا المجموعة لا تتسع وكانت الصفحة فيها محتوى → ابدأ صفحة جديدة
-      if(curPage.length > 0 && (curRows + need) > ROWS_PER_PAGE){
-        savedGroups.push(curPage);
-        curPage = [cat];
-        curRows = need;
-      } else {
-        curPage.push(cat);
-        curRows += need;
-      }
-    });
-    if(curPage.length > 0) savedGroups.push(curPage);
-    // ضمان وجود صفحتين على الأقل
-    while(savedGroups.length < 2) savedGroups.push([]);
+    savedGroups = [catOrder.slice(), []];
   } else {
     // التحقق من أن الـ savedGroups يحتوي على المجموعات الموجودة فقط
     // أي cats جديدة (مضافة بعد آخر حفظ) → تذهب للصفحة الأولى
@@ -10950,36 +10898,11 @@ function _moveTestBetweenPages(testId, fromPage, toPage){
 /**
  * نقل مجموعة فرعية كاملة بين صفحتين
  */
-// ⭐ حساب تقديري لعدد الصفوف في صفحة منطقية (header + tests count)
-function _countPageRows(pageList){
-  const state = window._groupingState;
-  if(!state || !Array.isArray(pageList)) return 0;
-  let total = 0;
-  pageList.forEach(e => {
-    let cName = e;
-    if(typeof e === 'string' && e.indexOf('::') > 0) cName = e.split('::')[0];
-    const cTests = state.grouped[cName] || [];
-    total += 1 + cTests.length; // 1 للعنوان + N للتحاليل
-  });
-  return total;
-}
-
-const _PAGE_CAPACITY = 22; // عدد الصفوف المسموح بها لكل ورقة A4
-
 function _moveCatBetweenPages(catName, fromPage, toPage){
   const state = window._groupingState;
   if(!state) return;
   const fromList = state.pages[fromPage];
   const toList = state.pages[toPage];
-
-  // ⭐ تحقق من سعة الصفحة الهدف قبل النقل
-  const movingTests = state.grouped[catName] || [];
-  const movingRows = 1 + movingTests.length;
-  const currentToRows = _countPageRows(toList);
-  if(currentToRows + movingRows > _PAGE_CAPACITY){
-    showNotif('تنبيه',`⚠️ الصفحة ${_arabicNum(toPage+1)} لا تستوعب هذه المجموعة (${_arabicNum(movingRows)} صف). أضف صفحة جديدة أو انقل لصفحة أخرى.`,'warning');
-    return; // إلغاء النقل
-  }
 
   // إزالة جميع entries المتعلقة بـ catName من الصفحة المصدر
   const removeIdxs = [];
@@ -12021,32 +11944,30 @@ function buildPrintHTML(req, opts){
   const rowInfo=(lbl,val,color,rtl)=>`<div style="display:flex;align-items:center;gap:5px;margin-bottom:5px"><span style="${LBL}">${lbl}</span><span style="${BOX_INFO(color,rtl)}">${val}</span></div>`;
   const row=(lbl,val,color,rtl)=>`<div style="display:flex;align-items:center;gap:5px;margin-bottom:4px"><span style="${LBL}">${lbl}</span><span style="${BOX_SMALL(color,rtl)}">${val}</span></div>`;
 
-  // ⭐ الباركود: يطفو في وسط الصفحة بـ position:absolute فلا يدفع الأعمدة الأخرى
-  // إذا كان اسم الطبيب طويلاً، يمتد تحت الباركود بدلاً من دفعه يميناً
   const ptBox=`
-  <div style="margin:3px 6px;direction:ltr;position:relative">
-    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:6px;min-height:62px">
+  <div style="margin:3px 6px;direction:ltr">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:6px">
 
       <!-- يسار: اسم وجنس ودكتور -->
-      <div style="flex:1 1 auto;min-width:180px;max-width:42%;position:relative;z-index:2">
+      <div style="flex:0 0 auto;min-width:180px">
         ${rowName('Name', ptFullName, nameColor, true)}
         ${rowInfo('Sex/Age', genderTxt+' / '+ageTxt, '#000', false)}
         ${rowName('Doctor', req.doctorName||'—', doctorColor, true)}
       </div>
 
+      <!-- وسط: باركود فقط -->
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center">
+        <div style="display:inline-block">${barcodeSvg}</div>
+        <div style="font-size:8px;font-weight:900;color:#000;letter-spacing:2px;margin-top:2px;font-family:'Courier New',monospace;text-align:center">${barcodeId}</div>
+      </div>
+
       <!-- يمين: ID والأوقات -->
-      <div style="flex:0 0 auto;min-width:160px;position:relative;z-index:2">
+      <div style="flex:0 0 auto;min-width:160px">
         ${row('ID', pt.id||'—')}
         ${row('Input', inputTime)}
         ${row('Print', printTime)}
       </div>
 
-    </div>
-
-    <!-- وسط: باركود — يطفو في الأعلى بـ position:absolute فلا يتأثر بطول الاسم/الطبيب -->
-    <div style="position:absolute;top:-2px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;z-index:1;pointer-events:none">
-      <div style="display:inline-block">${barcodeSvg}</div>
-      <div style="font-size:8px;font-weight:900;color:#000;letter-spacing:2px;margin-top:2px;font-family:'Courier New',monospace;text-align:center">${barcodeId}</div>
     </div>
   </div>`;
 
@@ -12375,9 +12296,9 @@ function buildPrintHTML(req, opts){
       `<div style="width:100%;line-height:0"><img src="${settings.footerImg}" style="width:100%;height:${footerH}px;display:block;object-fit:fill;margin:0;padding:0"></div>` +
       (settings.footerCustomText?`<div style="background:#f5f7fa;border-top:1px solid #ccc;padding:4px 16px;font-family:'Inter',Arial,sans-serif;font-size:9px;color:#555;text-align:center;line-height:1.5;line-height:normal">${settings.footerCustomText}</div>`:'');
   } else if(settings.ftrMode==='txt'&&(settings.ftrAddress||settings.ftrPhone||settings.ftrNote)){
-    // ⭐ الذيل النصي: العنوان يمين، رقم الهاتف يسار، حجم الخط 16
+    // ⭐ الذيل النصي: العنوان يمين، رقم الهاتف يسار، حجم الخط 15
     // ارتفاع الذيل لا يتأثر — فقط الخط داخله يكبر
-    ftrInner = sigBlock + `<div style="background:#f5f7fa;border-top:2px solid #003366;padding:7px 20px;font-family:'Inter',Arial,sans-serif;font-size:16px;color:#444;direction:ltr;line-height:1.4">
+    ftrInner = sigBlock + `<div style="background:#f5f7fa;border-top:2px solid #003366;padding:7px 20px;font-family:'Inter',Arial,sans-serif;font-size:15px;color:#444;direction:ltr;line-height:1.4">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
         <span style="text-align:left;flex:0 0 auto">${settings.ftrPhone?`📞 ${settings.ftrPhone}`:''}</span>
         <span style="text-align:right;flex:0 0 auto">${settings.ftrAddress?`📍 ${settings.ftrAddress}`:''}</span>
@@ -13940,24 +13861,7 @@ function saveTest(){
   renderTestsDB();buildTestCatTabs();closeModal('m-edit-test');
   showNotif('Saved',`Test saved: ${t.nameEn} ✅`,'success');
 }
-function deleteTest(id){
-  if(!confirm('Delete this test?')) return;
-  tests=tests.filter(t=>t.id!==id);
-  save('tests',tests);
-  IDB.set(DB._pfx()+'tests',tests).catch(e=>console.warn('[MedLab] IDB tests save error',e));
-  // ⭐ تتبع الحذف بشكل دائم — يمنع عودة التحليل عند تحديث الصفحة أو رفع نسخة جديدة
-  try{
-    const pfx=DB._pfx();
-    const cur=load('deletedTestIds',[]);
-    if(cur.indexOf(id)<0){
-      cur.push(id);
-      save('deletedTestIds',cur);
-      IDB.set(pfx+'deletedTestIds', cur).catch(()=>{});
-    }
-  }catch(e){console.warn('[MedLab] track deletion failed',e);}
-  renderTestsDB();
-  showNotif('Deleted','Test deleted');
-}
+function deleteTest(id){if(confirm('Delete this test?')){tests=tests.filter(t=>t.id!==id);save('tests',tests);IDB.set(DB._pfx()+'tests',tests).catch(e=>console.warn('[MedLab] IDB tests save error',e));renderTestsDB();showNotif('Deleted','Test deleted');}}
 
 // ── إعدادات مدخلات التحليل المحسوب ──────────────────────────
 function renderCalcInputSettings(existingSettings){
