@@ -11790,7 +11790,7 @@ function buildPrintHTML(req, opts){
     /* مع 0mm margin في @page نضمن أن الذيل يلامس الحافة (الطابعة ستحترم منطقتها غير المطبوعة) */
     #print-footer{
       position:fixed;
-      bottom:-3mm;
+      bottom:3mm;
       left:0;
       right:0;
       background:#ffffff;
@@ -11811,7 +11811,7 @@ function buildPrintHTML(req, opts){
     @media print{
       @page{margin:0 !important;size:A4 portrait;}
       body{padding:1mm 4mm 0 4mm;}
-      #print-footer{position:fixed;bottom:-3mm;left:0;right:0;background:#ffffff;z-index:9999;}
+      #print-footer{position:fixed;bottom:3mm;left:0;right:0;background:#ffffff;z-index:9999;}
       #print-footer img{display:block;width:100%;height:${footerH}px;object-fit:fill;margin:0;padding:0;}
       #print-spacer{display:block;height:${totalFooterH+12}px;}
     }
@@ -12324,7 +12324,7 @@ function buildPrintHTML(req, opts){
     @media print{
       .report-page{page-break-inside:auto;}
       .report-page+.report-page{page-break-before:always;break-before:page;}
-      #print-footer{position:fixed;bottom:-3mm;left:0;right:0;background:#ffffff;z-index:9999;}
+      #print-footer{position:fixed;bottom:3mm;left:0;right:0;background:#ffffff;z-index:9999;}
     }
   `;
 
@@ -13241,7 +13241,7 @@ function generatePDFBlob(callback){
               const ftrEl=ftrDiv.firstElementChild;
               if(ftrEl){
                 ftrEl.style.position='absolute';
-                ftrEl.style.bottom='-3mm';
+                ftrEl.style.bottom='3mm';
                 ftrEl.style.left='0';
                 ftrEl.style.right='0';
                 ftrEl.style.zIndex='auto';
@@ -20539,9 +20539,9 @@ function _buildCultureHTML(cid){
     html,body{background:#fff;font-family:Arial,sans-serif;color:#000;font-size:16px;}
     body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
     .content{padding-bottom:${((typeof s.ftrImgH==='number'&&s.ftrImgH>=10&&s.ftrImgH<=80)?s.ftrImgH:50)+8}px;}
-    .footer{position:fixed;bottom:-3mm;left:0;right:0;background:#fff;z-index:9999;line-height:0;}
+    .footer{position:fixed;bottom:3mm;left:0;right:0;background:#fff;z-index:9999;line-height:0;}
     @page{margin:0 !important;size:A4 portrait;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
-    @media print{ .footer{position:fixed;bottom:-3mm;left:0;right:0;background:#fff;z-index:9999;} }
+    @media print{ .footer{position:fixed;bottom:3mm;left:0;right:0;background:#fff;z-index:9999;} }
   </style></head><body>
   <div class="content">
     ${hdrHTML}
@@ -21042,11 +21042,11 @@ function _buildUAPrintHTML(r){
     /* ⭐ الذيل ثابت أسفل الورقة (position:fixed) — مطابق لتقرير CBC */
     body{font-family:Arial,sans-serif;color:#000;font-size:16px;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
     .ua-content{padding-bottom:${((typeof s.ftrImgH==='number'&&s.ftrImgH>=10&&s.ftrImgH<=80)?s.ftrImgH:50)+8}px;}
-    .ua-footer{position:fixed;bottom:-3mm;left:0;right:0;background:#fff;z-index:9999;line-height:0;}
+    .ua-footer{position:fixed;bottom:3mm;left:0;right:0;background:#fff;z-index:9999;line-height:0;}
     @page{margin:1mm 6mm 1mm 6mm;size:A4 portrait;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
     @media print{
       body{font-size:14px;}
-      .ua-footer{position:fixed;bottom:-3mm;left:0;right:0;background:#fff;z-index:9999;}
+      .ua-footer{position:fixed;bottom:3mm;left:0;right:0;background:#fff;z-index:9999;}
       .ua-sec div[style*="font-size:15px"]{font-size:14px !important;}
       .ua-sec div[style*="font-size:16px"]{font-size:15px !important;}
       th,td{font-size:14px !important;padding:3px 8px !important;}
@@ -21589,9 +21589,9 @@ function _buildStoolPrintHTML(r){
     /* ⭐ الذيل ثابت أسفل الورقة (position:fixed) — مطابق لتقرير CBC */
     body{font-family:Arial,sans-serif;color:#000;font-size:15px;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
     .se-content{padding-bottom:${((typeof s.ftrImgH==='number'&&s.ftrImgH>=10&&s.ftrImgH<=80)?s.ftrImgH:50)+8}px;}
-    .se-footer{position:fixed;bottom:-3mm;left:0;right:0;background:#fff;z-index:9999;line-height:0;}
+    .se-footer{position:fixed;bottom:3mm;left:0;right:0;background:#fff;z-index:9999;line-height:0;}
     @page{margin:1mm 5mm 1mm 5mm;size:A4 portrait;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
-    @media print{ .se-footer{position:fixed;bottom:-3mm;left:0;right:0;background:#fff;z-index:9999;} }
+    @media print{ .se-footer{position:fixed;bottom:3mm;left:0;right:0;background:#fff;z-index:9999;} }
   </style></head><body>
     <div class="se-content">
       ${hdrHTML}
@@ -22760,9 +22760,9 @@ function _buildSemenPrintHTML(r){
     /* ⭐ الذيل ثابت أسفل الورقة (position:fixed) — مطابق لتقرير CBC */
     body{font-family:Arial,sans-serif;color:#000;font-size:15px;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
     .sm-content{padding-bottom:${((typeof s.ftrImgH==='number'&&s.ftrImgH>=10&&s.ftrImgH<=80)?s.ftrImgH:50)+8}px;}
-    .sm-footer{position:fixed;bottom:-3mm;left:0;right:0;background:#fff;z-index:9999;line-height:0;}
+    .sm-footer{position:fixed;bottom:3mm;left:0;right:0;background:#fff;z-index:9999;line-height:0;}
     @page{margin:1mm 6mm 1mm 6mm;size:A4 portrait;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
-    @media print{ .sm-footer{position:fixed;bottom:-3mm;left:0;right:0;background:#fff;z-index:9999;} }
+    @media print{ .sm-footer{position:fixed;bottom:3mm;left:0;right:0;background:#fff;z-index:9999;} }
   </style></head><body>
     <div class="sm-content">
       ${hdrHTML}
