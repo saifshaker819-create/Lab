@@ -8010,7 +8010,20 @@ function nav(p){
       })(20);
     }
     const srch=document.getElementById('req-srch-inp');
-    if(srch){ requestAnimationFrame(function(){ srch.focus(); srch.select(); }); }
+    if(srch){
+      // ⭐ تركيز قوي ومتعدد المحاولات — يضمن النجاح حتى بعد العودة من نافذة الطباعة
+      // المشكلة: على الجوال، عند العودة من window.print()، الـ focus قد يكون
+      // غير مستقر، فالمحاولة الواحدة قد تفشل. لذا نحاول 3 مرات بفواصل قصيرة.
+      const _doFocusReq = function(){
+        srch.focus();
+        try{ srch.select(); }catch(e){}
+        // على بعض المتصفحات، select() قد يفشل فوراً بعد focus، فنُعيد المحاولة
+        try{ srch.setSelectionRange(0, (srch.value||'').length); }catch(e){}
+      };
+      requestAnimationFrame(_doFocusReq);
+      setTimeout(_doFocusReq, 50);
+      setTimeout(_doFocusReq, 200);
+    }
   }
   if(p==='patients') renderPatients();
   if(p==='doctors') renderDoctors();
@@ -8716,6 +8729,18 @@ function toggleWizTest(tid){
   _wizRightPanelUpdateOne(t, tid, nowSelected);
 
   updateWizTotal();
+
+  // ⭐ بعد اختيار/إلغاء تحليل: أعد التركيز لحقل البحث وحدّد محتواه
+  // ليتمكن المستخدم من كتابة التحليل التالي مباشرة بدون نقر إضافي
+  const _wizSrch = document.getElementById('wiz-test-srch');
+  if(_wizSrch){
+    // استخدم rAF لتأخير بسيط جداً (frame واحد) حتى تكتمل عملية تحديث الـ DOM
+    requestAnimationFrame(function(){
+      _wizSrch.focus();
+      try{ _wizSrch.select(); }catch(e){}
+      try{ _wizSrch.setSelectionRange(0, (_wizSrch.value||'').length); }catch(e){}
+    });
+  }
 }
 
 // تحديث جزئي سريع: يضيف أو يحذف عنصر واحد فقط من القائمة اليمنى
@@ -21058,7 +21083,7 @@ function _buildUAPrintHTML(r){
       <div style="border:1.5px solid #b8b8b8;margin:2px 0 3px;padding:4px 10px;background:#fafafa">
         ${uaPtBox}
       </div>
-      <div style="color:#cc0000;padding:5px 16px;text-align:center;font-weight:900;font-size:20px;letter-spacing:1px;margin:4px 0;">
+      <div style="color:#cc0000;padding:5px 16px;text-align:center;font-weight:900;font-size:19px;letter-spacing:1px;margin:4px 0;">
         &#x1F52C; General Urine Examination
       </div>
       <div style="margin:0 0 2px;height:2px;background:${color}"></div>
