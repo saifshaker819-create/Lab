@@ -11930,11 +11930,16 @@ function buildPrintHTML(req, opts){
   const doctorColor = settings.colorDoctor||'#cc0011';
   const stripColor  = settings.colorResults||'#003366';
   const sectionColor = settings.colorSection||'#003366';
-  // Name/Doctor: 17px bold — باقي البيانات: 16px عادي
+  // ⭐ كل بيانات المريض بنفس الحجم والثخانة:
+  // - الحجم: settings.ptFontSize (من زر "خط بيانات المريض")
+  // - الثخانة: settings.fontWeight (من زر "ثخانة الخط" — العام)
+  // المستخدم يتوقع أن "ثخانة الخط" تؤثر على بيانات المريض في التقرير
+  const _ptInfoSize = ptfs;
+  const _ptInfoWt   = settings.fontWeight || reportFontWeight || '700';
   const LBL=`font-size:9px;font-weight:800;color:#555;text-transform:uppercase;letter-spacing:0.6px;white-space:nowrap;width:48px;flex-shrink:0`;
-  const BOX_NAME=(color,rtl)=>`min-width:${COL_W};border:1.5px solid #bbb;border-radius:3px;background:#fff;padding:3px 7px;font-size:17px;font-weight:900;color:${color||'#000'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block${rtl?';direction:rtl;text-align:right':''}`;
-  const BOX_INFO=(color,rtl)=>`min-width:${COL_W};border:1.5px solid #bbb;border-radius:3px;background:#fff;padding:3px 7px;font-size:16px;font-weight:400;color:${color||'#000'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block${rtl?';direction:rtl;text-align:right':''}`;
-  const BOX_SMALL=(color,rtl)=>`min-width:${COL_W};border:1.5px solid #bbb;border-radius:3px;background:#fff;padding:3px 7px;font-size:${pfs};font-weight:700;color:${color||'#000'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block${rtl?';direction:rtl;text-align:right':''}`;
+  const BOX_NAME=(color,rtl)=>`min-width:${COL_W};border:1.5px solid #bbb;border-radius:3px;background:#fff;padding:3px 7px;font-size:${_ptInfoSize};font-weight:${_ptInfoWt};color:${color||'#000'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block${rtl?';direction:rtl;text-align:right':''}`;
+  const BOX_INFO=(color,rtl)=>`min-width:${COL_W};border:1.5px solid #bbb;border-radius:3px;background:#fff;padding:3px 7px;font-size:${_ptInfoSize};font-weight:${_ptInfoWt};color:${color||'#000'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block${rtl?';direction:rtl;text-align:right':''}`;
+  const BOX_SMALL=(color,rtl)=>`min-width:${COL_W};border:1.5px solid #bbb;border-radius:3px;background:#fff;padding:3px 7px;font-size:${_ptInfoSize};font-weight:${_ptInfoWt};color:${color||'#000'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block${rtl?';direction:rtl;text-align:right':''}`;
   const rowName=(lbl,val,color,rtl)=>`<div style="display:flex;align-items:center;gap:5px;margin-bottom:5px"><span style="${LBL}">${lbl}</span><span style="${BOX_NAME(color,rtl)}">${val}</span></div>`;
   const rowInfo=(lbl,val,color,rtl)=>`<div style="display:flex;align-items:center;gap:5px;margin-bottom:5px"><span style="${LBL}">${lbl}</span><span style="${BOX_INFO(color,rtl)}">${val}</span></div>`;
   const row=(lbl,val,color,rtl)=>`<div style="display:flex;align-items:center;gap:5px;margin-bottom:4px"><span style="${LBL}">${lbl}</span><span style="${BOX_SMALL(color,rtl)}">${val}</span></div>`;
@@ -12151,22 +12156,25 @@ function buildPrintHTML(req, opts){
         :`<span style="width:12px;flex-shrink:0;display:inline-block"></span>`;
 
       // عرض المدى المرجعي
-      // الأولوية: t.ref النصي دائماً > refM/refF (حسب الجنس) > localRef.ref > الأرقام فقط إذا لم يوجد أي نص
+      // ⭐ الأولوية: localRef (تعديل محلي للمريض) > refM/refF (حسب الجنس) > t.ref > الأرقام
+      // التعديل المحلي من زر "Normally" يأخذ أولوية مطلقة لأنه قرار طبي مخصص لهذا المريض
       let refTxt='—';
       let refIsMultiLine=false;
-      if(ptGender==='female'&&t.refF&&t.refF.trim()){
+      if(localRef&&localRef.ref&&String(localRef.ref).trim()){
+        // أولوية مطلقة: نص المدى الطبيعي المخصص للمريض
+        refTxt=String(localRef.ref).trim();
+      } else if(localRef&&localRef.min!==null){
+        // أرقام المدى المخصص للمريض
+        refTxt=String(localRef.min)+' – '+String(localRef.max);
+      } else if(ptGender==='female'&&t.refF&&t.refF.trim()){
         refTxt=t.refF.trim();
       } else if(ptGender!=='female'&&t.refM&&t.refM.trim()){
         refTxt=t.refM.trim();
       } else if(t.ref&&t.ref.trim()){
         refTxt=t.ref.trim();
-      } else if(localRef&&localRef.ref){
-        refTxt=localRef.ref;
       } else if(t.ageRanges&&t.ageRanges.length>0){
         if(ref.ref) refTxt=ref.ref;
         else if(ref.min!==null) refTxt=String(ref.min)+' – '+String(ref.max);
-      } else if(localRef&&localRef.min!==null){
-        refTxt=String(localRef.min)+' – '+String(localRef.max);
       } else if(t.minVal!==null){
         refTxt=ptGender==='female'&&t.minF!==null?(String(t.minF)+' – '+String(t.maxF)):(String(t.minVal)+' – '+String(t.maxVal));
       }
@@ -12288,10 +12296,14 @@ function buildPrintHTML(req, opts){
       `<div style="width:100%;line-height:0"><img src="${settings.footerImg}" style="width:100%;height:${footerH}px;display:block;object-fit:fill;margin:0;padding:0"></div>` +
       (settings.footerCustomText?`<div style="background:#f5f7fa;border-top:1px solid #ccc;padding:4px 16px;font-family:'Inter',Arial,sans-serif;font-size:9px;color:#555;text-align:center;line-height:1.5;line-height:normal">${settings.footerCustomText}</div>`:'');
   } else if(settings.ftrMode==='txt'&&(settings.ftrAddress||settings.ftrPhone||settings.ftrNote)){
-    ftrInner = sigBlock + `<div style="background:#f5f7fa;border-top:2px solid #003366;padding:7px 20px;font-family:'Inter',Arial,sans-serif;font-size:11px;color:#444;text-align:center;direction:ltr;line-height:1.6;line-height:normal">
-      ${settings.ftrAddress?`<span style="margin-left:18px">📍 ${settings.ftrAddress}</span>`:''}
-      ${settings.ftrPhone?`<span style="margin-left:18px">📞 ${settings.ftrPhone}</span>`:''}
-      ${settings.ftrNote?`<br><span style="font-style:italic;font-size:10px;color:#666">${settings.ftrNote}</span>`:''}
+    // ⭐ الذيل النصي: العنوان يمين، رقم الهاتف يسار، حجم الخط 15
+    // ارتفاع الذيل لا يتأثر — فقط الخط داخله يكبر
+    ftrInner = sigBlock + `<div style="background:#f5f7fa;border-top:2px solid #003366;padding:7px 20px;font-family:'Inter',Arial,sans-serif;font-size:15px;color:#444;direction:ltr;line-height:1.4">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+        <span style="text-align:left;flex:0 0 auto">${settings.ftrPhone?`📞 ${settings.ftrPhone}`:''}</span>
+        <span style="text-align:right;flex:0 0 auto">${settings.ftrAddress?`📍 ${settings.ftrAddress}`:''}</span>
+      </div>
+      ${settings.ftrNote?`<div style="text-align:center;font-style:italic;font-size:13px;color:#666;margin-top:3px">${settings.ftrNote}</div>`:''}
     </div>`;
   } else {
     ftrInner = sigBlock;
@@ -22559,10 +22571,17 @@ function semenDoctorSelChanged(){
 function _getSemenDoctor(){
   const sel=document.getElementById('semen-doctor-sel');
   if(!sel) return {id:'',name:''};
-  if(sel.value==='__manual__'){
-    const nm=(document.getElementById('semen-doctor-manual')||{}).value||'';
-    return {id:'',name:nm};
+  // ⭐ تحقق أولاً من حقل الإدخال اليدوي:
+  // إذا كان مرئياً وله قيمة، استخدمه حتى لو الـ select لم يكن على __manual__
+  // (يحدث هذا عند إعادة فتح سجل محفوظ بطبيب يدوي — الـ select يكون على ""
+  // لكن حقل manual يظهر بقيمته)
+  const manualEl = document.getElementById('semen-doctor-manual');
+  const manualVal = (manualEl && manualEl.value || '').trim();
+  const manualVisible = manualEl && manualEl.style.display !== 'none';
+  if(sel.value==='__manual__' || (manualVisible && manualVal && !sel.value)){
+    return {id:'', name:manualVal};
   }
+  // طبيب من القائمة
   const opt=sel.options[sel.selectedIndex];
   return {id:sel.value, name:opt?opt.dataset.name||opt.text:''};
 }
