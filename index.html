@@ -12019,7 +12019,7 @@ function buildPrintHTML(req, opts){
     const m = String(_ptInfoSize).match(/(\d+(?:\.\d+)?)/);
     if(!m) return _ptInfoSize;
     const n = parseFloat(m[1]);
-    return (n - 1) + 'px';
+    return (n - 2) + 'px';  // Sex/Age أصغر بدرجتين
   })();
 
   // أنماط مستطيلات اليسار (Name, Sex/Age, Doctor) — تتمدد سوياً، ارتفاع مضغوط
@@ -16405,39 +16405,85 @@ function generateToken(){
 }
 
 // تسجيل جهاز جديد في Firebase
-// يرجع true إذا نجح، false إذا وصل الحد الأقصى
+// ⭐ يقرأ الحد لكل مستخدم من admin/users/{username}/maxDevices (افتراضي: 1)
+// يرجع {ok:true} إذا نجح، {ok:false, reason} إذا وصل الحد الأقصى
 function assignDeviceToken(username){
   return new Promise(resolve => {
     const myToken    = generateToken();
     const myDeviceId = _getDeviceId();
     sessionStorage.setItem('medlab_my_token', myToken);
 
-    // بدون إنترنت أو Firebase — اسمح بالدخول مباشرة
+    // بدون إنترنت أو Firebase — اسمح بالدخول إذا الجهاز مسجّل محلياً سابقاً
+    // هذا يضمن: أول دخول يحتاج نت، لكن بعدها يعمل offline
     if(!navigator.onLine || !fbReady || !fbDb){
-      resolve(true);
+      // تحقق: هل سبق هذا الجهاز أن سُجّل لهذا المستخدم؟
+      const localKey = 'medlab_device_registered_' + username;
+      if(localStorage.getItem(localKey) === '1'){
+        resolve({ok:true, offline:true});
+      } else {
+        resolve({ok:false, reason:'first_login_needs_internet'});
+      }
       return;
     }
 
-    const ref = fbDb.ref('sessions/' + username);
-    // timeout 4 ثواني — إذا تأخر Firebase نسمح بالدخول
-    const t = setTimeout(()=>resolve(true), 4000);
+    // ⭐ اقرأ الحد المسموح لهذا المستخدم
+    fbDb.ref('admin/users/' + username + '/maxDevices').once('value').then(snap => {
+      let userMax = snap.val();
+      if(typeof userMax !== 'number' || userMax < 1) userMax = 1; // افتراضي: جهاز واحد فقط
 
-    ref.transaction(current => {
-      const devices = current || {};
-      const ids = Object.keys(devices);
-      if(devices[myDeviceId]){
-        devices[myDeviceId] = { token:myToken, ts:Date.now() };
-        return devices;
-      }
-      if(ids.length < MAX_DEVICES){
-        devices[myDeviceId] = { token:myToken, ts:Date.now() };
-        return devices;
-      }
-      return; // abort — حد الأجهزة
-    }).then(result => {
-      clearTimeout(t);
-      resolve(result.committed);
-    }).catch(()=>{ clearTimeout(t); resolve(true); });
+      const ref = fbDb.ref('sessions/' + username);
+      const t = setTimeout(()=>resolve({ok:true, timeout:true}), 4000);
+
+      ref.transaction(current => {
+        const devices = current || {};
+        const ids = Object.keys(devices);
+        // الجهاز مسجّل سابقاً → جدّد الـ token
+        if(devices[myDeviceId]){
+          devices[myDeviceId] = { token:myToken, ts:Date.now() };
+          return devices;
+        }
+        // جهاز جديد، الحد لم يُستنفد بعد → سجّل
+        if(ids.length < userMax){
+          devices[myDeviceId] = { token:myToken, ts:Date.now() };
+          return devices;
+        }
+        return; // abort — وصل الحد الأقصى
+      }).then(result => {
+        clearTimeout(t);
+        if(result.committed){
+          // علِّم محلياً أن هذا الجهاز مُسجَّل (لأجل الـ offline check)
+          try{ localStorage.setItem('medlab_device_registered_' + username, '1'); }catch(e){}
+          resolve({ok:true});
+        } else {
+          resolve({ok:false, reason:'max_devices', max:userMax});
+        }
+      }).catch(()=>{
+        clearTimeout(t);
+        resolve({ok:true, error:true}); // عند خطأ في القراءة، اسمح بالدخول
+      });
+    }).catch(()=>{
+      // فشل قراءة الحد — fallback إلى السلوك القديم (افتراضي 1)
+      const ref = fbDb.ref('sessions/' + username);
+      ref.transaction(current => {
+        const devices = current || {};
+        if(devices[myDeviceId]){
+          devices[myDeviceId] = { token:myToken, ts:Date.now() };
+          return devices;
+        }
+        if(Object.keys(devices).length < 1){
+          devices[myDeviceId] = { token:myToken, ts:Date.now() };
+          return devices;
+        }
+        return;
+      }).then(result => {
+        if(result.committed){
+          try{ localStorage.setItem('medlab_device_registered_' + username, '1'); }catch(e){}
+          resolve({ok:true});
+        } else {
+          resolve({ok:false, reason:'max_devices', max:1});
+        }
+      }).catch(()=>resolve({ok:true, error:true}));
+    });
   });
 }
 
@@ -16962,7 +17008,40 @@ function _finalizeLogin(uname, user){
     }, 500);
     setTimeout(()=>{
       try{ updateLabDirectoryOnLogin(uname); }catch(e){}
-      try{ assignDeviceToken(uname).then(()=>startDeviceCheckLoop(uname)).catch(()=>{}); }catch(e){}
+      // ⭐ تحقق من حد الأجهزة — إذا فشل، اطرد المستخدم برسالة مناسبة
+      try{
+        assignDeviceToken(uname).then(result => {
+          if(result && result.ok === false){
+            // فشل — اعرض رسالة وامنع الدخول
+            let msg = '';
+            if(result.reason === 'first_login_needs_internet'){
+              msg = '🌐 أول تسجيل دخول لهذا الحساب يتطلب اتصالاً بالإنترنت.\nيرجى الاتصال بالإنترنت ثم المحاولة مرة أخرى.';
+            } else if(result.reason === 'max_devices'){
+              const maxN = result.max || 1;
+              msg = '🔒 هذا الحساب مفتوح بالفعل على ' + maxN + ' ' + (maxN===1?'جهاز':'أجهزة') + '.\nلفتحه على هذا الجهاز، يرجى التواصل مع الدعم.';
+            } else {
+              msg = '🔒 تعذّر تسجيل الجهاز. يرجى التواصل مع الدعم.';
+            }
+            // نفّذ الإخراج بعد عرض الرسالة
+            setTimeout(()=>{
+              try{ _forceLogout(msg); }catch(e){
+                alert(msg);
+                try{ clearSession(); }catch(_){}
+                try{ sessionStorage.removeItem('medlab_my_token'); }catch(_){}
+                location.reload();
+              }
+            }, 100);
+          } else {
+            // نجح — ابدأ مراقبة الجلسة
+            startDeviceCheckLoop(uname);
+          }
+        }).catch(()=>{
+          // عند خطأ غير متوقع، السلوك الآمن: ابدأ المراقبة (لا نمنع المستخدم)
+          try{ startDeviceCheckLoop(uname); }catch(e){}
+        });
+      }catch(e){
+        try{ startDeviceCheckLoop(uname); }catch(_){}
+      }
     }, 1000);
   }
   loadFirebase().then(ok=>{
@@ -20589,7 +20668,7 @@ function _buildCultureHTML(cid){
     const m = String(_ptfs2).match(/(\d+(?:\.\d+)?)/);
     if(!m) return _ptfs2;
     const n = parseFloat(m[1]);
-    return (n - 1) + 'px';
+    return (n - 2) + 'px';  // Sex/Age أصغر بدرجتين
   })();
   const _ptInfoWt2 = s.fontWeight || '800';
   // ⭐ بنية جديدة: اليسار يتمدد، الوسط = العنوان (Culture & Sensitivity)، اليمين ثابت
@@ -21203,7 +21282,7 @@ function _buildUAPrintHTML(r){
     const m = String(_ptfs2).match(/(\d+(?:\.\d+)?)/);
     if(!m) return _ptfs2;
     const n = parseFloat(m[1]);
-    return (n - 1) + 'px';
+    return (n - 2) + 'px';  // Sex/Age أصغر بدرجتين
   })();
   const _ptInfoWt2 = s.fontWeight || '800';
   // ⭐ بنية جديدة: اليسار يتمدد، اليمين بعرض ثابت = عرض الباركود
@@ -21720,7 +21799,7 @@ function _buildStoolPrintHTML(r){
     const m = String(_ptfs2).match(/(\d+(?:\.\d+)?)/);
     if(!m) return _ptfs2;
     const n = parseFloat(m[1]);
-    return (n - 1) + 'px';
+    return (n - 2) + 'px';  // Sex/Age أصغر بدرجتين
   })();
   const _ptInfoWt2 = s.fontWeight || '800';
   // ⭐ بنية جديدة: اليسار يتمدد، اليمين ثابت = عرض الباركود
@@ -22911,7 +22990,7 @@ function _buildSemenPrintHTML(r){
   const _ptInfoSizeSA2 = (function(){
     const m = String(_ptfs2).match(/(\d+(?:\.\d+)?)/);
     if(!m) return _ptfs2;
-    return (parseFloat(m[1]) - 2) + 'px';  // أقل بدرجتين عن الأصل (= أقل بدرجة من _ptInfoSize2)
+    return (parseFloat(m[1]) - 3) + 'px';  // أقل بدرجتين عن Name (3 درجات عن الأصل)
   })();
   const _ptInfoWt2 = s.fontWeight || '800';
   // ⭐ السائل المنوي: الحجم أقل بدرجة عن الإعدادات (لضمان الورقة الواحدة)
