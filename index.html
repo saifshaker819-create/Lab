@@ -1443,9 +1443,8 @@ body.light-mode .lang-toggle-btn.lang-en{background:rgba(85,0,187,0.1);border-co
 .notif h4{font-size:11px;font-weight:700;}
 .notif p{font-size:11px;color:var(--text2);margin-top:1px;}
 .pt-bar{background:linear-gradient(135deg,rgba(0,212,255,0.07),rgba(123,47,255,0.05));border:1px solid var(--border);border-radius:11px;padding:12px 16px;display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:18px;}
-.pt-bar-item{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;}
-.pt-bar-item label{font-size:11px;color:var(--text2);display:block;text-align:center;width:100%;}
-.pt-bar-item span{font-size:11px;font-weight:700;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center;width:100%;}
+.pt-bar-item label{font-size:11px;color:var(--text2);display:block;}
+.pt-bar-item span{font-size:11px;font-weight:700;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 /* IMPROVED TESTS SELECTOR */
 .test-search-big{width:100%;background:rgba(255,255,255,0.06);border:2px solid var(--primary);border-radius:10px;padding:12px 16px 12px 44px;color:var(--text);font-family:'Cairo',sans-serif;font-size:11px;outline:none;transition:all 0.2s;margin-bottom:12px;}
 .test-search-big:focus{background:rgba(0,212,255,0.08);box-shadow:0 0 20px rgba(0,212,255,0.18);}
@@ -2260,7 +2259,7 @@ select.fc:focus{outline:none;}
   border-radius:12px;
   padding:12px 18px;
 }
-.pt-bar-item span{font-size:12px;font-weight:800;text-align:center;}
+.pt-bar-item span{font-size:12px;font-weight:800;}
 
 /* scrollbar أجمل */
 ::-webkit-scrollbar{width:5px;height:5px;}
@@ -10030,16 +10029,16 @@ function loadResultEntry(){
   const pt=patients.find(p=>p.id===req.patientId)||{};
   bar.style.display='grid';
   bar.innerHTML=`
-    <div class="pt-bar-item"><label>المريض</label><span style="font-size:16px;font-weight:900;font-family:'Cairo',sans-serif;direction:rtl;text-align:center;color:var(--color-name,var(--primary));display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${req.patientName}</span></div>
+    <div class="pt-bar-item"><label>المريض</label><span style="font-size:20px;font-weight:900;font-family:'Cairo',sans-serif;direction:rtl;text-align:right;color:var(--color-name,var(--primary));display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${req.patientName}</span></div>
     <div class="pt-bar-item"><label>رقم الملف</label><span>${pt.id||'-'}</span></div>
-    <div class="pt-bar-item"><label>العمر</label><span style="font-size:16px;font-weight:900;font-family:'Cairo',sans-serif;direction:rtl;text-align:center;display:block">${pt.ageDisplay||calcAgeFromInput(pt.dob,pt.age)}</span></div>
+    <div class="pt-bar-item"><label>العمر</label><span style="font-size:20px;font-weight:900;font-family:'Cairo',sans-serif;direction:rtl;text-align:right;display:block">${pt.ageDisplay||calcAgeFromInput(pt.dob,pt.age)}</span></div>
     <div class="pt-bar-item"><label>الطبيب</label>
-      <select id="res-doctor-sel" style="font-size:13px;font-weight:800;font-family:'Cairo',sans-serif;direction:rtl;background:transparent;border:none;color:var(--color-name,var(--primary));width:100%;cursor:pointer;outline:none;text-align:center" onchange="resUpdateDoctor(this)">
+      <select id="res-doctor-sel" style="font-size:13px;font-weight:800;font-family:'Cairo',sans-serif;direction:rtl;background:transparent;border:none;color:var(--color-name,var(--primary));width:100%;cursor:pointer;outline:none" onchange="resUpdateDoctor(this)">
         <option value="">— اختر —</option>
         ${doctors.map(d=>`<option value="${d.id}" ${req.doctorId===d.id?'selected':''}>${d.name}</option>`).join('')}
         <option value="__manual__" ${req.doctorName&&!doctors.find(d=>d.id===req.doctorId)?'selected':''}>✏️ يدوي</option>
       </select>
-      <input id="res-doctor-manual" style="font-size:12px;width:100%;background:transparent;border:none;border-bottom:1px dashed var(--primary);color:var(--text);outline:none;display:${req.doctorName&&!doctors.find(d=>d.id===req.doctorId)?'block':'none'};margin-top:2px;text-align:center" value="${req.doctorName&&!doctors.find(d=>d.id===req.doctorId)?req.doctorName:''}" placeholder="اسم الطبيب" onchange="resUpdateDoctorManual(this)">
+      <input id="res-doctor-manual" style="font-size:12px;width:100%;background:transparent;border:none;border-bottom:1px dashed var(--primary);color:var(--text);outline:none;display:${req.doctorName&&!doctors.find(d=>d.id===req.doctorId)?'block':'none'};margin-top:2px" value="${req.doctorName&&!doctors.find(d=>d.id===req.doctorId)?req.doctorName:''}" placeholder="اسم الطبيب" onchange="resUpdateDoctorManual(this)">
     </div>
     <div class="pt-bar-item"><label>العينة</label><span>${req.sample}</span></div>`;
   area.style.display='block';
@@ -12018,8 +12017,9 @@ function buildPrintHTML(req, opts){
 
   // أنماط مستطيلات اليسار (Name, Sex/Age, Doctor) — تتمدد سوياً، ارتفاع مضغوط
   const LBL_L = `font-size:9px;font-weight:800;color:#555;text-transform:uppercase;letter-spacing:0.6px;white-space:nowrap;width:48px;flex-shrink:0`;
-  // padding:1px 7px (بدلاً من 3px) → ارتفاع المستطيل ملاصق للنص
-  const BOX_L = (color,rtl)=>`flex:1;border:1.5px solid #bbb;border-radius:3px;background:#fff;padding:1px 7px;font-size:${_ptInfoSize};font-weight:${_ptInfoWt};color:${color||'#000'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block${rtl?';direction:rtl;text-align:right':''}`;
+  // padding:1px 7px → ارتفاع المستطيل ملاصق للنص
+  // text-align:center → النص في وسط المستطيل (أنيق ومرتب)
+  const BOX_L = (color,rtl)=>`flex:1;border:1.5px solid #bbb;border-radius:3px;background:#fff;padding:1px 7px;font-size:${_ptInfoSize};font-weight:${_ptInfoWt};color:${color||'#000'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;text-align:center${rtl?';direction:rtl':''}`;
   const rowL = (lbl,val,color,rtl)=>`<div style="display:flex;align-items:center;gap:5px;margin-bottom:3px"><span style="${LBL_L}">${lbl}</span><span style="${BOX_L(color,rtl)}">${val}</span></div>`;
 
   // أنماط مستطيلات اليمين (ID, Input, Print) — أصغر، عرض كامل (= عرض الباركود)
@@ -19099,24 +19099,6 @@ function updateHdrTextPreview(){
   content.innerHTML=hdrHTML+ftrHTML;
 }
 
-// ── شريط بيانات المريض في النوافذ المنبثقة ─────────────────────────────
-function _buildModalPtBar(pt, req){
-  if(!pt&&!req) return '';
-  const name   = (pt&&pt.name)||(req&&req.patientName)||'';
-  const fileNo = (pt&&pt.id)||(req&&req.patientId)||'—';
-  const age    = (pt&&(pt.ageDisplay||calcAgeFromInput(pt.dob,pt.age)))||(req&&req.ageDisplay)||'—';
-  const gender = (pt&&pt.gender)==='female'?'أنثى':(pt&&pt.gender)==='male'?'ذكر':'—';
-  const doctor = (pt&&pt.doctorName)||(req&&req.doctorName)||'—';
-  if(!name) return '';
-  return `<div class="pt-bar" style="margin-bottom:14px;grid-template-columns:repeat(5,1fr)">
-    <div class="pt-bar-item"><label>المريض</label><span style="color:var(--color-name,var(--primary));font-weight:900;font-size:13px">${name}</span></div>
-    <div class="pt-bar-item"><label>رقم الملف</label><span>${fileNo}</span></div>
-    <div class="pt-bar-item"><label>العمر</label><span>${age}</span></div>
-    <div class="pt-bar-item"><label>الجنس</label><span>${gender}</span></div>
-    <div class="pt-bar-item"><label>الطبيب</label><span>${doctor}</span></div>
-  </div>`;
-}
-
 // ── بناء رأس HTML النصي للطباعة ─────────────────────────────
 function buildTextHeader(s){
   const h=s.hdrText||{};
@@ -19826,10 +19808,8 @@ function openEditCultureModal(cid){
 function _buildCultureModalBody(c){
   const today = new Date().toISOString().split('T')[0];
   const body = document.getElementById('culture-modal-body'); if(!body) return;
-  const pt = c ? (patients.find(p=>p.id===c.patientId)||null) : null;
-  const ptBarHTML = _buildModalPtBar(pt, c);
 
-  body.innerHTML = `${ptBarHTML}
+  body.innerHTML = `
   <!-- الخطوة 1: معلومات الزرع -->
   <div style="background:rgba(0,212,255,0.04);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:14px">
     <div style="font-size:12px;font-weight:800;color:var(--primary);margin-bottom:10px">① معلومات الطلب</div>
@@ -20579,44 +20559,39 @@ function _buildCultureHTML(cid){
   else if(s.footer) ftrHTML=`<div style="padding:4px 16px;font-size:12px;color:#555;border-top:1px solid ${color};text-align:center">${s.footer}</div>`;
 
   // ─── Patient info — same style as regular test print ───────────
-  const _cultBarcodeId=(pt.barcode||(pt.id||c.patientId||'').replace(/[^A-Z0-9]/gi,'').toUpperCase().substring(0,12))||'00000000';
-  function _cultBarcode128(text){
-    const C128={chars:' !"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~',widths:[[2,1,2,2,2,2],[2,2,2,1,2,2],[2,2,2,2,2,1],[1,2,1,2,2,3],[1,2,1,3,2,2],[1,3,1,2,2,2],[1,2,2,2,1,3],[1,2,2,3,1,2],[1,3,2,2,1,2],[2,2,1,2,1,3],[2,2,1,3,1,2],[2,3,1,2,1,2],[1,1,2,2,3,2],[1,2,2,1,3,2],[1,2,2,2,3,1],[1,1,3,2,2,2],[1,2,3,1,2,2],[1,2,3,2,2,1],[2,2,3,2,1,1],[2,2,1,1,3,2],[2,2,1,2,3,1],[2,1,3,2,1,2],[2,2,3,1,1,2],[3,1,2,1,3,1],[3,1,1,2,2,2],[3,2,1,1,2,2],[3,2,1,2,2,1],[3,1,2,2,1,2],[3,2,2,1,1,2],[3,2,2,2,1,1],[2,1,2,4,1,1],[2,1,4,2,1,1],[4,1,2,2,1,1],[4,1,1,1,4,1],[1,1,4,2,2,1],[2,1,1,1,4,2],[2,1,1,4,1,2],[2,4,1,2,1,1],[4,1,1,2,1,2],[1,2,4,1,1,2],[1,4,1,4,1,1],[2,2,1,4,1,1],[4,4,1,1,1,1],[1,1,2,3,2,2],[1,2,2,3,2,1],[2,2,2,3,1,1],[1,1,3,2,3,1],[2,1,1,4,2,1],[1,4,2,1,2,1],[2,1,4,1,1,3],[1,3,2,3,1,1],[2,1,1,1,1,5],[2,1,1,5,1,1],[5,1,1,2,1,1],[2,1,5,1,1,2],[2,1,3,1,3,1],[2,3,1,1,3,1],[1,3,1,3,2,1],[1,4,2,2,1,1],[1,2,2,4,1,1],[1,2,4,1,2,1],[1,4,1,2,2,1],[2,1,4,4,1,1],[3,1,2,1,1,3],[3,1,1,1,2,3],[3,3,1,1,2,1],[3,1,2,3,1,1],[2,1,1,3,3,1],[1,1,2,2,1,4],[1,2,1,1,4,2],[1,2,1,4,1,2],[1,4,1,1,2,2],[3,1,1,2,4,1],[1,3,2,1,4,1],[2,3,1,2,3,1],[1,4,2,1,1,3],[4,1,4,1,1,2],[2,1,1,1,3,4],[3,1,4,1,2,1],[1,1,4,2,1,3],[1,4,4,1,1,2],[3,3,1,2,1,2],[3,1,1,4,2,1],[2,1,2,2,4,1],[2,1,4,2,2,1],[4,2,1,2,1,2],[2,4,2,2,1,1],[1,3,4,1,1,2],[2,3,4,1,1,1],[1,2,4,2,2,1],[3,2,4,1,1,1],[4,2,4,1,1,1],[2,2,1,1,1,5],[2,1,1,2,1,5],[3,2,1,1,1,4],[2,2,1,2,3,2],[2,2,3,2,1,2],[2,2,1,1,4,2],[2,2,3,1,2,2],[2,1,4,1,3,1],[4,2,1,1,3,1],[1,1,2,4,2,2],[1,2,2,4,2,1],[1,2,4,4,1,1],[1,4,4,2,1,1],[4,2,2,1,1,2],[4,2,2,2,1,1],[4,1,2,1,2,2],[1,2,4,1,3,1],[4,1,2,2,2,1],[1,1,1,1,4,3],[1,1,1,3,4,1],[1,3,1,1,4,1],[1,1,4,1,1,3],[1,1,4,3,1,1],[4,1,1,1,1,3],[4,1,1,3,1,1],[1,1,3,1,4,1],[1,1,4,1,3,1],[3,1,1,1,4,1],[4,1,1,1,3,1],[2,1,1,4,1,2],[2,1,1,2,1,4],[2,1,1,2,3,2]]};
-    const START_B=104,STOP=[2,3,3,1,1,1,2];let codes=[START_B];let check=START_B;
-    for(let i=0;i<text.length;i++){const idx=C128.chars.indexOf(text[i]);if(idx<0)continue;codes.push(idx);check+=(i+1)*idx;}
-    codes.push(check%103);let bars=[];codes.forEach(cd=>{C128.widths[cd].forEach((w,i)=>bars.push({w,dark:i%2===0}));});
-    STOP.forEach((w,i)=>bars.push({w,dark:i%2===0}));bars.push({w:2,dark:false});
-    const h=38,totalW=bars.reduce((s,b)=>s+b.w*2,0);let x=0,rects='';
-    bars.forEach(b=>{if(b.dark)rects+=`<rect x="${x}" y="0" width="${b.w*2}" height="${h}" fill="#000"/>`;x+=b.w*2;});
-    return `<svg xmlns="http://www.w3.org/2000/svg" width="${totalW}" height="${h}" viewBox="0 0 ${totalW} ${h}" style="display:block">${rects}</svg>`;
-  }
-  const _cultBarcodeSvg=_cultBarcode128(_cultBarcodeId);
-  const _cultPrintTime=new Date().toLocaleString('en-GB',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
-  const _cLBL_L=`font-size:9px;font-weight:800;color:#555;text-transform:uppercase;letter-spacing:0.6px;white-space:nowrap;width:48px;flex-shrink:0`;
-  const _cBOX_L=(clr,rtl)=>`flex:1;border:1.5px solid #bbb;border-radius:3px;background:#fff;padding:1px 7px;font-size:16px;font-weight:900;color:${clr||'#000'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block${rtl?';direction:rtl;text-align:right':''}`;
-  const _cRowL=(lbl,val,clr,rtl)=>`<div style="display:flex;align-items:center;gap:5px;margin-bottom:3px"><span style="${_cLBL_L}">${lbl}</span><span style="${_cBOX_L(clr,rtl)}">${val}</span></div>`;
-  const _cLBL_R=`font-size:8px;font-weight:800;color:#555;text-transform:uppercase;letter-spacing:0.5px;white-space:nowrap;width:36px;flex-shrink:0`;
-  const _cBOX_R=`flex:1;border:1.5px solid #bbb;border-radius:3px;background:#fff;padding:1px 6px;font-size:13px;font-weight:700;color:#000;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block`;
-  const _cRowR=(lbl,val)=>`<div style="display:flex;align-items:center;gap:4px;margin-bottom:2px"><span style="${_cLBL_R}">${lbl}</span><span style="${_cBOX_R}">${val}</span></div>`;
-  const _cGenderTxt=(pt.gender==='female'?'Female':'Male');
+  const COL_W='200px';
+  const LBL=`font-size:9px;font-weight:800;color:#555;text-transform:uppercase;letter-spacing:0.6px;white-space:nowrap;width:52px;flex-shrink:0`;
+  const BOX_NAME=(clr,rtl)=>`min-width:${COL_W};border:1.5px solid #bbb;border-radius:3px;background:#fff;padding:3px 7px;font-size:17px;font-weight:900;color:${clr||'#000'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block${rtl?';direction:rtl;text-align:right':''}`;
+  const BOX_INFO=(clr,rtl)=>`min-width:${COL_W};border:1.5px solid #bbb;border-radius:3px;background:#fff;padding:3px 7px;font-size:14px;font-weight:400;color:${clr||'#000'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block${rtl?';direction:rtl;text-align:right':''}`;
+  const BOX_SM=(clr)=>`min-width:${COL_W};border:1.5px solid #bbb;border-radius:3px;background:#fff;padding:3px 7px;font-size:13px;font-weight:700;color:${clr||'#000'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block`;
+  const rowN=(lbl,val,clr,rtl)=>`<div style="display:flex;align-items:center;gap:5px;margin-bottom:5px"><span style="${LBL}">${lbl}</span><span style="${BOX_NAME(clr,rtl)}">${val}</span></div>`;
+  const rowI=(lbl,val,clr,rtl)=>`<div style="display:flex;align-items:center;gap:5px;margin-bottom:5px"><span style="${LBL}">${lbl}</span><span style="${BOX_INFO(clr,rtl)}">${val}</span></div>`;
+  const rowS=(lbl,val)=>`<div style="display:flex;align-items:center;gap:5px;margin-bottom:4px"><span style="${LBL}">${lbl}</span><span style="${BOX_SM()}">${val}</span></div>`;
+
+  // ⭐ بنية جديدة: اليسار يتمدد، الوسط = العنوان (Culture & Sensitivity)، اليمين ثابت
+  const _cuBL=(clr,rtl)=>`flex:1;border:1.5px solid #bbb;border-radius:3px;background:#fff;padding:1px 7px;font-size:15px;font-weight:800;color:${clr||'#000'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;text-align:center${rtl?';direction:rtl':''}`;
+  const _cuRL=(lbl,val,clr,rtl)=>`<div style="display:flex;align-items:center;gap:5px;margin-bottom:3px"><span style="${LBL}">${lbl}</span><span style="${_cuBL(clr,rtl)}">${val}</span></div>`;
+  const _cuLBLR=`font-size:8px;font-weight:800;color:#555;text-transform:uppercase;letter-spacing:0.5px;white-space:nowrap;width:54px;flex-shrink:0`;
+  const _cuBR=(clr)=>`flex:1;border:1.5px solid #bbb;border-radius:3px;background:#fff;padding:1px 6px;font-size:13px;font-weight:700;color:${clr||'#000'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block`;
+  const _cuRR=(lbl,val)=>`<div style="display:flex;align-items:center;gap:4px;margin-bottom:2px"><span style="${_cuLBLR}">${lbl}</span><span style="${_cuBR('#000')}">${val}</span></div>`;
 
   const ptBox=`
   <div style="margin:4px 6px 2px;direction:ltr">
     <div style="display:flex;align-items:flex-start;gap:10px">
       <div style="flex:1;min-width:0;display:flex;flex-direction:column">
-        ${_cRowL('Name', pt.name||c.patientName||'—', nameColor, true)}
-        ${_cRowL('Sex/Age', _cGenderTxt+' / '+(ageDisplay||'—'), '#000', false)}
-        ${_cRowL('Doctor', drName||'—', doctorColor, true)}
+        ${_cuRL('Name', pt.name, nameColor, true)}
+        ${_cuRL('Sex/Age', (pt.gender==='female'?'Female':'Male')+' / '+(ageDisplay||'—'), '#000', false)}
+        ${_cuRL('Doctor', drName||'—', doctorColor, true)}
       </div>
-      <div style="flex:0 0 auto;display:flex;flex-direction:column;align-items:stretch">
-        <div style="text-align:right;margin-bottom:3px">
-          ${_cultBarcodeSvg}
-          <div style="font-size:8px;font-weight:900;color:#000;letter-spacing:2px;font-family:'Courier New',monospace;text-align:center;line-height:1">${_cultBarcodeId}</div>
+      <div style="flex:0 0 auto;display:flex;flex-direction:column;align-items:stretch;min-width:200px">
+        <div style="text-align:center;margin-bottom:3px;font-size:11px;font-weight:700;color:#555;font-family:Arial,sans-serif">
+          &#129440; CULTURE &amp; SENSITIVITY
+          <div style="font-size:13px;font-weight:900;color:${color};margin-top:1px;font-family:Arial,sans-serif">${ct.en}</div>
         </div>
         <div style="display:flex;flex-direction:column">
-          ${_cRowR('ID', pt.id||'—')}
-          ${_cRowR('Date', c.date||'—')}
-          ${_cRowR('Print', _cultPrintTime)}
+          ${_cuRR('ID', pt.id||'—')}
+          ${_cuRR('Date', c.date)}
+          ${_cuRR('Specimen', c.specimenDetail||ct.en)}
         </div>
       </div>
     </div>
@@ -20918,9 +20893,7 @@ function _buildUAModalBody(r, req){
   const ptName=r?r.patientName:(req?req.patientName:'');
   const ptId=r?r.patientId:(req?req.patientId:'');
   const reqDate=r?r.date:(req?req.date:today);
-  const pt=patients.find(p=>p.id===(r?r.patientId:(req?req.patientId:'')))||null;
-  const ptBarHTML = _buildModalPtBar(pt, req||r);
-  let html=`${ptBarHTML}
+  let html=`
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;background:rgba(0,212,255,0.04);border:1px solid var(--border);border-radius:10px;padding:14px">
     <div class="fg" style="margin-bottom:0">
       <label class="fl">المريض</label>
@@ -21190,32 +21163,38 @@ function _buildUAPrintHTML(r){
     return `<svg xmlns="http://www.w3.org/2000/svg" width="${totalW}" height="${h}" viewBox="0 0 ${totalW} ${h}" style="display:block">${rects}</svg>`;
   }
   const barcodeSvg=_uaBarcode128(barcodeId);
-  const _uaLBL_L=`font-size:9px;font-weight:800;color:#555;text-transform:uppercase;letter-spacing:0.6px;white-space:nowrap;width:48px;flex-shrink:0`;
-  const _uaBOX_L=(c,rtl)=>`flex:1;border:1.5px solid #bbb;border-radius:3px;background:#fff;padding:1px 7px;font-size:16px;font-weight:900;color:${c||'#000'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block${rtl?';direction:rtl;text-align:right':''}`;
-  const _uaRowL=(lbl,val,c,rtl)=>`<div style="display:flex;align-items:center;gap:5px;margin-bottom:3px"><span style="${_uaLBL_L}">${lbl}</span><span style="${_uaBOX_L(c,rtl)}">${val}</span></div>`;
-  const _uaLBL_R=`font-size:8px;font-weight:800;color:#555;text-transform:uppercase;letter-spacing:0.5px;white-space:nowrap;width:36px;flex-shrink:0`;
-  const _uaBOX_R=`flex:1;border:1.5px solid #bbb;border-radius:3px;background:#fff;padding:1px 6px;font-size:13px;font-weight:700;color:#000;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block`;
-  const _uaRowR=(lbl,val)=>`<div style="display:flex;align-items:center;gap:4px;margin-bottom:2px"><span style="${_uaLBL_R}">${lbl}</span><span style="${_uaBOX_R}">${val}</span></div>`;
-  const uaPtBox=`<div style="margin:3px 0;direction:ltr">
-    <div style="display:flex;align-items:flex-start;gap:10px">
-      <div style="flex:1;min-width:0;display:flex;flex-direction:column">
-        ${_uaRowL('Name',ptFullName,nameColor,true)}
-        ${_uaRowL('Sex/Age',genderTxt+' / '+ageTxt,'#000',false)}
-        ${_uaRowL('Doctor',drName||'—',doctorColor,true)}
+  const COL_W='190px';
+  const LBL=`font-size:9px;font-weight:800;color:#555;text-transform:uppercase;letter-spacing:0.6px;white-space:nowrap;width:48px;flex-shrink:0`;
+  const BOX_NAME=(c,rtl)=>`min-width:${COL_W};border:1.5px solid #bbb;border-radius:3px;background:#fff;padding:3px 7px;font-size:16px;font-weight:900;color:${c||'#000'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block${rtl?';direction:rtl;text-align:right':''}`;
+  const BOX_SMALL=(c,rtl)=>`min-width:${COL_W};border:1.5px solid #bbb;border-radius:3px;background:#fff;padding:3px 7px;font-size:12px;font-weight:700;color:${c||'#000'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block${rtl?';direction:rtl;text-align:right':''}`;
+  const rowN=(lbl,val,c,rtl)=>`<div style="display:flex;align-items:center;gap:5px;margin-bottom:5px"><span style="${LBL}">${lbl}</span><span style="${BOX_NAME(c,rtl)}">${val}</span></div>`;
+  const rowS=(lbl,val,c,rtl)=>`<div style="display:flex;align-items:center;gap:5px;margin-bottom:4px"><span style="${LBL}">${lbl}</span><span style="${BOX_SMALL(c,rtl)}">${val}</span></div>`;
+  // ⭐ بنية جديدة: اليسار يتمدد، اليمين بعرض ثابت = عرض الباركود (ملاصق للحافة اليمنى)
+  // مستطيلات اليسار بنص متوسط، مستطيلات اليمين أصغر (ID/Date/Print)
+  const _uaBL=(c,rtl)=>`flex:1;border:1.5px solid #bbb;border-radius:3px;background:#fff;padding:1px 7px;font-size:15px;font-weight:800;color:${c||'#000'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;text-align:center${rtl?';direction:rtl':''}`;
+  const _uaRL=(lbl,val,c,rtl)=>`<div style="display:flex;align-items:center;gap:5px;margin-bottom:3px"><span style="${LBL}">${lbl}</span><span style="${_uaBL(c,rtl)}">${val}</span></div>`;
+  const _uaLBLR=`font-size:8px;font-weight:800;color:#555;text-transform:uppercase;letter-spacing:0.5px;white-space:nowrap;width:36px;flex-shrink:0`;
+  const _uaBR=(c)=>`flex:1;border:1.5px solid #bbb;border-radius:3px;background:#fff;padding:1px 6px;font-size:13px;font-weight:700;color:${c||'#000'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block`;
+  const _uaRR=(lbl,val)=>`<div style="display:flex;align-items:center;gap:4px;margin-bottom:2px"><span style="${_uaLBLR}">${lbl}</span><span style="${_uaBR('#000')}">${val}</span></div>`;
+
+  const uaPtBox=`<div style="margin:3px 0;direction:ltr"><div style="display:flex;align-items:flex-start;gap:10px">
+    <div style="flex:1;min-width:0;display:flex;flex-direction:column">
+      ${_uaRL('Name',ptFullName,nameColor,true)}
+      ${_uaRL('Sex/Age',genderTxt+' / '+ageTxt,'#000',false)}
+      ${_uaRL('Doctor',drName||'—',doctorColor,true)}
+    </div>
+    <div style="flex:0 0 auto;display:flex;flex-direction:column;align-items:stretch">
+      <div style="text-align:right;margin-bottom:3px">
+        ${barcodeSvg}
+        <div style="font-size:8px;font-weight:900;color:#000;letter-spacing:2px;font-family:'Courier New',monospace;text-align:center;line-height:1">${barcodeId}</div>
       </div>
-      <div style="flex:0 0 auto;display:flex;flex-direction:column;align-items:stretch">
-        <div style="text-align:right;margin-bottom:3px">
-          ${barcodeSvg}
-          <div style="font-size:8px;font-weight:900;color:#000;letter-spacing:2px;font-family:'Courier New',monospace;text-align:center;line-height:1">${barcodeId}</div>
-        </div>
-        <div style="display:flex;flex-direction:column">
-          ${_uaRowR('ID',pt.id||r.patientId||'—')}
-          ${_uaRowR('Date',r.date||'—')}
-          ${_uaRowR('Print',printTime)}
-        </div>
+      <div style="display:flex;flex-direction:column">
+        ${_uaRR('ID',pt.id||r.patientId||'—')}
+        ${_uaRR('Date',r.date||'—')}
+        ${_uaRR('Print',printTime)}
       </div>
     </div>
-  </div>`;
+  </div></div>`;
 
   return `<!DOCTYPE html><html><head><meta charset="UTF-8"><style>
     *{margin:0;padding:0;box-sizing:border-box;}
@@ -21429,9 +21408,7 @@ function _buildStoolModalBody(r, req){
   const ptName=r?r.patientName:(req?req.patientName:'');
   const ptId=r?r.patientId:(req?req.patientId:'');
   const reqDate=r?r.date:(req?req.date:today);
-  const pt=patients.find(p=>p.id===(r?r.patientId:(req?req.patientId:'')))||null;
-  const ptBarHTML = _buildModalPtBar(pt, req||r);
-  let html=`${ptBarHTML}
+  let html=`
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;background:rgba(0,212,255,0.04);border:1px solid var(--border);border-radius:10px;padding:14px">
     <div class="fg" style="margin-bottom:0">
       <label class="fl">المريض</label>
@@ -21691,32 +21668,37 @@ function _buildStoolPrintHTML(r){
     return `<svg xmlns="http://www.w3.org/2000/svg" width="${totalW}" height="${h}" viewBox="0 0 ${totalW} ${h}" style="display:block">${rects}</svg>`;
   }
   const _sBarcodeSvg=_stoolBarcode128(_sBarcodeId);
-  const _sLBL_L=`font-size:9px;font-weight:800;color:#555;text-transform:uppercase;letter-spacing:0.6px;white-space:nowrap;width:48px;flex-shrink:0`;
-  const _sBOX_L=(c,rtl)=>`flex:1;border:1.5px solid #bbb;border-radius:3px;background:#fff;padding:1px 7px;font-size:16px;font-weight:900;color:${c||'#000'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block${rtl?';direction:rtl;text-align:right':''}`;
-  const _sRowL=(lbl,val,c,rtl)=>`<div style="display:flex;align-items:center;gap:5px;margin-bottom:3px"><span style="${_sLBL_L}">${lbl}</span><span style="${_sBOX_L(c,rtl)}">${val}</span></div>`;
-  const _sLBL_R=`font-size:8px;font-weight:800;color:#555;text-transform:uppercase;letter-spacing:0.5px;white-space:nowrap;width:36px;flex-shrink:0`;
-  const _sBOX_R=`flex:1;border:1.5px solid #bbb;border-radius:3px;background:#fff;padding:1px 6px;font-size:13px;font-weight:700;color:#000;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block`;
-  const _sRowR=(lbl,val)=>`<div style="display:flex;align-items:center;gap:4px;margin-bottom:2px"><span style="${_sLBL_R}">${lbl}</span><span style="${_sBOX_R}">${val}</span></div>`;
-  const _sPtBox=`<div style="margin:3px 0;direction:ltr">
-    <div style="display:flex;align-items:flex-start;gap:10px">
-      <div style="flex:1;min-width:0;display:flex;flex-direction:column">
-        ${_sRowL('Name',_sPtFullName,_sNameColor,true)}
-        ${_sRowL('Sex/Age',_sGenderTxt+' / '+_sAgeTxt,'#000',false)}
-        ${_sRowL('Doctor',drName||'—',_sDoctorColor,true)}
+  const _sCOL_W='190px';
+  const _sLBL=`font-size:9px;font-weight:800;color:#555;text-transform:uppercase;letter-spacing:0.6px;white-space:nowrap;width:48px;flex-shrink:0`;
+  const _sBN=(c,rtl)=>`min-width:${_sCOL_W};border:1.5px solid #bbb;border-radius:3px;background:#fff;padding:3px 7px;font-size:16px;font-weight:900;color:${c||'#000'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block${rtl?';direction:rtl;text-align:right':''}`;
+  const _sBS=(c,rtl)=>`min-width:${_sCOL_W};border:1.5px solid #bbb;border-radius:3px;background:#fff;padding:3px 7px;font-size:12px;font-weight:700;color:${c||'#000'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block${rtl?';direction:rtl;text-align:right':''}`;
+  const _sRN=(lbl,val,c,rtl)=>`<div style="display:flex;align-items:center;gap:5px;margin-bottom:5px"><span style="${_sLBL}">${lbl}</span><span style="${_sBN(c,rtl)}">${val}</span></div>`;
+  const _sRS=(lbl,val,c,rtl)=>`<div style="display:flex;align-items:center;gap:5px;margin-bottom:4px"><span style="${_sLBL}">${lbl}</span><span style="${_sBS(c,rtl)}">${val}</span></div>`;
+  // ⭐ بنية جديدة: اليسار يتمدد، اليمين ثابت = عرض الباركود
+  const _sBL=(c,rtl)=>`flex:1;border:1.5px solid #bbb;border-radius:3px;background:#fff;padding:1px 7px;font-size:15px;font-weight:800;color:${c||'#000'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;text-align:center${rtl?';direction:rtl':''}`;
+  const _sRL=(lbl,val,c,rtl)=>`<div style="display:flex;align-items:center;gap:5px;margin-bottom:3px"><span style="${_sLBL}">${lbl}</span><span style="${_sBL(c,rtl)}">${val}</span></div>`;
+  const _sLBLR=`font-size:8px;font-weight:800;color:#555;text-transform:uppercase;letter-spacing:0.5px;white-space:nowrap;width:36px;flex-shrink:0`;
+  const _sBR=(c)=>`flex:1;border:1.5px solid #bbb;border-radius:3px;background:#fff;padding:1px 6px;font-size:13px;font-weight:700;color:${c||'#000'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block`;
+  const _sRR=(lbl,val)=>`<div style="display:flex;align-items:center;gap:4px;margin-bottom:2px"><span style="${_sLBLR}">${lbl}</span><span style="${_sBR('#000')}">${val}</span></div>`;
+
+  const _sPtBox=`<div style="margin:3px 0;direction:ltr"><div style="display:flex;align-items:flex-start;gap:10px">
+    <div style="flex:1;min-width:0;display:flex;flex-direction:column">
+      ${_sRL('Name',_sPtFullName,_sNameColor,true)}
+      ${_sRL('Sex/Age',_sGenderTxt+' / '+_sAgeTxt,'#000',false)}
+      ${_sRL('Doctor',drName||'—',_sDoctorColor,true)}
+    </div>
+    <div style="flex:0 0 auto;display:flex;flex-direction:column;align-items:stretch">
+      <div style="text-align:right;margin-bottom:3px">
+        ${_sBarcodeSvg}
+        <div style="font-size:8px;font-weight:900;color:#000;letter-spacing:2px;font-family:'Courier New',monospace;text-align:center;line-height:1">${_sBarcodeId}</div>
       </div>
-      <div style="flex:0 0 auto;display:flex;flex-direction:column;align-items:stretch">
-        <div style="text-align:right;margin-bottom:3px">
-          ${_sBarcodeSvg}
-          <div style="font-size:8px;font-weight:900;color:#000;letter-spacing:2px;font-family:'Courier New',monospace;text-align:center;line-height:1">${_sBarcodeId}</div>
-        </div>
-        <div style="display:flex;flex-direction:column">
-          ${_sRowR('ID',pt.id||r.patientId||'—')}
-          ${_sRowR('Date',r.date||'—')}
-          ${_sRowR('Print',_sPrintTime)}
-        </div>
+      <div style="display:flex;flex-direction:column">
+        ${_sRR('ID',pt.id||r.patientId||'—')}
+        ${_sRR('Date',r.date||'—')}
+        ${_sRR('Print',_sPrintTime)}
       </div>
     </div>
-  </div>`;
+  </div></div>`;
 
   const renderSec=(sec)=>{
     const validFields=sec.fields.filter(f=>{
@@ -22627,10 +22609,8 @@ function _buildSemenModalBody(r, req){
   const ptName=r?r.patientName:(req?req.patientName:'');
   const ptId  =r?r.patientId :(req?req.patientId :'');
   const reqDate=r?r.date:(req?req.date:today);
-  const pt=patients.find(p=>p.id===(r?r.patientId:(req?req.patientId:'')))||null;
-  const ptBarHTML = _buildModalPtBar(pt, req||r);
 
-  let html=`${ptBarHTML}
+  let html=`
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;background:rgba(0,212,255,0.04);border:1px solid var(--border);border-radius:10px;padding:14px">
     <div class="fg" style="margin-bottom:0">
       <label class="fl">المريض</label>
@@ -22863,32 +22843,37 @@ function _buildSemenPrintHTML(r){
     return `<svg xmlns="http://www.w3.org/2000/svg" width="${totalW}" height="${h}" viewBox="0 0 ${totalW} ${h}" style="display:block">${rects}</svg>`;
   }
   const _smBarcodeSvg=_semenBarcode128(_smBarcodeId);
-  const _smLBL_L=`font-size:9px;font-weight:800;color:#555;text-transform:uppercase;letter-spacing:0.6px;white-space:nowrap;width:48px;flex-shrink:0`;
-  const _smBOX_L=(c,rtl)=>`flex:1;border:1.5px solid #bbb;border-radius:3px;background:#fff;padding:1px 7px;font-size:16px;font-weight:900;color:${c||'#000'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block${rtl?';direction:rtl;text-align:right':''}`;
-  const _smRowL=(lbl,val,c,rtl)=>`<div style="display:flex;align-items:center;gap:5px;margin-bottom:3px"><span style="${_smLBL_L}">${lbl}</span><span style="${_smBOX_L(c,rtl)}">${val}</span></div>`;
-  const _smLBL_R=`font-size:8px;font-weight:800;color:#555;text-transform:uppercase;letter-spacing:0.5px;white-space:nowrap;width:36px;flex-shrink:0`;
-  const _smBOX_R=`flex:1;border:1.5px solid #bbb;border-radius:3px;background:#fff;padding:1px 6px;font-size:13px;font-weight:700;color:#000;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block`;
-  const _smRowR=(lbl,val)=>`<div style="display:flex;align-items:center;gap:4px;margin-bottom:2px"><span style="${_smLBL_R}">${lbl}</span><span style="${_smBOX_R}">${val}</span></div>`;
-  const _smPtBox=`<div style="margin:3px 0;direction:ltr">
-    <div style="display:flex;align-items:flex-start;gap:10px">
-      <div style="flex:1;min-width:0;display:flex;flex-direction:column">
-        ${_smRowL('Name',_smPtFullName,_smNameColor,true)}
-        ${_smRowL('Sex/Age','Male / '+_smAgeTxt,'#000',false)}
-        ${_smRowL('Doctor',drName||'—',_smDoctorColor,true)}
+  const _smCOL_W='190px';
+  const _smLBL=`font-size:9px;font-weight:800;color:#555;text-transform:uppercase;letter-spacing:0.6px;white-space:nowrap;width:48px;flex-shrink:0`;
+  const _smBN=(c,rtl)=>`min-width:${_smCOL_W};border:1.5px solid #bbb;border-radius:3px;background:#fff;padding:3px 7px;font-size:16px;font-weight:900;color:${c||'#000'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block${rtl?';direction:rtl;text-align:right':''}`;
+  const _smBS=(c,rtl)=>`min-width:${_smCOL_W};border:1.5px solid #bbb;border-radius:3px;background:#fff;padding:3px 7px;font-size:12px;font-weight:700;color:${c||'#000'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block${rtl?';direction:rtl;text-align:right':''}`;
+  const _smRN=(lbl,val,c,rtl)=>`<div style="display:flex;align-items:center;gap:5px;margin-bottom:5px"><span style="${_smLBL}">${lbl}</span><span style="${_smBN(c,rtl)}">${val}</span></div>`;
+  const _smRS=(lbl,val,c,rtl)=>`<div style="display:flex;align-items:center;gap:5px;margin-bottom:4px"><span style="${_smLBL}">${lbl}</span><span style="${_smBS(c,rtl)}">${val}</span></div>`;
+  // ⭐ بنية جديدة (مضغوطة للسائل المنوي ليبقى في ورقة واحدة)
+  const _smBL=(c,rtl)=>`flex:1;border:1.5px solid #bbb;border-radius:3px;background:#fff;padding:1px 7px;font-size:14px;font-weight:800;color:${c||'#000'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;text-align:center${rtl?';direction:rtl':''}`;
+  const _smRL=(lbl,val,c,rtl)=>`<div style="display:flex;align-items:center;gap:5px;margin-bottom:2px"><span style="${_smLBL}">${lbl}</span><span style="${_smBL(c,rtl)}">${val}</span></div>`;
+  const _smLBLR=`font-size:8px;font-weight:800;color:#555;text-transform:uppercase;letter-spacing:0.5px;white-space:nowrap;width:36px;flex-shrink:0`;
+  const _smBR=(c)=>`flex:1;border:1.5px solid #bbb;border-radius:3px;background:#fff;padding:1px 6px;font-size:12px;font-weight:700;color:${c||'#000'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block`;
+  const _smRR=(lbl,val)=>`<div style="display:flex;align-items:center;gap:4px;margin-bottom:1px"><span style="${_smLBLR}">${lbl}</span><span style="${_smBR('#000')}">${val}</span></div>`;
+
+  const _smPtBox=`<div style="margin:2px 0;direction:ltr"><div style="display:flex;align-items:flex-start;gap:8px">
+    <div style="flex:1;min-width:0;display:flex;flex-direction:column">
+      ${_smRL('Name',_smPtFullName,_smNameColor,true)}
+      ${_smRL('Sex/Age','Male / '+_smAgeTxt,'#000',false)}
+      ${_smRL('Doctor',drName||'—',_smDoctorColor,true)}
+    </div>
+    <div style="flex:0 0 auto;display:flex;flex-direction:column;align-items:stretch">
+      <div style="text-align:right;margin-bottom:2px">
+        ${_smBarcodeSvg}
+        <div style="font-size:7px;font-weight:900;color:#000;letter-spacing:2px;font-family:'Courier New',monospace;text-align:center;line-height:1">${_smBarcodeId}</div>
       </div>
-      <div style="flex:0 0 auto;display:flex;flex-direction:column;align-items:stretch">
-        <div style="text-align:right;margin-bottom:3px">
-          ${_smBarcodeSvg}
-          <div style="font-size:8px;font-weight:900;color:#000;letter-spacing:2px;font-family:'Courier New',monospace;text-align:center;line-height:1">${_smBarcodeId}</div>
-        </div>
-        <div style="display:flex;flex-direction:column">
-          ${_smRowR('ID',pt.id||r.patientId||'—')}
-          ${_smRowR('Date',r.date||'—')}
-          ${_smRowR('Print',_smPrintTime)}
-        </div>
+      <div style="display:flex;flex-direction:column">
+        ${_smRR('ID',pt.id||r.patientId||'—')}
+        ${_smRR('Date',r.date||'—')}
+        ${_smRR('Print',_smPrintTime)}
       </div>
     </div>
-  </div>`;
+  </div></div>`;
 
   const SEMEN_EN={
     specimen:    {label:'Specimen Information',fields:{s_abstinence:'Abstinence Period',s_collection:'Collection Method',s_volume:'Volume (mL)',s_appearance:'Appearance',s_liquefaction:'Liquefaction Time',s_viscosity:'Viscosity',s_ph:'pH'}},
@@ -22932,22 +22917,22 @@ function _buildSemenPrintHTML(r){
       else if(fid==='s_oxidative'){ abn=val!=='Normal'; }
       const rowBg=fi%2===0?'#ffffff':'#f9f9f9';
       return `<tr style="background:${rowBg}">
-        <td style="font-size:15px;font-weight:700;color:#000000;padding:3px 10px;width:38%;border:none;border-bottom:1px solid #e0e0e0"><span style="color:#000;margin-right:6px">■</span>${secDef.fields[fid]}</td>
-        <td style="font-size:15px;font-weight:700;color:#000000;padding:3px 10px;width:32%;border:none;border-bottom:1px solid #e0e0e0;text-align:center">
-          <span style="display:inline-block;border:1.5px solid #b0b0b0;border-radius:4px;padding:1px 10px;min-width:90px;text-align:center;background:#fff;color:${abn?'#cc0000':'#000000'};font-weight:${abn?'900':'700'}">${val}</span>
+        <td style="font-size:13px;font-weight:700;color:#000000;padding:1px 8px;width:38%;border:none;border-bottom:1px solid #e0e0e0"><span style="color:#000;margin-right:5px">■</span>${secDef.fields[fid]}</td>
+        <td style="font-size:13px;font-weight:700;color:#000000;padding:1px 8px;width:32%;border:none;border-bottom:1px solid #e0e0e0;text-align:center">
+          <span style="display:inline-block;border:1.5px solid #b0b0b0;border-radius:4px;padding:0 8px;min-width:80px;text-align:center;background:#fff;color:${abn?'#cc0000':'#000000'};font-weight:${abn?'900':'700'}">${val}</span>
         </td>
-        <td style="font-size:15px;font-weight:700;color:#000000;padding:3px 10px;width:30%;border:none;border-bottom:1px solid #e0e0e0">${ref||'—'}</td>
+        <td style="font-size:13px;font-weight:700;color:#000000;padding:1px 8px;width:30%;border:none;border-bottom:1px solid #e0e0e0">${ref||'—'}</td>
       </tr>`;
     }).join('');
-    return `<div style="border:1.5px solid #b8b8b8;border-radius:0;margin-bottom:4px;overflow:hidden;page-break-inside:avoid">
-      <div style="background:#ffffff;padding:3px 12px;border-bottom:1.5px solid #b8b8b8">
-        <span style="font-size:16px;font-weight:900;color:#1a4fa0;letter-spacing:0.3px">${secDef.label}</span>
+    return `<div style="border:1.5px solid #b8b8b8;border-radius:0;margin-bottom:2px;overflow:hidden;page-break-inside:avoid">
+      <div style="background:#ffffff;padding:1px 10px;border-bottom:1.5px solid #b8b8b8">
+        <span style="font-size:14px;font-weight:900;color:#1a4fa0;letter-spacing:0.3px">${secDef.label}</span>
       </div>
       <table style="width:100%;border-collapse:collapse">
         <thead><tr style="background:#f0f0f0">
-          <th style="font-size:15px;font-weight:800;color:#000000;padding:3px 10px;text-align:left;border:none;border-bottom:1.5px solid #b8b8b8;width:38%">Parameter</th>
-          <th style="font-size:15px;font-weight:800;color:#000000;padding:3px 10px;text-align:center;border:none;border-bottom:1.5px solid #b8b8b8;width:32%">Result</th>
-          <th style="font-size:15px;font-weight:800;color:#000000;padding:3px 10px;text-align:left;border:none;border-bottom:1.5px solid #b8b8b8;width:30%">Reference (WHO 2021)</th>
+          <th style="font-size:13px;font-weight:800;color:#000000;padding:1px 8px;text-align:left;border:none;border-bottom:1.5px solid #b8b8b8;width:38%">Parameter</th>
+          <th style="font-size:13px;font-weight:800;color:#000000;padding:1px 8px;text-align:center;border:none;border-bottom:1.5px solid #b8b8b8;width:32%">Result</th>
+          <th style="font-size:13px;font-weight:800;color:#000000;padding:1px 8px;text-align:left;border:none;border-bottom:1.5px solid #b8b8b8;width:30%">Reference (WHO 2021)</th>
         </tr></thead>
         <tbody>${rows}</tbody>
       </table>
@@ -22965,11 +22950,11 @@ function _buildSemenPrintHTML(r){
   </style></head><body>
     <div class="sm-content">
       ${hdrHTML}
+      <div style="background:${color};color:#fff;padding:3px 12px;text-align:center;font-weight:900;font-size:14px;letter-spacing:1px">
+        SEMEN ANALYSIS REPORT (SPERMIOGRAM)
+      </div>
       <div style="border:1.5px solid #b8b8b8;margin:3px 0 4px;padding:4px 10px;background:#fafafa">
         ${_smPtBox}
-      </div>
-      <div style="background:${color};color:#fff;padding:3px 12px;text-align:center;font-weight:900;font-size:14px;letter-spacing:1px;margin:4px 0">
-        SEMEN ANALYSIS REPORT (SPERMIOGRAM)
       </div>
       <div style="margin:0 0 3px;height:2px;background:${color}"></div>
       <div>${['specimen','spermCount','motility','morphology','biochemistry','advanced'].map(renderSec).join('')}</div>
