@@ -12014,13 +12014,23 @@ function buildPrintHTML(req, opts){
   // ارتفاعات مستطيلات اليسار مُقلَّصة (padding أقل ليكون النص ملاصقاً)
   const _ptInfoSize = ptfs;
   const _ptInfoWt   = settings.fontWeight || reportFontWeight || '700';
+  // ⭐ Sex/Age دائماً أصغر بدرجة (1px) من Name/Doctor
+  const _ptInfoSizeSA = (function(){
+    const m = String(_ptInfoSize).match(/(\d+(?:\.\d+)?)/);
+    if(!m) return _ptInfoSize;
+    const n = parseFloat(m[1]);
+    return (n - 1) + 'px';
+  })();
 
   // أنماط مستطيلات اليسار (Name, Sex/Age, Doctor) — تتمدد سوياً، ارتفاع مضغوط
   const LBL_L = `font-size:9px;font-weight:800;color:#555;text-transform:uppercase;letter-spacing:0.6px;white-space:nowrap;width:48px;flex-shrink:0`;
   // padding:1px 7px → ارتفاع المستطيل ملاصق للنص
   // text-align:center → النص في وسط المستطيل (أنيق ومرتب)
   const BOX_L = (color,rtl)=>`flex:1;border:1.5px solid #bbb;border-radius:3px;background:#fff;padding:1px 7px;font-size:${_ptInfoSize};font-weight:${_ptInfoWt};color:${color||'#000'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;text-align:center${rtl?';direction:rtl':''}`;
+  // ⭐ BOX_L_SA: لـ Sex/Age فقط — أصغر بدرجة من Name/Doctor
+  const BOX_L_SA = (color,rtl)=>`flex:1;border:1.5px solid #bbb;border-radius:3px;background:#fff;padding:1px 7px;font-size:${_ptInfoSizeSA};font-weight:${_ptInfoWt};color:${color||'#000'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;text-align:center${rtl?';direction:rtl':''}`;
   const rowL = (lbl,val,color,rtl)=>`<div style="display:flex;align-items:center;gap:5px;margin-bottom:3px"><span style="${LBL_L}">${lbl}</span><span style="${BOX_L(color,rtl)}">${val}</span></div>`;
+  const rowL_SA = (lbl,val,color,rtl)=>`<div style="display:flex;align-items:center;gap:5px;margin-bottom:3px"><span style="${LBL_L}">${lbl}</span><span style="${BOX_L_SA(color,rtl)}">${val}</span></div>`;
 
   // أنماط مستطيلات اليمين (ID, Input, Print) — أصغر، عرض كامل (= عرض الباركود)
   // الـ wrapper يحدد العرض الكلي، والمستطيلات الداخلية تأخذ flex:1 لملء العرض
@@ -12035,7 +12045,7 @@ function buildPrintHTML(req, opts){
       <!-- اليسار: 3 مستطيلات تتمدد سوياً (flex:1) -->
       <div style="flex:1;min-width:0;display:flex;flex-direction:column">
         ${rowL('Name', ptFullName, nameColor, true)}
-        ${rowL('Sex/Age', genderTxt+' / '+ageTxt, '#000', false)}
+        ${rowL_SA('Sex/Age', genderTxt+' / '+ageTxt, '#000', false)}
         ${rowL('Doctor', req.doctorName||'—', doctorColor, true)}
       </div>
 
@@ -20573,8 +20583,11 @@ function _buildCultureHTML(cid){
   const rowS=(lbl,val)=>`<div style="display:flex;align-items:center;gap:5px;margin-bottom:4px"><span style="${LBL}">${lbl}</span><span style="${BOX_SM()}">${val}</span></div>`;
 
   // ⭐ بنية جديدة: اليسار يتمدد، الوسط = العنوان (Culture & Sensitivity)، اليمين ثابت
+  // Sex/Age دائماً أصغر بدرجة من Name/Doctor
   const _cuBL=(clr,rtl)=>`flex:1;border:1.5px solid #bbb;border-radius:3px;background:#fff;padding:1px 7px;font-size:15px;font-weight:800;color:${clr||'#000'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;text-align:center${rtl?';direction:rtl':''}`;
+  const _cuBLSA=(clr,rtl)=>`flex:1;border:1.5px solid #bbb;border-radius:3px;background:#fff;padding:1px 7px;font-size:14px;font-weight:800;color:${clr||'#000'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;text-align:center${rtl?';direction:rtl':''}`;
   const _cuRL=(lbl,val,clr,rtl)=>`<div style="display:flex;align-items:center;gap:5px;margin-bottom:3px"><span style="${LBL}">${lbl}</span><span style="${_cuBL(clr,rtl)}">${val}</span></div>`;
+  const _cuRL_SA=(lbl,val,clr,rtl)=>`<div style="display:flex;align-items:center;gap:5px;margin-bottom:3px"><span style="${LBL}">${lbl}</span><span style="${_cuBLSA(clr,rtl)}">${val}</span></div>`;
   const _cuLBLR=`font-size:8px;font-weight:800;color:#555;text-transform:uppercase;letter-spacing:0.5px;white-space:nowrap;width:54px;flex-shrink:0`;
   const _cuBR=(clr)=>`flex:1;border:1.5px solid #bbb;border-radius:3px;background:#fff;padding:1px 6px;font-size:13px;font-weight:700;color:${clr||'#000'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block`;
   const _cuRR=(lbl,val)=>`<div style="display:flex;align-items:center;gap:4px;margin-bottom:2px"><span style="${_cuLBLR}">${lbl}</span><span style="${_cuBR('#000')}">${val}</span></div>`;
@@ -20584,7 +20597,7 @@ function _buildCultureHTML(cid){
     <div style="display:flex;align-items:flex-start;gap:10px">
       <div style="flex:1;min-width:0;display:flex;flex-direction:column">
         ${_cuRL('Name', pt.name, nameColor, true)}
-        ${_cuRL('Sex/Age', (pt.gender==='female'?'Female':'Male')+' / '+(ageDisplay||'—'), '#000', false)}
+        ${_cuRL_SA('Sex/Age', (pt.gender==='female'?'Female':'Male')+' / '+(ageDisplay||'—'), '#000', false)}
         ${_cuRL('Doctor', drName||'—', doctorColor, true)}
       </div>
       <div style="flex:0 0 auto;display:flex;flex-direction:column;align-items:stretch;min-width:200px">
@@ -21175,8 +21188,11 @@ function _buildUAPrintHTML(r){
   const rowS=(lbl,val,c,rtl)=>`<div style="display:flex;align-items:center;gap:5px;margin-bottom:4px"><span style="${LBL}">${lbl}</span><span style="${BOX_SMALL(c,rtl)}">${val}</span></div>`;
   // ⭐ بنية جديدة: اليسار يتمدد، اليمين بعرض ثابت = عرض الباركود (ملاصق للحافة اليمنى)
   // مستطيلات اليسار بنص متوسط، مستطيلات اليمين أصغر (ID/Date/Print)
+  // Sex/Age دائماً أصغر بدرجة من Name/Doctor
   const _uaBL=(c,rtl)=>`flex:1;border:1.5px solid #bbb;border-radius:3px;background:#fff;padding:1px 7px;font-size:15px;font-weight:800;color:${c||'#000'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;text-align:center${rtl?';direction:rtl':''}`;
+  const _uaBLSA=(c,rtl)=>`flex:1;border:1.5px solid #bbb;border-radius:3px;background:#fff;padding:1px 7px;font-size:14px;font-weight:800;color:${c||'#000'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;text-align:center${rtl?';direction:rtl':''}`;
   const _uaRL=(lbl,val,c,rtl)=>`<div style="display:flex;align-items:center;gap:5px;margin-bottom:3px"><span style="${LBL}">${lbl}</span><span style="${_uaBL(c,rtl)}">${val}</span></div>`;
+  const _uaRL_SA=(lbl,val,c,rtl)=>`<div style="display:flex;align-items:center;gap:5px;margin-bottom:3px"><span style="${LBL}">${lbl}</span><span style="${_uaBLSA(c,rtl)}">${val}</span></div>`;
   const _uaLBLR=`font-size:8px;font-weight:800;color:#555;text-transform:uppercase;letter-spacing:0.5px;white-space:nowrap;width:36px;flex-shrink:0`;
   const _uaBR=(c)=>`flex:1;border:1.5px solid #bbb;border-radius:3px;background:#fff;padding:1px 6px;font-size:13px;font-weight:700;color:${c||'#000'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block`;
   const _uaRR=(lbl,val)=>`<div style="display:flex;align-items:center;gap:4px;margin-bottom:2px"><span style="${_uaLBLR}">${lbl}</span><span style="${_uaBR('#000')}">${val}</span></div>`;
@@ -21184,7 +21200,7 @@ function _buildUAPrintHTML(r){
   const uaPtBox=`<div style="margin:3px 0;direction:ltr"><div style="display:flex;align-items:flex-start;gap:10px">
     <div style="flex:1;min-width:0;display:flex;flex-direction:column">
       ${_uaRL('Name',ptFullName,nameColor,true)}
-      ${_uaRL('Sex/Age',genderTxt+' / '+ageTxt,'#000',false)}
+      ${_uaRL_SA('Sex/Age',genderTxt+' / '+ageTxt,'#000',false)}
       ${_uaRL('Doctor',drName||'—',doctorColor,true)}
     </div>
     <div style="flex:0 0 auto;display:flex;flex-direction:column;align-items:stretch">
@@ -21679,8 +21695,11 @@ function _buildStoolPrintHTML(r){
   const _sRN=(lbl,val,c,rtl)=>`<div style="display:flex;align-items:center;gap:5px;margin-bottom:5px"><span style="${_sLBL}">${lbl}</span><span style="${_sBN(c,rtl)}">${val}</span></div>`;
   const _sRS=(lbl,val,c,rtl)=>`<div style="display:flex;align-items:center;gap:5px;margin-bottom:4px"><span style="${_sLBL}">${lbl}</span><span style="${_sBS(c,rtl)}">${val}</span></div>`;
   // ⭐ بنية جديدة: اليسار يتمدد، اليمين ثابت = عرض الباركود
+  // Sex/Age دائماً أصغر بدرجة من Name/Doctor
   const _sBL=(c,rtl)=>`flex:1;border:1.5px solid #bbb;border-radius:3px;background:#fff;padding:1px 7px;font-size:15px;font-weight:800;color:${c||'#000'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;text-align:center${rtl?';direction:rtl':''}`;
+  const _sBLSA=(c,rtl)=>`flex:1;border:1.5px solid #bbb;border-radius:3px;background:#fff;padding:1px 7px;font-size:14px;font-weight:800;color:${c||'#000'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;text-align:center${rtl?';direction:rtl':''}`;
   const _sRL=(lbl,val,c,rtl)=>`<div style="display:flex;align-items:center;gap:5px;margin-bottom:3px"><span style="${_sLBL}">${lbl}</span><span style="${_sBL(c,rtl)}">${val}</span></div>`;
+  const _sRL_SA=(lbl,val,c,rtl)=>`<div style="display:flex;align-items:center;gap:5px;margin-bottom:3px"><span style="${_sLBL}">${lbl}</span><span style="${_sBLSA(c,rtl)}">${val}</span></div>`;
   const _sLBLR=`font-size:8px;font-weight:800;color:#555;text-transform:uppercase;letter-spacing:0.5px;white-space:nowrap;width:36px;flex-shrink:0`;
   const _sBR=(c)=>`flex:1;border:1.5px solid #bbb;border-radius:3px;background:#fff;padding:1px 6px;font-size:13px;font-weight:700;color:${c||'#000'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block`;
   const _sRR=(lbl,val)=>`<div style="display:flex;align-items:center;gap:4px;margin-bottom:2px"><span style="${_sLBLR}">${lbl}</span><span style="${_sBR('#000')}">${val}</span></div>`;
@@ -21688,7 +21707,7 @@ function _buildStoolPrintHTML(r){
   const _sPtBox=`<div style="margin:3px 0;direction:ltr"><div style="display:flex;align-items:flex-start;gap:10px">
     <div style="flex:1;min-width:0;display:flex;flex-direction:column">
       ${_sRL('Name',_sPtFullName,_sNameColor,true)}
-      ${_sRL('Sex/Age',_sGenderTxt+' / '+_sAgeTxt,'#000',false)}
+      ${_sRL_SA('Sex/Age',_sGenderTxt+' / '+_sAgeTxt,'#000',false)}
       ${_sRL('Doctor',drName||'—',_sDoctorColor,true)}
     </div>
     <div style="flex:0 0 auto;display:flex;flex-direction:column;align-items:stretch">
@@ -22854,8 +22873,11 @@ function _buildSemenPrintHTML(r){
   const _smRN=(lbl,val,c,rtl)=>`<div style="display:flex;align-items:center;gap:5px;margin-bottom:5px"><span style="${_smLBL}">${lbl}</span><span style="${_smBN(c,rtl)}">${val}</span></div>`;
   const _smRS=(lbl,val,c,rtl)=>`<div style="display:flex;align-items:center;gap:5px;margin-bottom:4px"><span style="${_smLBL}">${lbl}</span><span style="${_smBS(c,rtl)}">${val}</span></div>`;
   // ⭐ بنية جديدة (مضغوطة للسائل المنوي ليبقى في ورقة واحدة)
+  // Sex/Age دائماً أصغر بدرجة من Name/Doctor
   const _smBL=(c,rtl)=>`flex:1;border:1.5px solid #bbb;border-radius:3px;background:#fff;padding:1px 7px;font-size:14px;font-weight:800;color:${c||'#000'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;text-align:center${rtl?';direction:rtl':''}`;
+  const _smBLSA=(c,rtl)=>`flex:1;border:1.5px solid #bbb;border-radius:3px;background:#fff;padding:1px 7px;font-size:13px;font-weight:800;color:${c||'#000'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;text-align:center${rtl?';direction:rtl':''}`;
   const _smRL=(lbl,val,c,rtl)=>`<div style="display:flex;align-items:center;gap:5px;margin-bottom:2px"><span style="${_smLBL}">${lbl}</span><span style="${_smBL(c,rtl)}">${val}</span></div>`;
+  const _smRL_SA=(lbl,val,c,rtl)=>`<div style="display:flex;align-items:center;gap:5px;margin-bottom:2px"><span style="${_smLBL}">${lbl}</span><span style="${_smBLSA(c,rtl)}">${val}</span></div>`;
   const _smLBLR=`font-size:8px;font-weight:800;color:#555;text-transform:uppercase;letter-spacing:0.5px;white-space:nowrap;width:36px;flex-shrink:0`;
   const _smBR=(c)=>`flex:1;border:1.5px solid #bbb;border-radius:3px;background:#fff;padding:1px 6px;font-size:12px;font-weight:700;color:${c||'#000'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block`;
   const _smRR=(lbl,val)=>`<div style="display:flex;align-items:center;gap:4px;margin-bottom:1px"><span style="${_smLBLR}">${lbl}</span><span style="${_smBR('#000')}">${val}</span></div>`;
@@ -22863,7 +22885,7 @@ function _buildSemenPrintHTML(r){
   const _smPtBox=`<div style="margin:2px 0;direction:ltr"><div style="display:flex;align-items:flex-start;gap:8px">
     <div style="flex:1;min-width:0;display:flex;flex-direction:column">
       ${_smRL('Name',_smPtFullName,_smNameColor,true)}
-      ${_smRL('Sex/Age','Male / '+_smAgeTxt,'#000',false)}
+      ${_smRL_SA('Sex/Age','Male / '+_smAgeTxt,'#000',false)}
       ${_smRL('Doctor',drName||'—',_smDoctorColor,true)}
     </div>
     <div style="flex:0 0 auto;display:flex;flex-direction:column;align-items:stretch">
