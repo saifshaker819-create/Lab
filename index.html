@@ -12482,7 +12482,11 @@ function buildPrintHTML(req, opts){
       var BOT_MARGIN_PX = Math.round(1 * DPI_RATIO);   // 1mm هامش سفلي مُقلَّص
       // الذيل + هامش أمان مُصغَّر — لأن الذيل نزل للأسفل أكثر، يمكن الآن استيعاب تحاليل إضافية
       // قُلِّل من 25 إلى 12 لاستيعاب أكبر عدد من التحاليل قبل الذيل
-      var FOOTER_RESERVED = TOTAL_FOOTER_H + 12;
+      // ⭐ تقليل الهامش المحجوز للذيل
+      // قياس chunkHeights متحفظ (يجمع margins/padding بدون collapse الفعلي)
+      // لذا نطرح -25 (سالب) ليعوّض الفرق ويسمح بتحاليل أكثر قبل الانتقال للورقة التالية
+      var FOOTER_RESERVED = TOTAL_FOOTER_H - 25;
+      if(FOOTER_RESERVED < 30) FOOTER_RESERVED = 30; // حد أدنى للأمان
       var USABLE_H = PAGE_H_PX - TOP_MARGIN_PX - BOT_MARGIN_PX - FOOTER_RESERVED;
 
       // مقاس probe ثابت بـ px يعادل 210mm A4 = ~793.7px (نطرح هامش 3mm من كل جانب = 22.7px)
@@ -22917,22 +22921,22 @@ function _buildSemenPrintHTML(r){
       else if(fid==='s_oxidative'){ abn=val!=='Normal'; }
       const rowBg=fi%2===0?'#ffffff':'#f9f9f9';
       return `<tr style="background:${rowBg}">
-        <td style="font-size:13px;font-weight:700;color:#000000;padding:1px 8px;width:38%;border:none;border-bottom:1px solid #e0e0e0"><span style="color:#000;margin-right:5px">■</span>${secDef.fields[fid]}</td>
-        <td style="font-size:13px;font-weight:700;color:#000000;padding:1px 8px;width:32%;border:none;border-bottom:1px solid #e0e0e0;text-align:center">
+        <td style="font-size:15px;font-weight:700;color:#000000;padding:1px 8px;width:38%;border:none;border-bottom:1px solid #e0e0e0"><span style="color:#000;margin-right:5px">■</span>${secDef.fields[fid]}</td>
+        <td style="font-size:15px;font-weight:700;color:#000000;padding:1px 8px;width:32%;border:none;border-bottom:1px solid #e0e0e0;text-align:center">
           <span style="display:inline-block;border:1.5px solid #b0b0b0;border-radius:4px;padding:0 8px;min-width:80px;text-align:center;background:#fff;color:${abn?'#cc0000':'#000000'};font-weight:${abn?'900':'700'}">${val}</span>
         </td>
-        <td style="font-size:13px;font-weight:700;color:#000000;padding:1px 8px;width:30%;border:none;border-bottom:1px solid #e0e0e0">${ref||'—'}</td>
+        <td style="font-size:15px;font-weight:700;color:#000000;padding:1px 8px;width:30%;border:none;border-bottom:1px solid #e0e0e0">${ref||'—'}</td>
       </tr>`;
     }).join('');
     return `<div style="border:1.5px solid #b8b8b8;border-radius:0;margin-bottom:2px;overflow:hidden;page-break-inside:avoid">
       <div style="background:#ffffff;padding:1px 10px;border-bottom:1.5px solid #b8b8b8">
-        <span style="font-size:14px;font-weight:900;color:#1a4fa0;letter-spacing:0.3px">${secDef.label}</span>
+        <span style="font-size:16px;font-weight:900;color:#1a4fa0;letter-spacing:0.3px">${secDef.label}</span>
       </div>
       <table style="width:100%;border-collapse:collapse">
         <thead><tr style="background:#f0f0f0">
-          <th style="font-size:13px;font-weight:800;color:#000000;padding:1px 8px;text-align:left;border:none;border-bottom:1.5px solid #b8b8b8;width:38%">Parameter</th>
-          <th style="font-size:13px;font-weight:800;color:#000000;padding:1px 8px;text-align:center;border:none;border-bottom:1.5px solid #b8b8b8;width:32%">Result</th>
-          <th style="font-size:13px;font-weight:800;color:#000000;padding:1px 8px;text-align:left;border:none;border-bottom:1.5px solid #b8b8b8;width:30%">Reference (WHO 2021)</th>
+          <th style="font-size:15px;font-weight:800;color:#000000;padding:1px 8px;text-align:left;border:none;border-bottom:1.5px solid #b8b8b8;width:38%">Parameter</th>
+          <th style="font-size:15px;font-weight:800;color:#000000;padding:1px 8px;text-align:center;border:none;border-bottom:1.5px solid #b8b8b8;width:32%">Result</th>
+          <th style="font-size:15px;font-weight:800;color:#000000;padding:1px 8px;text-align:left;border:none;border-bottom:1.5px solid #b8b8b8;width:30%">Reference (WHO 2021)</th>
         </tr></thead>
         <tbody>${rows}</tbody>
       </table>
