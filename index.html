@@ -11887,7 +11887,7 @@ function buildPrintHTML(req, opts){
     @page{margin:0 !important;size:A4 portrait;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
     body{font-family:${reportFontFamily};color:#000;font-weight:${reportFontWeight};
          -webkit-print-color-adjust:exact;print-color-adjust:exact;
-         padding:1mm 4mm 0 4mm;}
+         padding:1mm 7mm 0 7mm;}
     /* الذيل ثابت في الحافة السفلية للورقة — bottom:0 لاستغلال كل المساحة المتاحة */
     /* مع 0mm margin في @page نضمن أن الذيل يلامس الحافة (الطابعة ستحترم منطقتها غير المطبوعة) */
     #print-footer{
@@ -11912,7 +11912,7 @@ function buildPrintHTML(req, opts){
     #print-spacer{height:${totalFooterH+12}px;display:block;}
     @media print{
       @page{margin:0 !important;size:A4 portrait;}
-      body{padding:1mm 4mm 0 4mm;}
+      body{padding:1mm 7mm 0 7mm;}
       #print-footer{position:fixed;bottom:3mm;left:0;right:0;background:#ffffff;z-index:9999;}
       #print-footer img{display:block;width:100%;height:${footerH}px;object-fit:fill;margin:0;padding:0;}
       #print-spacer{display:block;height:${totalFooterH+12}px;}
@@ -12007,43 +12007,48 @@ function buildPrintHTML(req, opts){
   const doctorColor = settings.colorDoctor||'#cc0011';
   const stripColor  = settings.colorResults||'#003366';
   const sectionColor = settings.colorSection||'#003366';
-  // ⭐ كل بيانات المريض بنفس الحجم والثخانة:
-  // - الحجم: settings.ptFontSize (من زر "خط بيانات المريض")
-  // - الثخانة: settings.fontWeight (من زر "ثخانة الخط" — العام)
-  // المستخدم يتوقع أن "ثخانة الخط" تؤثر على بيانات المريض في التقرير
+  // ⭐ بيانات المريض — تخطيط شبكي صارم بنصفين متساويين:
+  // اليسار: Name, Sex/Age, Doctor (3 مستطيلات بنفس الحجم — حجم وثخانة الخط من الإعدادات)
+  // اليمين: باركود في الأعلى + 3 مستطيلات أصغر (ID, Input, Print) — حجم ثابت 16px
+  // النصف الأيسر لا يعبر منتصف الورقة، النصف الأيمن لا يعبر الأيسر — الباركود والمستطيلات لا يتداخلان
   const _ptInfoSize = ptfs;
   const _ptInfoWt   = settings.fontWeight || reportFontWeight || '700';
-  const LBL=`font-size:9px;font-weight:800;color:#555;text-transform:uppercase;letter-spacing:0.6px;white-space:nowrap;width:48px;flex-shrink:0`;
-  const BOX_NAME=(color,rtl)=>`min-width:${COL_W};border:1.5px solid #bbb;border-radius:3px;background:#fff;padding:3px 7px;font-size:${_ptInfoSize};font-weight:${_ptInfoWt};color:${color||'#000'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block${rtl?';direction:rtl;text-align:right':''}`;
-  const BOX_INFO=(color,rtl)=>`min-width:${COL_W};border:1.5px solid #bbb;border-radius:3px;background:#fff;padding:3px 7px;font-size:${_ptInfoSize};font-weight:${_ptInfoWt};color:${color||'#000'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block${rtl?';direction:rtl;text-align:right':''}`;
-  // ⭐ BOX_SMALL لـ ID و Input و Print: حجم ثابت 16px (لا يتأثر بإعدادات "خط بيانات المريض")
-  const BOX_SMALL=(color,rtl)=>`min-width:${COL_W};border:1.5px solid #bbb;border-radius:3px;background:#fff;padding:3px 7px;font-size:16px;font-weight:700;color:${color||'#000'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block${rtl?';direction:rtl;text-align:right':''}`;
-  const rowName=(lbl,val,color,rtl)=>`<div style="display:flex;align-items:center;gap:5px;margin-bottom:5px"><span style="${LBL}">${lbl}</span><span style="${BOX_NAME(color,rtl)}">${val}</span></div>`;
-  const rowInfo=(lbl,val,color,rtl)=>`<div style="display:flex;align-items:center;gap:5px;margin-bottom:5px"><span style="${LBL}">${lbl}</span><span style="${BOX_INFO(color,rtl)}">${val}</span></div>`;
-  const row=(lbl,val,color,rtl)=>`<div style="display:flex;align-items:center;gap:5px;margin-bottom:4px"><span style="${LBL}">${lbl}</span><span style="${BOX_SMALL(color,rtl)}">${val}</span></div>`;
+
+  // أنماط مستطيلات اليسار (Name, Sex/Age, Doctor) — كلها بنفس العرض والارتفاع
+  const LBL_L = `font-size:9px;font-weight:800;color:#555;text-transform:uppercase;letter-spacing:0.6px;white-space:nowrap;width:48px;flex-shrink:0`;
+  const BOX_L = (color,rtl)=>`flex:1;border:1.5px solid #bbb;border-radius:3px;background:#fff;padding:3px 7px;font-size:${_ptInfoSize};font-weight:${_ptInfoWt};color:${color||'#000'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block${rtl?';direction:rtl;text-align:right':''}`;
+  const rowL = (lbl,val,color,rtl)=>`<div style="display:flex;align-items:center;gap:5px;margin-bottom:5px"><span style="${LBL_L}">${lbl}</span><span style="${BOX_L(color,rtl)}">${val}</span></div>`;
+
+  // أنماط مستطيلات اليمين (ID, Input, Print) — حجم ثابت 16px
+  const LBL_R = `font-size:9px;font-weight:800;color:#555;text-transform:uppercase;letter-spacing:0.6px;white-space:nowrap;width:42px;flex-shrink:0`;
+  const BOX_R = (color)=>`flex:1;border:1.5px solid #bbb;border-radius:3px;background:#fff;padding:2px 7px;font-size:16px;font-weight:700;color:${color||'#000'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block`;
+  const rowR = (lbl,val)=>`<div style="display:flex;align-items:center;gap:5px;margin-bottom:3px"><span style="${LBL_R}">${lbl}</span><span style="${BOX_R('#000')}">${val}</span></div>`;
 
   const ptBox=`
-  <div style="margin:3px 6px;direction:ltr">
-    <div style="display:flex;align-items:center;justify-content:space-between;gap:6px">
+  <div style="margin:3px 0;direction:ltr">
+    <!-- شبكة صارمة بنصفين 50/50 — لا أحدهما يعبر للنصف الآخر -->
+    <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;align-items:start">
 
-      <!-- يسار: اسم وجنس ودكتور -->
-      <div style="flex:0 0 auto;min-width:180px">
-        ${rowName('Name', ptFullName, nameColor, true)}
-        ${rowInfo('Sex/Age', genderTxt+' / '+ageTxt, '#000', false)}
-        ${rowName('Doctor', req.doctorName||'—', doctorColor, true)}
+      <!-- النصف الأيسر: 3 مستطيلات متطابقة الحجم (Name, Sex/Age, Doctor) -->
+      <div style="display:flex;flex-direction:column;min-width:0">
+        ${rowL('Name', ptFullName, nameColor, true)}
+        ${rowL('Sex/Age', genderTxt+' / '+ageTxt, '#000', false)}
+        ${rowL('Doctor', req.doctorName||'—', doctorColor, true)}
       </div>
 
-      <!-- وسط: باركود فقط -->
-      <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center">
-        <div style="display:inline-block">${barcodeSvg}</div>
-        <div style="font-size:8px;font-weight:900;color:#000;letter-spacing:2px;margin-top:2px;font-family:'Courier New',monospace;text-align:center">${barcodeId}</div>
-      </div>
-
-      <!-- يمين: ID والأوقات -->
-      <div style="flex:0 0 auto;min-width:160px">
-        ${row('ID', pt.id||'—')}
-        ${row('Input', inputTime)}
-        ${row('Print', printTime)}
+      <!-- النصف الأيمن: باركود في الأعلى + 3 مستطيلات صغيرة تحته -->
+      <div style="display:flex;flex-direction:column;align-items:stretch;min-width:0">
+        <!-- الباركود (مركّز، عرض مناسب) -->
+        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;margin-bottom:4px">
+          <div style="display:inline-block">${barcodeSvg}</div>
+          <div style="font-size:8px;font-weight:900;color:#000;letter-spacing:2px;margin-top:1px;font-family:'Courier New',monospace;text-align:center">${barcodeId}</div>
+        </div>
+        <!-- مستطيلات ID/Input/Print -->
+        <div style="display:flex;flex-direction:column">
+          ${rowR('ID', pt.id||'—')}
+          ${rowR('Input', inputTime)}
+          ${rowR('Print', printTime)}
+        </div>
       </div>
 
     </div>
@@ -12393,7 +12398,7 @@ function buildPrintHTML(req, opts){
     return `<!DOCTYPE html><html><head><meta charset="UTF-8">
     <style>${css}</style></head>
     <body>
-    <div id="print-content" style="background:#ffffff;font-family:'Inter',Arial,sans-serif;direction:ltr;width:100%;padding:1mm 4mm 0 4mm">
+    <div id="print-content" style="background:#ffffff;font-family:'Inter',Arial,sans-serif;direction:ltr;width:100%;padding:1mm 7mm 0 7mm">
       ${hdr}${ptBox}<!--BLANK_BODY_PLACEHOLDER-->
       <div id="print-spacer" style="height:${totalFooterH+12}px"></div>
     </div>
@@ -12477,13 +12482,13 @@ function buildPrintHTML(req, opts){
       var FOOTER_RESERVED = TOTAL_FOOTER_H + 12;
       var USABLE_H = PAGE_H_PX - TOP_MARGIN_PX - BOT_MARGIN_PX - FOOTER_RESERVED;
 
-      // مقاس probe ثابت بـ px يعادل 210mm A4 = ~793.7px (نطرح هامش 4mm من كل جانب = 30.2px)
-      var PROBE_W_PX = Math.round(210 * DPI_RATIO) - Math.round(8 * DPI_RATIO); // عرض المحتوى الفعلي
+      // مقاس probe ثابت بـ px يعادل 210mm A4 = ~793.7px (نطرح هامش 7mm من كل جانب = 52.9px)
+      var PROBE_W_PX = Math.round(210 * DPI_RATIO) - Math.round(14 * DPI_RATIO); // عرض المحتوى الفعلي
 
       function buildPage(chunksForPage, isFirst, isLast){
         var div = document.createElement('div');
         div.className = 'report-page';
-        div.style.padding = '1mm 4mm 0 4mm';
+        div.style.padding = '1mm 7mm 0 7mm';
         var html = HDR_HTML + COL_HDR_HTML;
         for(var i=0;i<chunksForPage.length;i++){
           // chunksForPage[i] قد يكون object {cat,html,catDividerHtml} أو string (توافق رجعي)
@@ -12525,7 +12530,7 @@ function buildPrintHTML(req, opts){
           // لا توجد تحاليل — صفحة واحدة بالـ header فقط
           var p = document.createElement('div');
           p.className = 'report-page';
-          p.style.padding = '1mm 4mm 0 4mm';
+          p.style.padding = '1mm 7mm 0 7mm';
           p.innerHTML = HDR_HTML + COL_HDR_HTML +
             '<div class="page-footer-spacer" style="height:'+(TOTAL_FOOTER_H+12)+'px"></div>';
           container.appendChild(p);
@@ -12710,7 +12715,7 @@ function buildPrintHTML(req, opts){
           if(container){
             var fp = document.createElement('div');
             fp.className = 'report-page';
-            fp.style.padding = '1mm 4mm 0 4mm';
+            fp.style.padding = '1mm 7mm 0 7mm';
             var fhtml = HDR_HTML + COL_HDR_HTML;
             for(var ii=0;ii<CAT_CHUNKS.length;ii++){
               var fb_ch = CAT_CHUNKS[ii];
@@ -13372,7 +13377,7 @@ function generatePDFBlob(callback){
               pg.style.boxSizing='border-box';
               pg.style.overflow='hidden';
               pg.style.margin='0';
-              pg.style.padding=pg.style.padding||'1mm 4mm 0 4mm';
+              pg.style.padding=pg.style.padding||'1mm 7mm 0 7mm';
             });
             // body بدون padding/margin إضافي
             body.style.margin='0';
