@@ -20582,10 +20582,20 @@ function _buildCultureHTML(cid){
   const rowI=(lbl,val,clr,rtl)=>`<div style="display:flex;align-items:center;gap:5px;margin-bottom:5px"><span style="${LBL}">${lbl}</span><span style="${BOX_INFO(clr,rtl)}">${val}</span></div>`;
   const rowS=(lbl,val)=>`<div style="display:flex;align-items:center;gap:5px;margin-bottom:4px"><span style="${LBL}">${lbl}</span><span style="${BOX_SM()}">${val}</span></div>`;
 
+  // ⭐ ربط حجم وثخانة بيانات المريض بالإعدادات (ptFontSize + fontWeight) — مطابق للتقرير العام
+  const _ptfs2 = s.ptFontSize || '15px';
+  const _ptInfoSize2 = _ptfs2;
+  const _ptInfoSizeSA2 = (function(){
+    const m = String(_ptfs2).match(/(\d+(?:\.\d+)?)/);
+    if(!m) return _ptfs2;
+    const n = parseFloat(m[1]);
+    return (n - 1) + 'px';
+  })();
+  const _ptInfoWt2 = s.fontWeight || '800';
   // ⭐ بنية جديدة: اليسار يتمدد، الوسط = العنوان (Culture & Sensitivity)، اليمين ثابت
-  // Sex/Age دائماً أصغر بدرجة من Name/Doctor
-  const _cuBL=(clr,rtl)=>`flex:1;border:1.5px solid #bbb;border-radius:3px;background:#fff;padding:1px 7px;font-size:15px;font-weight:800;color:${clr||'#000'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;text-align:center${rtl?';direction:rtl':''}`;
-  const _cuBLSA=(clr,rtl)=>`flex:1;border:1.5px solid #bbb;border-radius:3px;background:#fff;padding:1px 7px;font-size:14px;font-weight:800;color:${clr||'#000'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;text-align:center${rtl?';direction:rtl':''}`;
+  // الحجم والثخانة من الإعدادات، Sex/Age أصغر بدرجة
+  const _cuBL=(clr,rtl)=>`flex:1;border:1.5px solid #bbb;border-radius:3px;background:#fff;padding:1px 7px;font-size:${_ptInfoSize2};font-weight:${_ptInfoWt2};color:${clr||'#000'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;text-align:center${rtl?';direction:rtl':''}`;
+  const _cuBLSA=(clr,rtl)=>`flex:1;border:1.5px solid #bbb;border-radius:3px;background:#fff;padding:1px 7px;font-size:${_ptInfoSizeSA2};font-weight:${_ptInfoWt2};color:${clr||'#000'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;text-align:center${rtl?';direction:rtl':''}`;
   const _cuRL=(lbl,val,clr,rtl)=>`<div style="display:flex;align-items:center;gap:5px;margin-bottom:3px"><span style="${LBL}">${lbl}</span><span style="${_cuBL(clr,rtl)}">${val}</span></div>`;
   const _cuRL_SA=(lbl,val,clr,rtl)=>`<div style="display:flex;align-items:center;gap:5px;margin-bottom:3px"><span style="${LBL}">${lbl}</span><span style="${_cuBLSA(clr,rtl)}">${val}</span></div>`;
   const _cuLBLR=`font-size:8px;font-weight:800;color:#555;text-transform:uppercase;letter-spacing:0.5px;white-space:nowrap;width:54px;flex-shrink:0`;
@@ -21186,11 +21196,20 @@ function _buildUAPrintHTML(r){
   const BOX_SMALL=(c,rtl)=>`min-width:${COL_W};border:1.5px solid #bbb;border-radius:3px;background:#fff;padding:3px 7px;font-size:12px;font-weight:700;color:${c||'#000'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block${rtl?';direction:rtl;text-align:right':''}`;
   const rowN=(lbl,val,c,rtl)=>`<div style="display:flex;align-items:center;gap:5px;margin-bottom:5px"><span style="${LBL}">${lbl}</span><span style="${BOX_NAME(c,rtl)}">${val}</span></div>`;
   const rowS=(lbl,val,c,rtl)=>`<div style="display:flex;align-items:center;gap:5px;margin-bottom:4px"><span style="${LBL}">${lbl}</span><span style="${BOX_SMALL(c,rtl)}">${val}</span></div>`;
-  // ⭐ بنية جديدة: اليسار يتمدد، اليمين بعرض ثابت = عرض الباركود (ملاصق للحافة اليمنى)
-  // مستطيلات اليسار بنص متوسط، مستطيلات اليمين أصغر (ID/Date/Print)
-  // Sex/Age دائماً أصغر بدرجة من Name/Doctor
-  const _uaBL=(c,rtl)=>`flex:1;border:1.5px solid #bbb;border-radius:3px;background:#fff;padding:1px 7px;font-size:15px;font-weight:800;color:${c||'#000'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;text-align:center${rtl?';direction:rtl':''}`;
-  const _uaBLSA=(c,rtl)=>`flex:1;border:1.5px solid #bbb;border-radius:3px;background:#fff;padding:1px 7px;font-size:14px;font-weight:800;color:${c||'#000'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;text-align:center${rtl?';direction:rtl':''}`;
+  // ⭐ ربط حجم وثخانة بيانات المريض بالإعدادات (ptFontSize + fontWeight) — مطابق للتقرير العام
+  const _ptfs2 = s.ptFontSize || '15px';
+  const _ptInfoSize2 = _ptfs2;
+  const _ptInfoSizeSA2 = (function(){
+    const m = String(_ptfs2).match(/(\d+(?:\.\d+)?)/);
+    if(!m) return _ptfs2;
+    const n = parseFloat(m[1]);
+    return (n - 1) + 'px';
+  })();
+  const _ptInfoWt2 = s.fontWeight || '800';
+  // ⭐ بنية جديدة: اليسار يتمدد، اليمين بعرض ثابت = عرض الباركود
+  // الحجم والثخانة من الإعدادات، Sex/Age أصغر بدرجة
+  const _uaBL=(c,rtl)=>`flex:1;border:1.5px solid #bbb;border-radius:3px;background:#fff;padding:1px 7px;font-size:${_ptInfoSize2};font-weight:${_ptInfoWt2};color:${c||'#000'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;text-align:center${rtl?';direction:rtl':''}`;
+  const _uaBLSA=(c,rtl)=>`flex:1;border:1.5px solid #bbb;border-radius:3px;background:#fff;padding:1px 7px;font-size:${_ptInfoSizeSA2};font-weight:${_ptInfoWt2};color:${c||'#000'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;text-align:center${rtl?';direction:rtl':''}`;
   const _uaRL=(lbl,val,c,rtl)=>`<div style="display:flex;align-items:center;gap:5px;margin-bottom:3px"><span style="${LBL}">${lbl}</span><span style="${_uaBL(c,rtl)}">${val}</span></div>`;
   const _uaRL_SA=(lbl,val,c,rtl)=>`<div style="display:flex;align-items:center;gap:5px;margin-bottom:3px"><span style="${LBL}">${lbl}</span><span style="${_uaBLSA(c,rtl)}">${val}</span></div>`;
   const _uaLBLR=`font-size:8px;font-weight:800;color:#555;text-transform:uppercase;letter-spacing:0.5px;white-space:nowrap;width:36px;flex-shrink:0`;
@@ -21694,10 +21713,20 @@ function _buildStoolPrintHTML(r){
   const _sBS=(c,rtl)=>`min-width:${_sCOL_W};border:1.5px solid #bbb;border-radius:3px;background:#fff;padding:3px 7px;font-size:12px;font-weight:700;color:${c||'#000'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block${rtl?';direction:rtl;text-align:right':''}`;
   const _sRN=(lbl,val,c,rtl)=>`<div style="display:flex;align-items:center;gap:5px;margin-bottom:5px"><span style="${_sLBL}">${lbl}</span><span style="${_sBN(c,rtl)}">${val}</span></div>`;
   const _sRS=(lbl,val,c,rtl)=>`<div style="display:flex;align-items:center;gap:5px;margin-bottom:4px"><span style="${_sLBL}">${lbl}</span><span style="${_sBS(c,rtl)}">${val}</span></div>`;
+  // ⭐ ربط حجم وثخانة بيانات المريض بالإعدادات (ptFontSize + fontWeight) — مطابق للتقرير العام
+  const _ptfs2 = s.ptFontSize || '15px';
+  const _ptInfoSize2 = _ptfs2;
+  const _ptInfoSizeSA2 = (function(){
+    const m = String(_ptfs2).match(/(\d+(?:\.\d+)?)/);
+    if(!m) return _ptfs2;
+    const n = parseFloat(m[1]);
+    return (n - 1) + 'px';
+  })();
+  const _ptInfoWt2 = s.fontWeight || '800';
   // ⭐ بنية جديدة: اليسار يتمدد، اليمين ثابت = عرض الباركود
-  // Sex/Age دائماً أصغر بدرجة من Name/Doctor
-  const _sBL=(c,rtl)=>`flex:1;border:1.5px solid #bbb;border-radius:3px;background:#fff;padding:1px 7px;font-size:15px;font-weight:800;color:${c||'#000'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;text-align:center${rtl?';direction:rtl':''}`;
-  const _sBLSA=(c,rtl)=>`flex:1;border:1.5px solid #bbb;border-radius:3px;background:#fff;padding:1px 7px;font-size:14px;font-weight:800;color:${c||'#000'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;text-align:center${rtl?';direction:rtl':''}`;
+  // الحجم والثخانة من الإعدادات، Sex/Age أصغر بدرجة
+  const _sBL=(c,rtl)=>`flex:1;border:1.5px solid #bbb;border-radius:3px;background:#fff;padding:1px 7px;font-size:${_ptInfoSize2};font-weight:${_ptInfoWt2};color:${c||'#000'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;text-align:center${rtl?';direction:rtl':''}`;
+  const _sBLSA=(c,rtl)=>`flex:1;border:1.5px solid #bbb;border-radius:3px;background:#fff;padding:1px 7px;font-size:${_ptInfoSizeSA2};font-weight:${_ptInfoWt2};color:${c||'#000'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;text-align:center${rtl?';direction:rtl':''}`;
   const _sRL=(lbl,val,c,rtl)=>`<div style="display:flex;align-items:center;gap:5px;margin-bottom:3px"><span style="${_sLBL}">${lbl}</span><span style="${_sBL(c,rtl)}">${val}</span></div>`;
   const _sRL_SA=(lbl,val,c,rtl)=>`<div style="display:flex;align-items:center;gap:5px;margin-bottom:3px"><span style="${_sLBL}">${lbl}</span><span style="${_sBLSA(c,rtl)}">${val}</span></div>`;
   const _sLBLR=`font-size:8px;font-weight:800;color:#555;text-transform:uppercase;letter-spacing:0.5px;white-space:nowrap;width:36px;flex-shrink:0`;
@@ -22872,10 +22901,23 @@ function _buildSemenPrintHTML(r){
   const _smBS=(c,rtl)=>`min-width:${_smCOL_W};border:1.5px solid #bbb;border-radius:3px;background:#fff;padding:3px 7px;font-size:12px;font-weight:700;color:${c||'#000'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block${rtl?';direction:rtl;text-align:right':''}`;
   const _smRN=(lbl,val,c,rtl)=>`<div style="display:flex;align-items:center;gap:5px;margin-bottom:5px"><span style="${_smLBL}">${lbl}</span><span style="${_smBN(c,rtl)}">${val}</span></div>`;
   const _smRS=(lbl,val,c,rtl)=>`<div style="display:flex;align-items:center;gap:5px;margin-bottom:4px"><span style="${_smLBL}">${lbl}</span><span style="${_smBS(c,rtl)}">${val}</span></div>`;
-  // ⭐ بنية جديدة (مضغوطة للسائل المنوي ليبقى في ورقة واحدة)
-  // Sex/Age دائماً أصغر بدرجة من Name/Doctor
-  const _smBL=(c,rtl)=>`flex:1;border:1.5px solid #bbb;border-radius:3px;background:#fff;padding:1px 7px;font-size:14px;font-weight:800;color:${c||'#000'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;text-align:center${rtl?';direction:rtl':''}`;
-  const _smBLSA=(c,rtl)=>`flex:1;border:1.5px solid #bbb;border-radius:3px;background:#fff;padding:1px 7px;font-size:13px;font-weight:800;color:${c||'#000'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;text-align:center${rtl?';direction:rtl':''}`;
+  // ⭐ ربط بإعدادات ptFontSize/fontWeight — السائل المنوي يستخدم حجماً أقل بدرجة لضمان الورقة الواحدة
+  const _ptfs2 = s.ptFontSize || '15px';
+  const _ptInfoSize2 = (function(){
+    const m = String(_ptfs2).match(/(\d+(?:\.\d+)?)/);
+    if(!m) return _ptfs2;
+    return (parseFloat(m[1]) - 1) + 'px';  // أقل بدرجة لتوفير المساحة
+  })();
+  const _ptInfoSizeSA2 = (function(){
+    const m = String(_ptfs2).match(/(\d+(?:\.\d+)?)/);
+    if(!m) return _ptfs2;
+    return (parseFloat(m[1]) - 2) + 'px';  // أقل بدرجتين عن الأصل (= أقل بدرجة من _ptInfoSize2)
+  })();
+  const _ptInfoWt2 = s.fontWeight || '800';
+  // ⭐ السائل المنوي: الحجم أقل بدرجة عن الإعدادات (لضمان الورقة الواحدة)
+  // Sex/Age أصغر بدرجة إضافية
+  const _smBL=(c,rtl)=>`flex:1;border:1.5px solid #bbb;border-radius:3px;background:#fff;padding:1px 7px;font-size:${_ptInfoSize2};font-weight:${_ptInfoWt2};color:${c||'#000'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;text-align:center${rtl?';direction:rtl':''}`;
+  const _smBLSA=(c,rtl)=>`flex:1;border:1.5px solid #bbb;border-radius:3px;background:#fff;padding:1px 7px;font-size:${_ptInfoSizeSA2};font-weight:${_ptInfoWt2};color:${c||'#000'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;text-align:center${rtl?';direction:rtl':''}`;
   const _smRL=(lbl,val,c,rtl)=>`<div style="display:flex;align-items:center;gap:5px;margin-bottom:2px"><span style="${_smLBL}">${lbl}</span><span style="${_smBL(c,rtl)}">${val}</span></div>`;
   const _smRL_SA=(lbl,val,c,rtl)=>`<div style="display:flex;align-items:center;gap:5px;margin-bottom:2px"><span style="${_smLBL}">${lbl}</span><span style="${_smBLSA(c,rtl)}">${val}</span></div>`;
   const _smLBLR=`font-size:8px;font-weight:800;color:#555;text-transform:uppercase;letter-spacing:0.5px;white-space:nowrap;width:36px;flex-shrink:0`;
