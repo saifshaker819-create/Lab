@@ -21222,26 +21222,26 @@ function _buildUAPrintHTML(r){
       const isAbn=!isEmpty&&f.normal&&val!=='—'&&val!==f.normal;
       const rowBg=fi%2===0?'#ffffff':'#f9f9f9';
       return `<tr style="background:${rowBg}">
-        <td style="font-size:16px;font-weight:700;color:#000000;padding:3px 10px;width:38%;border:none;border-bottom:1px solid #e0e0e0">
-          <span style="color:#000;margin-right:6px">■</span>${f.label}
+        <td style="font-size:14px;font-weight:700;color:#000000;padding:2px 8px;width:38%;border:none;border-bottom:1px solid #e0e0e0">
+          <span style="color:#000;margin-right:5px">■</span>${f.label}
         </td>
-        <td style="font-size:16px;font-weight:700;color:#000000;padding:3px 10px;width:32%;border:none;border-bottom:1px solid #e0e0e0;text-align:center">
-          <span style="display:inline-block;border:1.5px solid ${isAbn?'#cc0000':'#b0b0b0'};border-radius:4px;padding:1px 10px;min-width:90px;text-align:center;background:${isAbn?'#fff5f5':'#fff'};color:${isAbn?'#cc0000':'#000000'};font-weight:${isAbn?'900':'700'}">${val}</span>
+        <td style="font-size:14px;font-weight:700;color:#000000;padding:2px 8px;width:32%;border:none;border-bottom:1px solid #e0e0e0;text-align:center">
+          <span style="display:inline-block;border:1.5px solid ${isAbn?'#cc0000':'#b0b0b0'};border-radius:4px;padding:1px 8px;min-width:80px;text-align:center;background:${isAbn?'#fff5f5':'#fff'};color:${isAbn?'#cc0000':'#000000'};font-weight:${isAbn?'900':'700'}">${val}</span>
         </td>
-        <td style="font-size:16px;font-weight:700;color:#000000;padding:3px 10px;width:30%;border:none;border-bottom:1px solid #e0e0e0">${f.normal||'—'}</td>
+        <td style="font-size:14px;font-weight:700;color:#000000;padding:2px 8px;width:30%;border:none;border-bottom:1px solid #e0e0e0">${f.normal||'—'}</td>
       </tr>`;
     }).join('');
 
     return `<div style="border:1.5px solid #b8b8b8;border-radius:0;margin-bottom:2px;overflow:hidden;page-break-inside:avoid">
-      <div style="background:#ffffff;padding:2px 10px;border-bottom:1px solid #b8b8b8">
-        <span style="font-size:16px;font-weight:900;color:#1a4fa0;letter-spacing:0.3px">${sec.label}</span>
+      <div style="background:#ffffff;padding:2px 8px;border-bottom:1px solid #b8b8b8">
+        <span style="font-size:14px;font-weight:900;color:#1a4fa0;letter-spacing:0.3px">${sec.label}</span>
       </div>
       <table style="width:100%;border-collapse:collapse">
         <thead>
           <tr style="background:#f0f0f0">
-            <th style="font-size:15px;font-weight:800;color:#000000;padding:2px 8px;text-align:left;border:none;border-bottom:1.5px solid #b8b8b8;width:38%">Parameter</th>
-            <th style="font-size:15px;font-weight:800;color:#000000;padding:2px 8px;text-align:center;border:none;border-bottom:1.5px solid #b8b8b8;width:32%">Result</th>
-            <th style="font-size:15px;font-weight:800;color:#000000;padding:2px 8px;text-align:left;border:none;border-bottom:1.5px solid #b8b8b8;width:30%">Normal Range</th>
+            <th style="font-size:13px;font-weight:800;color:#000000;padding:2px 8px;text-align:left;border:none;border-bottom:1.5px solid #b8b8b8;width:38%">Parameter</th>
+            <th style="font-size:13px;font-weight:800;color:#000000;padding:2px 8px;text-align:center;border:none;border-bottom:1.5px solid #b8b8b8;width:32%">Result</th>
+            <th style="font-size:13px;font-weight:800;color:#000000;padding:2px 8px;text-align:left;border:none;border-bottom:1.5px solid #b8b8b8;width:30%">Normal Range</th>
           </tr>
         </thead>
         <tbody>${rows}</tbody>
@@ -21317,25 +21317,23 @@ function _buildUAPrintHTML(r){
   return `<!DOCTYPE html><html><head><meta charset="UTF-8"><style>
     *{margin:0;padding:0;box-sizing:border-box;}
     /* ⭐ الذيل ثابت أسفل الورقة (position:fixed) — مطابق لتقرير CBC */
-    body{font-family:Arial,sans-serif;color:#000;font-size:16px;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+    body{font-family:Arial,sans-serif;color:#000;font-size:14px;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
     .ua-content{padding-bottom:${((typeof s.ftrImgH==='number'&&s.ftrImgH>=10&&s.ftrImgH<=80)?s.ftrImgH:50)+8}px;}
     .ua-footer{position:fixed;bottom:3mm;left:0;right:0;background:#fff;z-index:9999;line-height:0;}
     @page{margin:1mm 6mm 1mm 6mm;size:A4 portrait;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
     @media print{
-      body{font-size:14px;}
+      body{font-size:13px;}
       .ua-footer{position:fixed;bottom:3mm;left:0;right:0;background:#fff;z-index:9999;}
-      .ua-sec div[style*="font-size:15px"]{font-size:14px !important;}
-      .ua-sec div[style*="font-size:16px"]{font-size:15px !important;}
-      th,td{font-size:14px !important;padding:3px 8px !important;}
-      .ua-title{font-size:14px !important;} .ua-sec-hdr{font-size:15px !important;}
+      th,td{font-size:13px !important;padding:2px 7px !important;}
+      .ua-title{font-size:13px !important;} .ua-sec-hdr{font-size:13px !important;}
     }
   </style></head><body>
     <div class="ua-content">
       ${hdrHTML}
-      <div style="border:1.5px solid #b8b8b8;margin:2px 0 3px;padding:4px 10px;background:#fafafa">
+      <div style="border:1.5px solid #b8b8b8;margin:2px 0 2px;padding:3px 10px;background:#fafafa">
         ${uaPtBox}
       </div>
-      <div style="color:#cc0000;padding:5px 16px;text-align:center;font-weight:900;font-size:19px;letter-spacing:1px;margin:4px 0;">
+      <div style="color:#cc0000;padding:3px 16px;text-align:center;font-weight:900;font-size:16px;letter-spacing:1px;margin:2px 0;">
         &#x1F52C; General Urine Examination
       </div>
       <div style="margin:0 0 2px;height:2px;background:${color}"></div>
