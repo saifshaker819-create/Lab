@@ -5304,6 +5304,23 @@ body.light-mode .wnb-text .wnb-char.neon-trail {
           </div>
         </div>
       </div>
+      <!-- ➕ إضافة مجموعة فرعية جديدة -->
+      <div id="add-subcat-panel" style="background:rgba(0,255,157,0.05);border:1px solid rgba(0,255,157,0.25);border-radius:10px;padding:12px 14px;margin-bottom:12px">
+        <div style="font-size:11px;font-weight:700;color:var(--accent);margin-bottom:10px">➕ إضافة مجموعة فرعية جديدة</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:flex-end">
+          <div class="fg" style="margin-bottom:0">
+            <label class="fl" style="font-size:11px">المجموعة الرئيسية</label>
+            <select class="fc" id="new-subcat-main" style="font-size:12px"></select>
+          </div>
+          <div class="fg" style="margin-bottom:0">
+            <label class="fl" style="font-size:11px">اسم المجموعة الفرعية الجديدة</label>
+            <input class="fc" id="new-subcat-name" placeholder="مثال: Cardiac Enzymes" style="font-size:12px">
+          </div>
+          <button class="btn btn-p" style="height:38px;padding:0 16px;font-size:12px;white-space:nowrap" onclick="addCustomSubCat()">➕ إضافة</button>
+        </div>
+        <div id="custom-subcats-list" style="margin-top:10px;display:flex;flex-wrap:wrap;gap:6px"></div>
+      </div>
+
       <div class="fr4">
         <div class="fg"><label class="fl">Section (Main) <span class="req">*</span></label><select class="fc" id="et-cat" onchange="updateSubCatDropdown()"></select></div>
         <div class="fg"><label class="fl">Sub-Section <span class="req">*</span></label><select class="fc" id="et-subcat"><option value="">-- اختر --</option></select></div>
@@ -7261,8 +7278,22 @@ const SUB_CATS = {
   'Special':     ['Miscellaneous','Other Special'],
   'Calculated':  ['Miscellaneous','Other Calculated']
 };
-// إرجاع المجاميع الفرعية لمجموعة رئيسية معينة
-function getSubCats(cat){ return (SUB_CATS[cat]||[]).concat(['Other']); }
+// المجاميع الفرعية المخصصة (يضيفها المستخدم) — تُحفظ في localStorage وتدوم بعد الريفريش
+let customSubCats = {};
+function loadCustomSubCats(){
+  try{ const v=load('customSubCats',{}); if(v&&typeof v==='object') customSubCats=v; }catch(e){ customSubCats={}; }
+}
+function saveCustomSubCats(){
+  save('customSubCats', customSubCats);
+}
+// إرجاع المجاميع الفرعية لمجموعة رئيسية معينة (الافتراضية + المخصصة)
+function getSubCats(cat){
+  const base = SUB_CATS[cat]||[];
+  const custom = customSubCats[cat]||[];
+  // دمج بدون تكرار، مع إبقاء 'Other' في النهاية
+  const merged = [...new Set([...base, ...custom])];
+  return merged.filter(s=>s!=='Other').concat(['Other']);
+}
 // إرجاع كل المجاميع الفرعية المستخدمة فعلياً في قاعدة البيانات
 function getAllUsedSubCats(){ const s=new Set(); tests.forEach(t=>{ if(t.subCat) s.add(t.subCat); }); return [...s]; }
 const CAT_AR={'All':'الكل','Hematology':'هيماتولوجيا','Blood Gases':'غازات الدم','Biochemistry':'كيمياء حيوية','Hormones':'هرمونات','Immunology':'مناعة','Vitamins & Minerals':'فيتامينات','Tumor Markers':'أورام','Infections':'أمراض معدية','Urinalysis':'بول','Microbiology':'ميكروبيولوجيا','Stool':'براز','Special':'خاص','Calculated':'محسوبة'};
@@ -7513,6 +7544,7 @@ function startApp(){
   loadSettings();   // أولاً: ضع القيم المحفوظة في settings object والـ DOM
   applyFontCustom(); // ثانياً: طبّق الكل على CSS
   applyCustomExamFields();
+  loadCustomSubCats();
   buildTestCatTabs();
   renderAll();
   applyPermissionsToSidebar();
@@ -13737,11 +13769,77 @@ function updateSubCatDropdown(selectedVal){
   const subs=getSubCats(cat);
   subEl.innerHTML=subs.map(s=>`<option value="${s}" ${s===selectedVal?'selected':''}>${s}</option>`).join('');
 }
+
+// ── إدارة المجاميع الفرعية المخصصة ──────────────────────────
+function addCustomSubCat(){
+  const mainSel=document.getElementById('new-subcat-main');
+  const nameEl=document.getElementById('new-subcat-name');
+  if(!mainSel||!nameEl) return;
+  const cat=mainSel.value.trim();
+  const name=nameEl.value.trim();
+  if(!cat){ showNotif('خطأ','اختر مجموعة رئيسية','error'); return; }
+  if(!name){ showNotif('خطأ','أدخل اسم المجموعة الفرعية','error'); return; }
+  // تحقق من عدم التكرار في الافتراضية أو المخصصة
+  const existing=getSubCats(cat);
+  if(existing.map(s=>s.toLowerCase()).includes(name.toLowerCase())){
+    showNotif('تنبيه','هذه المجموعة الفرعية موجودة مسبقاً','warning'); return;
+  }
+  if(!customSubCats[cat]) customSubCats[cat]=[];
+  customSubCats[cat].push(name);
+  saveCustomSubCats();
+  nameEl.value='';
+  // تحديث القوائم
+  updateSubCatDropdown(name); // اختر المجموعة المضافة تلقائياً في et-subcat
+  renderCustomSubcatsList();
+  showNotif('تم','تمت إضافة المجموعة الفرعية ✅','success');
+}
+
+function removeCustomSubCat(cat, name){
+  if(!customSubCats[cat]) return;
+  customSubCats[cat]=customSubCats[cat].filter(s=>s!==name);
+  if(customSubCats[cat].length===0) delete customSubCats[cat];
+  saveCustomSubCats();
+  updateSubCatDropdown();
+  renderCustomSubcatsList();
+  showNotif('تم','تم حذف المجموعة الفرعية','success');
+}
+
+function renderCustomSubcatsList(){
+  const listEl=document.getElementById('custom-subcats-list');
+  if(!listEl) return;
+  const allCustom=[];
+  Object.keys(customSubCats).forEach(cat=>{
+    (customSubCats[cat]||[]).forEach(name=>{
+      allCustom.push({cat,name});
+    });
+  });
+  if(!allCustom.length){
+    listEl.innerHTML='<span style="font-size:11px;color:var(--text2)">لا توجد مجاميع فرعية مضافة بعد.</span>';
+    return;
+  }
+  listEl.innerHTML=allCustom.map(function(item){
+    var cat=item.cat, name=item.name;
+    var safeCat=cat.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    var safeName=name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    return '<span style="display:inline-flex;align-items:center;gap:5px;background:rgba(0,255,157,0.1);border:1px solid rgba(0,255,157,0.3);border-radius:20px;padding:3px 10px 3px 6px;font-size:11px;color:var(--accent)">'
+      +'<span style="color:var(--text2);font-size:10px">'+cat+'</span> / '+name
+      +' <button onclick="removeCustomSubCat(\''+safeCat+'\',\''+safeName+'\')" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:13px;line-height:1;padding:0 2px" title="حذف">×</button>'
+      +'</span>';
+  }).join('');
+}
+
+function _fillNewSubcatMainDropdown(){
+  const sel=document.getElementById('new-subcat-main');
+  if(!sel) return;
+  const cats=typeof TEST_CATS!=='undefined'?TEST_CATS.filter(c=>c!=='All'):Object.keys(SUB_CATS);
+  sel.innerHTML=cats.map(c=>`<option value="${c}">${c}</option>`).join('');
+}
 function buildTestCatTabs(){
   const tabs=document.getElementById('test-cat-tabs');if(!tabs)return;
   tabs.innerHTML=TEST_CATS.map(c=>`<button class="tab ${c==='All'?'active':''}" onclick="setTestCat('${c}',this)">${c}</button>`).join('');
   const etCat=document.getElementById('et-cat');
   if(etCat){etCat.innerHTML=TEST_CATS.filter(c=>c!=='All').map(c=>`<option>${c}</option>`).join('');updateSubCatDropdown();}
+  _fillNewSubcatMainDropdown();
 }
 function setTestCat(cat,el){currentTestCat=cat;document.querySelectorAll('#test-cat-tabs .tab').forEach(t=>t.classList.remove('active'));el.classList.add('active');renderTestsDB();}
 function renderTestsDB(){
@@ -13773,6 +13871,9 @@ function openEditTest(id){
   document.getElementById('age-ranges-list').innerHTML='';
   const etCat=document.getElementById('et-cat');
   etCat.innerHTML=TEST_CATS.filter(c=>c!=='All').map(c=>`<option>${c}</option>`).join('');
+  // ملء قائمة المجموعة الرئيسية في حقل الإضافة
+  _fillNewSubcatMainDropdown();
+  renderCustomSubcatsList();
   if(id){
     const t=tests.find(x=>x.id===id);if(!t)return;
     document.getElementById('et-id').value=t.id;
