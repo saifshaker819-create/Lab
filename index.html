@@ -29418,182 +29418,123 @@ function itp(v,t){
   if(!isNaN(hi)&&n>hi)return{c:'hi'};if(!isNaN(lo)&&n<lo)return{c:'lo'};if(!isNaN(lo)||!isNaN(hi))return{c:'ok'};return{c:'nd'};
 }
 function dlPDF(i){
-  const btn=document.getElementById('pb'+i);
-  if(btn){btn.classList.add('ld');btn.disabled=true}
-  const req=_D.requests[i],pt=_D.patient;
-  if(!req.printHTML||!req.printHTML.trim()){
+  var btn=document.getElementById('pb'+i);
+  if(btn){btn.classList.add('ld');btn.disabled=true;}
+  var req=_D.requests[i],pt=_D.patient;
+  if(!req||!req.printHTML||!req.printHTML.trim()){
     toast('⚠️ هذا الطلب لا يحتوي نتائج مكتملة');
-    if(btn){btn.classList.remove('ld');btn.disabled=false}
+    if(btn){btn.classList.remove('ld');btn.disabled=false;}
     return;
   }
   if(!window.html2canvas||!window.jspdf){
     toast('⚠️ افتح الملف بإنترنت لتحميل PDF');
-    if(btn){btn.classList.remove('ld');btn.disabled=false}
+    if(btn){btn.classList.remove('ld');btn.disabled=false;}
     return;
   }
-
-  const printCSS='.print-prev,.pp-tbl,.pp-section{background:#fff!important;color:#111!important;}'+
-    '.pp-hdr-default{background:linear-gradient(135deg,#003d7a,#0055aa)!important;color:#fff!important;}'+
-    '.pp-tbl th{background:#003366!important;color:#fff!important;}'+
-    '.pp-tbl td{color:#111!important;background:#fff!important;}'+
-    '.pp-tbl tr:nth-child(even) td{background:#f5f8ff!important;}'+
-    '.pp-section-title{background:transparent!important;color:#003366!important;border:none!important;}'+
-    '.ab{color:#cc0000!important;font-weight:800!important;}.nm{color:#006600!important;}'+
-    '*{font-family:Cairo,sans-serif!important;}';
-
-  const fontLink='<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">';
-  let fullHTML;
-  if(/<\s*html[\s>]/i.test(req.printHTML)){
-    fullHTML=req.printHTML
-      .replace(/<head([^>]*)>/i,'<head$1>'+fontLink)
-      .replace(/<\/head>/i,'<style>'+printCSS+'</style></head>');
+  var printCSS='.print-prev,.pp-tbl,.pp-section{background:#fff!important;color:#111!important;}'
+    +'.pp-hdr-default{background:linear-gradient(135deg,#003d7a,#0055aa)!important;color:#fff!important;}'
+    +'.pp-tbl th{background:#003366!important;color:#fff!important;}'
+    +'.pp-tbl td{color:#111!important;background:#fff!important;}'
+    +'.pp-tbl tr:nth-child(even) td{background:#f5f8ff!important;}'
+    +'.pp-section-title{background:transparent!important;color:#003366!important;border:none!important;}'
+    +'.ab{color:#cc0000!important;font-weight:800!important;}.nm{color:#006600!important;}'
+    +'*{font-family:Cairo,sans-serif!important;}';
+  var fontLink='<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">';
+  var htmlStr=req.printHTML;
+  var fullHTML;
+  var hasHtmlTag=htmlStr.indexOf('<html')!==-1||htmlStr.indexOf('<HTML')!==-1;
+  if(hasHtmlTag){
+    fullHTML=htmlStr.replace('<head>','<head>'+fontLink).replace('<HEAD>','<HEAD>'+fontLink);
+    var hIdx=fullHTML.toLowerCase().indexOf('</head>');
+    if(hIdx!==-1){fullHTML=fullHTML.slice(0,hIdx)+'<style>'+printCSS+'</style>'+fullHTML.slice(hIdx);}
   } else {
-    fullHTML='<!DOCTYPE html><html><head><meta charset="utf-8">'+fontLink+
-      '<style>html,body{margin:0;padding:0;background:#fff;font-family:Cairo,sans-serif;}'+printCSS+'</style></head><body>'+req.printHTML+'</body></html>';
+    fullHTML='<!DOCTYPE html><html><head><meta charset="utf-8">'+fontLink+'<style>html,body{margin:0;padding:0;background:#fff;font-family:Cairo,sans-serif;}'+printCSS+'</style></head><body>'+htmlStr+'</body></html>';
   }
-
-  const iframe=document.createElement('iframe');
+  var iframe=document.createElement('iframe');
   iframe.style.cssText='position:fixed;top:0;left:-9999px;width:794px;height:1123px;border:none;background:#fff;';
   document.body.appendChild(iframe);
-  const iDoc=iframe.contentDocument||iframe.contentWindow.document;
+  var iDoc=iframe.contentDocument||iframe.contentWindow.document;
   iDoc.open();iDoc.write(fullHTML);iDoc.close();
-
+  function _done(){try{document.body.removeChild(iframe);}catch(e){}if(btn){btn.classList.remove('ld');btn.disabled=false;}}
+  function _err(m){_done();toast('❌ خطأ: '+m);}
   function _doCapture(){
-    const waitFonts=(iDoc.fonts&&iDoc.fonts.ready)?iDoc.fonts.ready:Promise.resolve();
+    var waitFonts=(iDoc.fonts&&iDoc.fonts.ready)?iDoc.fonts.ready:Promise.resolve();
     waitFonts.then(function(){
       setTimeout(function(){
-        const body=iDoc.body;
-        if(!body){
-          try{document.body.removeChild(iframe);}catch(e){}
-          toast('❌ خطأ: تعذّر الوصول للمحتوى');
-          if(btn){btn.classList.remove('ld');btn.disabled=false}
-          return;
-        }
-
-        // ── نفس منطق البرنامج الرئيسي: التقطيع حسب .report-page ──
-        const reportPages=iDoc.querySelectorAll('.report-page');
-        const printFooter=iDoc.getElementById('print-footer');
-        let usePageBoundaries=false;
-        let pageBoundaries=[];
-
+        var body=iDoc.body;
+        if(!body){_err('تعذر الوصول للمحتوى');return;}
+        var reportPages=iDoc.querySelectorAll('.report-page');
+        var printFooter=iDoc.getElementById('print-footer');
+        var usePageBoundaries=false;
+        var pageBoundaries=[];
         if(reportPages.length>0&&printFooter){
-          const footerHTML=printFooter.outerHTML;
+          var footerHTML=printFooter.outerHTML;
           printFooter.style.display='none';
           reportPages.forEach(function(pg){
-            const spacer=pg.querySelector('.page-footer-spacer');
+            var spacer=pg.querySelector('.page-footer-spacer');
             if(spacer)spacer.remove();
-            const ftrDiv=iDoc.createElement('div');
+            var ftrDiv=iDoc.createElement('div');
             ftrDiv.innerHTML=footerHTML;
-            const ftrEl=ftrDiv.firstElementChild;
-            if(ftrEl){
-              ftrEl.style.position='absolute';
-              ftrEl.style.bottom='3mm';
-              ftrEl.style.left='0';
-              ftrEl.style.right='0';
-              ftrEl.style.zIndex='auto';
-              ftrEl.style.display='block';
-              ftrEl.id='';
-              pg.appendChild(ftrEl);
-            }
-            pg.style.position='relative';
-            pg.style.height='1123px';
-            pg.style.minHeight='1123px';
-            pg.style.maxHeight='1123px';
-            pg.style.boxSizing='border-box';
-            pg.style.overflow='hidden';
-            pg.style.margin='0';
-            pg.style.padding=pg.style.padding||'1mm 3mm 0 3mm';
+            var ftrEl=ftrDiv.firstElementChild;
+            if(ftrEl){ftrEl.style.position='absolute';ftrEl.style.bottom='3mm';ftrEl.style.left='0';ftrEl.style.right='0';ftrEl.style.zIndex='auto';ftrEl.style.display='block';ftrEl.id='';pg.appendChild(ftrEl);}
+            pg.style.position='relative';pg.style.height='1123px';pg.style.minHeight='1123px';pg.style.maxHeight='1123px';pg.style.boxSizing='border-box';pg.style.overflow='hidden';pg.style.margin='0';pg.style.padding=pg.style.padding||'1mm 3mm 0 3mm';
           });
-          body.style.margin='0';
-          body.style.padding='0';
+          body.style.margin='0';body.style.padding='0';
           usePageBoundaries=true;
         }
-
         if(usePageBoundaries){
           void body.offsetHeight;
-          const pgList=iDoc.querySelectorAll('.report-page');
-          pageBoundaries=[];
-          pgList.forEach(function(pg){
-            pageBoundaries.push({top:pg.offsetTop,bottom:pg.offsetTop+pg.offsetHeight});
-          });
+          iDoc.querySelectorAll('.report-page').forEach(function(pg){pageBoundaries.push({top:pg.offsetTop,bottom:pg.offsetTop+pg.offsetHeight});});
         }
-
-        const realH=Math.max(body.scrollHeight,body.offsetHeight,100);
+        var realH=Math.max(body.scrollHeight,body.offsetHeight,100);
         iframe.style.height=realH+'px';
-
-        html2canvas(body,{
-          scale:2,useCORS:true,backgroundColor:'#ffffff',
-          logging:false,allowTaint:true,letterRendering:true,
-          width:794,height:realH,
-          windowWidth:794,windowHeight:realH
-        }).then(function(canvas){
-          try{document.body.removeChild(iframe);}catch(e){}
-          if(!canvas||!canvas.width||!canvas.height){
-            toast('❌ خطأ: canvas فارغ');
-            if(btn){btn.classList.remove('ld');btn.disabled=false}
-            return;
-          }
-
-          const {jsPDF:J}=window.jspdf;
-          const doc=new J({orientation:'portrait',unit:'mm',format:'a4'});
-          const pageW=210,pageH=297;
-
+        html2canvas(body,{scale:2,useCORS:true,backgroundColor:'#ffffff',logging:false,allowTaint:true,letterRendering:true,width:794,height:realH,windowWidth:794,windowHeight:realH}).then(function(canvas){
+          if(!canvas||!canvas.width||!canvas.height){_err('canvas فارغ');return;}
+          var J=window.jspdf.jsPDF;
+          var doc=new J({orientation:'portrait',unit:'mm',format:'a4'});
+          var pageW=210,pageH=297;
           if(usePageBoundaries&&pageBoundaries.length>0){
-            const canvasScale=canvas.width/794;
-            for(let p=0;p<pageBoundaries.length;p++){
-              const pb=pageBoundaries[p];
-              const srcY=Math.round(pb.top*canvasScale);
-              const srcEnd=Math.round(pb.bottom*canvasScale);
-              const sliceH=Math.max(1,srcEnd-srcY);
+            var cScale=canvas.width/794;
+            for(var p=0;p<pageBoundaries.length;p++){
+              var pb=pageBoundaries[p];
+              var sY=Math.round(pb.top*cScale);
+              var sEnd=Math.round(pb.bottom*cScale);
+              var sH=Math.max(1,sEnd-sY);
               if(p>0)doc.addPage();
-              const pc=document.createElement('canvas');
-              const ctx=pc.getContext('2d');
-              pc.width=canvas.width;pc.height=sliceH;
+              var pc=document.createElement('canvas');var ctx=pc.getContext('2d');
+              pc.width=canvas.width;pc.height=sH;
               ctx.fillStyle='#ffffff';ctx.fillRect(0,0,pc.width,pc.height);
-              ctx.drawImage(canvas,0,srcY,canvas.width,sliceH,0,0,canvas.width,sliceH);
+              ctx.drawImage(canvas,0,sY,canvas.width,sH,0,0,canvas.width,sH);
               doc.addImage(pc.toDataURL('image/jpeg',0.95),'JPEG',0,0,pageW,pageH);
             }
           } else {
-            const imgH=(canvas.height*pageW)/canvas.width;
-            if(!isFinite(imgH)||imgH<=0){
-              toast('❌ خطأ: أبعاد غير صالحة');
-              if(btn){btn.classList.remove('ld');btn.disabled=false}
-              return;
-            }
+            var imgH=(canvas.height*pageW)/canvas.width;
+            if(!isFinite(imgH)||imgH<=0){_err('ابعاد غير صالحة');return;}
             if(imgH<=pageH){
               doc.addImage(canvas.toDataURL('image/jpeg',0.95),'JPEG',0,0,pageW,imgH);
             } else {
-              const scaleFactor=canvas.width/pageW;
-              const pageHeightPx=Math.round(pageH*scaleFactor);
-              const pc=document.createElement('canvas');
-              const ctx=pc.getContext('2d');
-              let srcY=0,isFirst=true;
-              while(srcY<canvas.height){
+              var sFactor=canvas.width/pageW;
+              var phPx=Math.round(pageH*sFactor);
+              var pc2=document.createElement('canvas');var ctx2=pc2.getContext('2d');
+              var sY2=0,isFirst=true;
+              while(sY2<canvas.height){
                 if(!isFirst)doc.addPage();
-                const sliceH=Math.min(pageHeightPx,canvas.height-srcY);
-                pc.width=canvas.width;pc.height=pageHeightPx;
-                ctx.fillStyle='#ffffff';ctx.fillRect(0,0,pc.width,pc.height);
-                ctx.drawImage(canvas,0,srcY,canvas.width,sliceH,0,0,canvas.width,sliceH);
-                doc.addImage(pc.toDataURL('image/jpeg',0.95),'JPEG',0,0,pageW,pageH);
-                srcY+=pageHeightPx;isFirst=false;
+                var slH=Math.min(phPx,canvas.height-sY2);
+                pc2.width=canvas.width;pc2.height=phPx;
+                ctx2.fillStyle='#ffffff';ctx2.fillRect(0,0,pc2.width,pc2.height);
+                ctx2.drawImage(canvas,0,sY2,canvas.width,slH,0,0,canvas.width,slH);
+                doc.addImage(pc2.toDataURL('image/jpeg',0.95),'JPEG',0,0,pageW,pageH);
+                sY2+=phPx;isFirst=false;
               }
             }
           }
-
           doc.save((pt.name+'_'+req.id).replace(/\s+/g,'_')+'.pdf');
           toast('✅ تم تحميل PDF');
-          if(btn){btn.classList.remove('ld');btn.disabled=false}
-        }).catch(function(err){
-          try{document.body.removeChild(iframe);}catch(e){}
-          toast('❌ خطأ: '+err.message);
-          if(btn){btn.classList.remove('ld');btn.disabled=false}
-        });
+          _done();
+        }).catch(function(err){_err(err.message);});
       },800);
-    }).catch(function(){
-      setTimeout(function(){if(iframe.parentNode)_doCapture();},800);
-    });
+    }).catch(function(){setTimeout(function(){if(iframe.parentNode)_doCapture();},800);});
   }
-
   if(iDoc.readyState==='complete'){_doCapture();}
   else{iframe.onload=_doCapture;setTimeout(function(){if(iframe.parentNode)_doCapture();},3000);}
 }
