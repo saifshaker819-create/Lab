@@ -29442,17 +29442,17 @@ async function dlPDF(i){
             doc.addImage(cv.toDataURL('image/jpeg',.95),'JPEG',0,0,iw,ih);
           } else {
             const scaleFactor=cv.width/iw;
-            const pageHeightPx=pageH*scaleFactor;
+            const pageHeightPx=Math.round(pageH*scaleFactor);
             let remainH=cv.height,srcY=0,pageNum=0;
             while(remainH>0){
               if(pageNum>0)doc.addPage();
               const sliceH=Math.min(pageHeightPx,remainH);
               const sc=document.createElement('canvas');
-              sc.width=cv.width;sc.height=sliceH;
+              sc.width=cv.width;sc.height=pageHeightPx;
               const ctx=sc.getContext('2d');
               ctx.fillStyle='#ffffff';ctx.fillRect(0,0,sc.width,sc.height);
               ctx.drawImage(cv,0,srcY,cv.width,sliceH,0,0,cv.width,sliceH);
-              doc.addImage(sc.toDataURL('image/jpeg',.95),'JPEG',0,0,iw,sliceH/scaleFactor);
+              doc.addImage(sc.toDataURL('image/jpeg',.95),'JPEG',0,0,iw,pageH);
               srcY+=sliceH;remainH-=sliceH;pageNum++;
             }
           }
