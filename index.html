@@ -5645,37 +5645,7 @@ Menopause — 25–135 IU/L" style="font-size:12px;resize:vertical;line-height:1
   </div>
 </div>
 
-<!-- ==================== شاشة أول تشغيل (اختيار مجلد D:\MedLabPro) ==================== -->
-<div id="firstrun-screen" class="hidden">
-  <div class="firstrun-box">
-    <div style="font-size:52px;margin-bottom:12px">🗂️</div>
-    <h2>إعداد مجلد حفظ البيانات</h2>
-    <p>هذه الخطوات تتم <b style="color:#00d4ff" class="fr-highlight">مرة واحدة فقط</b> عند أول تشغيل للبرنامج على هذا الجهاز.<br>بعدها سيعمل البرنامج تلقائياً بالكامل دون أي تدخل.</p>
 
-    <div class="firstrun-step">
-      <span class="firstrun-step-num">1</span>
-      <span style="font-size:13px" class="fr-text">افتح <b class="fr-highlight">My Computer</b> (هذا الحاسوب) ثم افتح القرص <b class="fr-highlight">D:</b></span>
-    </div>
-    <div class="firstrun-step">
-      <span class="firstrun-step-num">2</span>
-      <span style="font-size:13px" class="fr-text">انقر بالزر الأيمن ← <b class="fr-highlight">New → Folder</b> ثم سمّه بالضبط: <b class="fr-accent">MedLabPro</b></span>
-    </div>
-    <div class="firstrun-step">
-      <span class="firstrun-step-num">3</span>
-      <span style="font-size:13px" class="fr-text">اضغط الزر أدناه ثم اختر مجلد <b class="fr-accent">D:\MedLabPro</b> الذي أنشأته للتو</span>
-    </div>
-
-    <div class="firstrun-note">
-      💡 بعد اختيار المجلد، سيحفظ البرنامج جميع بياناتك فيه تلقائياً كل يوم.<br>
-      <b>لا حاجة لأي إجراء يدوي — كل شيء يعمل بشكل تلقائي.</b>
-    </div>
-
-    <button id="firstrun-btn" onclick="fsaChooseFolderFirstRun()">
-      📁 اختيار مجلد MedLabPro من D:
-    </button>
-    <div id="firstrun-status"></div>
-  </div>
-</div>
 <div id="expired-banner">
   <div class="expired-box">
     <div class="ic">⏰</div>
@@ -26844,11 +26814,8 @@ async function fsaInit(){
 
   const ready = localStorage.getItem('medlab_fsa_ready');
   if(!ready){
-    // أول تشغيل — أظهر شاشة الإعداد وأوقف التدفق
-    // checkAuth ستُستدعى لاحقاً من fsaChooseFolderFirstRun
-    document.getElementById('firstrun-screen').classList.remove('hidden');
-    // أرجع promise لا تكتمل أبداً (checkAuth ستُستدعى من زر الاختيار)
-    return new Promise(()=>{});
+    // تخطي شاشة اختيار المجلد — متابعة مباشرة
+    return;
   }
 
   // حاول استعادة الـ handle المحفوظ
