@@ -7309,6 +7309,61 @@ function initUserData(){
   try{ _deletedIds = load('deletedTestIds',[]) || []; }catch(e){}
   tests = ALL_TESTS.filter(t => _deletedIds.indexOf(t.id) < 0);
 
+  // ⭐ ضمان: تحاليل الأدرار والخروج والسائل المنوي تأخذ دائماً بياناتها الأصلية
+  // هذا يُصلح أي تعديل سابق خاطئ تم عليها من قاعدة التحاليل
+  (function _restoreSpecialExams(){
+    try{
+      const pfx=DB._pfx();
+      const stored=localStorage.getItem(pfx+'tests');
+      if(!stored) return;
+      const text=(stored[0]==='')?LZS.decompress(stored):stored;
+      const arr=JSON.parse(text||'null');
+      if(!Array.isArray(arr)) return;
+      const specialIds=['gue001','gse001','semen001'];
+      let dirty=false;
+      arr.forEach(function(t){
+        if(!specialIds.includes(t.id)) return;
+        const orig=ALL_TESTS.find(function(x){return x.id===t.id;});
+        if(!orig) return;
+        if(!t.isSpecialExam||t.unit!==orig.unit||t.minVal!==orig.minVal||t.qualOptions||t.qualDefault||t.ageRanges){
+          t.isSpecialExam=orig.isSpecialExam;
+          t.unit=orig.unit;
+          t.minVal=orig.minVal; t.maxVal=orig.maxVal;
+          t.minF=orig.minF; t.maxF=orig.maxF;
+          t.ref=orig.ref;
+          delete t.refType; delete t.qualOptions; delete t.qualDefault; delete t.ageRanges;
+          dirty=true;
+        }
+      });
+      if(dirty){
+        try{
+          const newStr=JSON.stringify(arr);
+          localStorage.setItem(pfx+'tests',newStr);
+        }catch(e){}
+        // إصلاح IDB أيضاً بشكل async
+        IDB.get(pfx+'tests').then(function(idbArr){
+          if(!Array.isArray(idbArr)) return;
+          let idbDirty=false;
+          idbArr.forEach(function(t){
+            if(!specialIds.includes(t.id)) return;
+            const orig=ALL_TESTS.find(function(x){return x.id===t.id;});
+            if(!orig) return;
+            if(!t.isSpecialExam||t.unit!==orig.unit||t.qualOptions||t.qualDefault||t.ageRanges){
+              t.isSpecialExam=orig.isSpecialExam;
+              t.unit=orig.unit;
+              t.minVal=orig.minVal; t.maxVal=orig.maxVal;
+              t.minF=orig.minF; t.maxF=orig.maxF;
+              t.ref=orig.ref;
+              delete t.refType; delete t.qualOptions; delete t.qualDefault; delete t.ageRanges;
+              idbDirty=true;
+            }
+          });
+          if(idbDirty) IDB.set(pfx+'tests',idbArr).catch(function(){});
+        }).catch(function(){});
+      }
+    }catch(e){}
+  })();
+
   // ③ نقل أي بيانات قديمة لا تزال في localStorage إلى IDB (مرة واحدة عند التشغيل)
   _migrateLegacyLS();
 
@@ -7461,6 +7516,22 @@ async function _mergeIDBInBackground(){
             if(!merged.calcInputSettings && orig.calcInputSettings) merged.calcInputSettings=orig.calcInputSettings;
           }
           else{delete merged.isCalc;delete merged.calcFormula;delete merged.calcInputSettings;}
+          // ⭐ تحاليل الأدرار والخروج والسائل المنوي: دائماً استعادة isSpecialExam من القاعدة الأصلية
+          // هذا يمنع تأثير أي تعديل سابق عليها في localStorage/IDB
+          if(orig.isSpecialExam){
+            merged.isSpecialExam=orig.isSpecialExam;
+            // إعادة الحقول الأساسية من ALL_TESTS لضمان عدم تغيير طريقة عرض التحليل
+            merged.unit=orig.unit;
+            merged.minVal=orig.minVal;
+            merged.maxVal=orig.maxVal;
+            merged.minF=orig.minF;
+            merged.maxF=orig.maxF;
+            merged.ref=orig.ref;
+            merged.refType=orig.refType;
+            if(merged.qualOptions) delete merged.qualOptions;
+            if(merged.qualDefault) delete merged.qualDefault;
+            if(merged.ageRanges) delete merged.ageRanges;
+          }
         }
         map.set(t.id,merged);
       });
