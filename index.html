@@ -13829,12 +13829,18 @@ function renderTestsDB(){
     <td style="font-size:11px">${t.time}</td>
     <td style="color:var(--primary);font-weight:700">${t.price} ${settings.currency}</td>
     <td><div style="display:flex;gap:5px">
-      <button class="btn btn-sm btn-s" onclick="openEditTest('${t.id}')">✏️</button>
-      <button class="btn btn-sm btn-d" onclick="deleteTest('${t.id}')">🗑️</button>
+      ${t.isSpecialExam?`<span style="font-size:10px;background:rgba(0,200,255,0.12);border:1px solid rgba(0,200,255,0.35);color:#00c8ff;border-radius:6px;padding:3px 8px;font-weight:700;display:inline-flex;align-items:center;gap:4px">${t.isSpecialExam==='ua'?'💧':'🧫'} تقرير خاص</span><button class="btn btn-sm btn-s" onclick="nav('settings');setTimeout(()=>{document.getElementById('stc-ua-stool')&&toggleStCard('stc-ua-stool');},400)" title="إعدادات الفحص">⚙️</button>`:`<button class="btn btn-sm btn-s" onclick="openEditTest('${t.id}')">✏️</button><button class="btn btn-sm btn-d" onclick="deleteTest('${t.id}')">🗑️</button>`}
     </div></td>
   </tr>`).join('');
 }
 function openEditTest(id){
+  // تحليل الأدرار والخروج لا يُعدَّل من قاعدة التحاليل — إعداداته في قسم الإعدادات فقط
+  const _protectedSpecial=tests.find(x=>x.id===id&&x.isSpecialExam);
+  if(_protectedSpecial){
+    const _examLabel=_protectedSpecial.isSpecialExam==='ua'?'💧 Urine Examination':'🧫 Stool Examination';
+    showNotif('تنبيه',_examLabel+' — يُعدَّل فقط من قسم الإعدادات ⚙️','warning');
+    return;
+  }
   editTestId=id;
   ageRangeCount=0;
   currentQualOptions=[];
@@ -14033,6 +14039,12 @@ function saveTest(){
   showNotif('Saved',`Test saved: ${t.nameEn} ✅`,'success');
 }
 function deleteTest(id){
+  // منع حذف تحاليل الأدرار والخروج الخاصة
+  const _prot=tests.find(x=>x.id===id&&x.isSpecialExam);
+  if(_prot){
+    showNotif('محمي','هذا التحليل محمي ولا يمكن حذفه — يُدار من قسم الإعدادات ⚙️','error');
+    return;
+  }
   if(!confirm('Delete this test?')) return;
   tests=tests.filter(t=>t.id!==id);
   save('tests',tests);
@@ -15131,12 +15143,29 @@ function renderResAddTestSearch(v){
 function addTestToReq(tid){
   const id = document.getElementById('res-req-sel').value;
   const req = requests.find(r=>r.id===id); if(!req) return;
-  if(req.tests.includes(tid)){ showNotif('تنبيه','التحليل موجود بالفعل في الطلب','warning'); return; }
+  if(req.tests.includes(tid)){
+    // إذا كان التحليل موجوداً وهو تحليل خاص، افتح واجهة إدخال النتائج مباشرة
+    const _existT=tests.find(t=>t.id===tid);
+    if(_existT&&_existT.isSpecialExam){
+      document.getElementById('res-add-test-srch').value='';
+      document.getElementById('res-add-test-results').style.display='none';
+      _openSpecialExamInline(id, _existT.isSpecialExam);
+      return;
+    }
+    showNotif('تنبيه','التحليل موجود بالفعل في الطلب','warning'); return;
+  }
   req.tests.push(tid);
   if(!req.results) req.results={};
   save('requests',requests);
   document.getElementById('res-add-test-srch').value='';
   document.getElementById('res-add-test-results').style.display='none';
+  // إذا كان التحليل خاصاً (أدرار / خروج / سائل منوي) — افتح واجهة الإدخال الخاصة به فوراً
+  const _addedTest=tests.find(t=>t.id===tid);
+  if(_addedTest&&_addedTest.isSpecialExam){
+    showNotif('تم','تمت إضافة التحليل — يُرجى إدخال النتائج ✅','success');
+    _openSpecialExamInline(id, _addedTest.isSpecialExam);
+    return;
+  }
   loadResultEntry();
   showNotif('تم','تمت إضافة التحليل للطلب ✅','success');
 }
