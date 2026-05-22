@@ -7294,7 +7294,7 @@ let editTestId=null;
 
 function initUserData(){
   // ① الإعدادات الخفيفة: من localStorage فوراً (صغيرة وسريعة)
-  settings = load('settings',{name:'مختبر النور الطبي',lic:'12345',addr:'',phone:'',email:'',dir:'',footer:'',currency:'IQD',headerImg:'',footerImg:'',hdrMode:'img',fontSize:'13px',fontFamily:"'Cairo', sans-serif",primaryColor:'#00d4ff',colorName:'#00d4ff',colorResults:'#e8f4ff',colorHeader:'#ffffff',sidebarColor:'#00d4ff',tableColor:'#003366'});
+  settings = load('settings',{name:'مختبر النور الطبي',lic:'12345',addr:'',phone:'',email:'',dir:'',footer:'',currency:'IQD',headerImg:'',footerImg:'',hdrMode:'img',fontSize:'13px',fontFamily:"'Cairo', sans-serif",primaryColor:'#00d4ff',colorName:'#0055cc',colorDoctor:'#cc0011',colorSection:'#cc0011',colorResults:'#ffffff',colorDevice:'#0055cc',colorStripText:'#0055cc',colorHeader:'#ffffff',sidebarColor:'#00d4ff',tableColor:'#003366',subcatFontSize:'17px',printFontSize:'16px',ptFontSize:'18px',deviceFontSize:'14px',div_test_dotted:true,div_cat_dotted:true});
 
   // ② البيانات الكبيرة: فارغة أولاً ← تُملأ من IDB بشكل async
   patients=[]; requests=[]; invoices=[];
