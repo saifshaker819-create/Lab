@@ -11328,8 +11328,8 @@ function getInterp(t,val,gender,age){
 // ============================================================
 function getCalcFormulaInputs(formula){
   const inputs={
-    homa_ir:[{code:'INSU-F',label:'الأنسولين الصيامي (μIU/mL)'},{code:'FBS',label:'سكر الصيام (mg/dL)'}],
-    homa_b:[{code:'INSU-F',label:'الأنسولين الصيامي (μIU/mL)'},{code:'FBS',label:'سكر الصيام (mg/dL)'}],
+    homa_ir:[{code:'INSU-F',label:'Insulin Fasting (μIU/mL)'},{code:'FBS',label:'سكر الصيام (mg/dL)'}],
+    homa_b:[{code:'INSU-F',label:'Insulin Fasting (μIU/mL)'},{code:'FBS',label:'سكر الصيام (mg/dL)'}],
     egfr_ckd:[{code:'CREAT',label:'الكرياتينين (mg/dL)'},{code:'AGE_INPUT',label:'العمر (سنة)'},{code:'GENDER_INPUT',label:'الجنس (1=ذكر, 0=أنثى)'}],
     egfr_mdrd:[{code:'CREAT',label:'الكرياتينين (mg/dL)'},{code:'AGE_INPUT',label:'العمر (سنة)'},{code:'GENDER_INPUT',label:'الجنس (1=ذكر, 0=أنثى)'}],
     ldl_friedewald:[{code:'CHOL',label:'الكوليسترول الكلي (mg/dL)'},{code:'HDL',label:'HDL (mg/dL)'},{code:'TG',label:'الدهون الثلاثية (mg/dL)'}],
@@ -11338,7 +11338,7 @@ function getCalcFormulaInputs(formula){
     bmi:[{code:'WEIGHT',label:'الوزن (كغ)'},{code:'HEIGHT',label:'الطول (م)'}],
     ag_ratio:[{code:'ALB',label:'الألبومين (g/dL)'},{code:'TP',label:'البروتين الكلي (g/dL)'}],
     tbil_ratio:[{code:'DBIL',label:'البيليروبين المباشر (mg/dL)'},{code:'TBIL',label:'البيليروبين الكلي (mg/dL)'}],
-    quicki:[{code:'INSU-F',label:'الأنسولين الصيامي (μIU/mL)'},{code:'FBS',label:'سكر الصيام (mg/dL)'}],
+    quicki:[{code:'INSU-F',label:'Insulin Fasting (μIU/mL)'},{code:'FBS',label:'سكر الصيام (mg/dL)'}],
     map:[{code:'SBP',label:'ضغط الدم الانقباضي (mmHg)'},{code:'DBP',label:'ضغط الدم الانبساطي (mmHg)'}],
     sodium_corr:[{code:'Na',label:'الصوديوم المقاس (mEq/L)'},{code:'FBS',label:'الجلوكوز (mg/dL)'}],
     anion_gap:[{code:'Na',label:'الصوديوم (mEq/L)'},{code:'Cl',label:'الكلوريد (mEq/L)'},{code:'BICARB',label:'البيكربونات (mEq/L)'}],
@@ -12264,7 +12264,19 @@ function buildPrintHTML(req, opts){
             else if(inpRef.min!==null) inpRefTxt=String(inpRef.min)+' \u2013 '+String(inpRef.max);
           } else if(savedCalcInputs[inp.code]){
             inpVal=String(savedCalcInputs[inp.code].value);
-            inpName=inp.label; if(!inpVal && inpVal!==0) return;
+            if(!inpVal && inpVal!==0) return;
+            const fbTest = tests.find(function(x){ return x.code===inp.code; });
+            if(fbTest){
+              inpName = (fbTest.nameShort&&fbTest.nameShort.trim()?fbTest.nameShort.trim():fbTest.nameEn)||inp.label;
+              inpUnit = fbTest.unit||'';
+              const fbRef = getPatientRef(fbTest, ptGender, ptAge);
+              inpMin = fbRef.min; inpMax = fbRef.max;
+              if(ptGender==='female'&&fbTest.refF&&fbTest.refF.trim()) inpRefTxt=fbTest.refF.trim();
+              else if(ptGender!=='female'&&fbTest.refM&&fbTest.refM.trim()) inpRefTxt=fbTest.refM.trim();
+              else if(fbTest.ref&&fbTest.ref.trim()) inpRefTxt=fbTest.ref.trim();
+              else if(fbRef.ref&&fbRef.ref.trim()) inpRefTxt=fbRef.ref;
+              else if(fbRef.min!==null) inpRefTxt=String(fbRef.min)+' – '+String(fbRef.max);
+            } else { inpName=inp.label; }
           } else { return; }
           // تحديد H/L/Normal
           const inpV=parseFloat(inpVal);
