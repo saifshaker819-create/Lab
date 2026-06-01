@@ -12251,7 +12251,7 @@ function buildPrintHTML(req, opts){
               inpVal=String(savedCalcInputs[inp.code].value);
             }
             if(!inpVal && inpVal!==0) return;
-            inpName = (cs.nameEn) || (matchTest.nameShort&&matchTest.nameShort.trim()?matchTest.nameShort.trim():matchTest.nameEn);
+            inpName = (matchTest.nameShort&&matchTest.nameShort.trim()?matchTest.nameShort.trim():matchTest.nameEn) || (cs.nameEn)||'';
             inpUnit = (cs.unit!==undefined&&cs.unit!=='') ? cs.unit : (matchTest.unit||'');
             const inpRef = getPatientRef(matchTest, ptGender, ptAge);
             inpMin = (cs.minVal!==null&&cs.minVal!==undefined) ? cs.minVal : inpRef.min;
@@ -12968,9 +12968,9 @@ function buildCalcTestPrintHTML(req, calcTest){
         inpVal = String(savedCalcInputs[inp.code].value);
       }
       if(!inpVal) return;
-      // استخدم الإعدادات المخصصة من calcTest.calcInputSettings إن وُجدت
+      // استخدم اسم التحليل من قاعدة البيانات (matchTest) أولاً ليعكس أي تعديل من المستخدم
       const customInp = calcTest.calcInputSettings && calcTest.calcInputSettings[inp.code];
-      inpName = (customInp&&customInp.nameEn) || (matchTest.nameShort&&matchTest.nameShort.trim()?matchTest.nameShort.trim():matchTest.nameEn);
+      inpName = (matchTest.nameShort&&matchTest.nameShort.trim()?matchTest.nameShort.trim():matchTest.nameEn) || (customInp&&customInp.nameEn)||'';
       inpUnit = (customInp&&customInp.unit) || matchTest.unit||'';
       const inpRef = getPatientRef(matchTest, ptGender, ptAge);
       inpMin = (customInp&&customInp.minVal!==undefined) ? customInp.minVal : inpRef.min;
