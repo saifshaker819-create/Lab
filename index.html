@@ -12278,27 +12278,34 @@ function buildPrintHTML(req, opts){
         const customSettings = t.calcInputSettings || {};
         calcInputDefs.forEach(function(inp){
           if(inp.code==='AGE_INPUT'||inp.code==='GENDER_INPUT') return;
-          const matchTest = tests.find(function(x){ return x.code===inp.code; });
+          const _allMT2 = tests.filter(function(x){ return x.code===inp.code; });
+          const matchTest = _allMT2[0]||null;
           const cs = customSettings[inp.code] || {};
           let inpVal=null, inpName='', inpUnit='', inpRefTxt='—', inpMin=null, inpMax=null;
           if(matchTest){
-            if(req.results && req.results[matchTest.id]!==undefined && req.results[matchTest.id]!==''){
-              inpVal=req.results[matchTest.id];
-            } else if(savedCalcInputs[inp.code]){
+            for(var _bmi2=0;_bmi2<_allMT2.length;_bmi2++){
+              var _bmt2=_allMT2[_bmi2];
+              if(req.results && req.results[_bmt2.id]!==undefined && req.results[_bmt2.id]!==''){
+                inpVal=req.results[_bmt2.id]; break;
+              }
+            }
+            if(!inpVal && savedCalcInputs[inp.code]){
               inpVal=String(savedCalcInputs[inp.code].value);
             }
             if(!inpVal && inpVal!==0) return;
-            inpName = (matchTest.nameShort&&matchTest.nameShort.trim()?matchTest.nameShort.trim():matchTest.nameEn) || (cs.nameEn)||'';
+            // cs.nameEn أولوية عليا على اسم قاعدة البيانات
+            inpName = (cs.nameEn&&cs.nameEn.trim()) ? cs.nameEn.trim() : (matchTest.nameShort&&matchTest.nameShort.trim()?matchTest.nameShort.trim():matchTest.nameEn)||'';
             inpUnit = (cs.unit!==undefined&&cs.unit!=='') ? cs.unit : (matchTest.unit||'');
             const inpRef = getPatientRef(matchTest, ptGender, ptAge);
             inpMin = (cs.minVal!==null&&cs.minVal!==undefined) ? cs.minVal : inpRef.min;
             inpMax = (cs.maxVal!==null&&cs.maxVal!==undefined) ? cs.maxVal : inpRef.max;
-            if(cs.ref) inpRefTxt=cs.ref;
+            if(cs.ref&&cs.ref.trim()) inpRefTxt=cs.ref.trim();
+            else if(cs.minVal!==null&&cs.minVal!==undefined&&cs.maxVal!==null&&cs.maxVal!==undefined) inpRefTxt=String(cs.minVal)+' – '+String(cs.maxVal);
             else if(ptGender==='female'&&matchTest.refF&&matchTest.refF.trim()) inpRefTxt=matchTest.refF.trim();
             else if(ptGender!=='female'&&matchTest.refM&&matchTest.refM.trim()) inpRefTxt=matchTest.refM.trim();
             else if(matchTest.ref&&matchTest.ref.trim()) inpRefTxt=matchTest.ref.trim();
             else if(inpRef.ref&&inpRef.ref.trim()) inpRefTxt=inpRef.ref;
-            else if(inpRef.min!==null) inpRefTxt=String(inpRef.min)+' \u2013 '+String(inpRef.max);
+            else if(inpRef.min!==null) inpRefTxt=String(inpRef.min)+' – '+String(inpRef.max);
           } else if(savedCalcInputs[inp.code]){
             inpVal=String(savedCalcInputs[inp.code].value);
             inpName=inp.label; if(!inpVal && inpVal!==0) return;
@@ -12996,12 +13003,20 @@ function buildCalcTestPrintHTML(req, calcTest){
   const rowsToPrint = [];
   calcInputDefs.forEach(function(inp){
     if(inp.code==='AGE_INPUT'||inp.code==='GENDER_INPUT') return;
-    const matchTest = tests.find(function(x){ return x.code===inp.code; });
+    // ابحث في جميع التحاليل التي لها نفس الكود (قد يكون نفس التحليل في فئتين)
+    const allMatchTests = tests.filter(function(x){ return x.code===inp.code; });
+    const matchTest = allMatchTests[0]||null;
     let inpVal=null, inpName='', inpUnit='', inpRefTxt='—', inpMin=null, inpMax=null;
     if(matchTest){
-      if(req.results && req.results[matchTest.id]!==undefined && req.results[matchTest.id]!==''){
-        inpVal = req.results[matchTest.id];
-      } else if(savedCalcInputs[inp.code]){
+      // ابحث عن القيمة في req.results لكل التحاليل المطابقة للكود
+      for(var _mi=0;_mi<allMatchTests.length;_mi++){
+        var _mt=allMatchTests[_mi];
+        if(req.results && req.results[_mt.id]!==undefined && req.results[_mt.id]!==''){
+          inpVal = req.results[_mt.id];
+          break;
+        }
+      }
+      if(!inpVal && savedCalcInputs[inp.code]){
         inpVal = String(savedCalcInputs[inp.code].value);
       }
       if(!inpVal) return;
