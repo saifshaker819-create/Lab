@@ -5456,7 +5456,7 @@ Menopause — 25–135 IU/L" style="font-size:12px;resize:vertical;line-height:1
           <input class="fc" id="et-calc-formula" placeholder="e.g. homa_ir" style="direction:ltr;font-family:monospace" oninput="renderCalcInputSettings()">
         </div>
         <div style="font-size:10px;color:var(--text2);margin-bottom:10px;line-height:1.7">
-          الأكواد: <span style="color:#a78bfa;font-family:monospace;font-size:9px">homa_ir | homa_b | egfr_ckd | egfr_mdrd | ldl_friedewald | non_hdl | chol_ratio | trig_hdl | bmi | ag_ratio | tbil_ratio | quicki | map | sodium_corr | anion_gap | uacr | ft3_ft4 | meld | fib4 | mchr</span>
+          الأكواد: <span style="color:#a78bfa;font-family:monospace;font-size:9px">homa_ir | homa_b | egfr_ckd | egfr_mdrd | ldl_friedewald | non_hdl | chol_ratio | trig_hdl | bmi | ag_ratio | tbil_ratio | quicki | map | sodium_corr | anion_gap | uacr | ft3_ft4 | meld | fib4 | mchr | arr</span>
         </div>
         <!-- إعدادات المدخلات — تظهر تلقائياً بعد اختيار المعادلة -->
         <div id="et-calc-inputs-list" style="display:none">
@@ -7205,6 +7205,7 @@ const ALL_TESTS=[
 {id:'calc016',code:'ANION-GAP',nameEn:'Anion Gap',nameShort:'Anion Gap',cat:'Calculated',subCat:'Miscellaneous',unit:'mEq/L',minVal:8,maxVal:12,minF:8,maxF:12,ref:'8 - 12',time:'calculated',price:0,notes:'Formula: Na - (Cl + HCO3)',isCalc:true,calcFormula:'anion_gap'},
 {id:'calc019',code:'MELD',nameEn:'MELD Score',nameShort:'MELD',cat:'Calculated',subCat:'Miscellaneous',unit:'score',minVal:null,maxVal:null,minF:null,maxF:null,ref:'< 10 Low | 10-19 Medium | >20 High',time:'calculated',price:0,notes:'Formula: 3.78×ln(Bili) + 11.2×ln(INR) + 9.57×ln(Creat) + 6.43',isCalc:true,calcFormula:'meld'},
 {id:'calc020',code:'FIB4',nameEn:'FIB-4 Index',nameShort:'FIB-4',cat:'Calculated',subCat:'Miscellaneous',unit:'index',minVal:null,maxVal:null,minF:null,maxF:null,ref:'< 1.30 Low | 1.30-2.67 Indeterminate | >2.67 High',time:'calculated',price:0,notes:'Formula: (Age × AST) / (Platelets × √ALT)',isCalc:true,calcFormula:'fib4'},
+{id:'calc021',code:'ARR',nameEn:'ARR (Aldosterone/Renin Ratio)',nameShort:'ARR',cat:'Calculated',subCat:'Miscellaneous',unit:'ng/dL per ng/mL/hr',minVal:null,maxVal:null,minF:null,maxF:null,ref:'< 30 Normal | ≥ 30 Suspicious | ≥ 50 Likely Primary Hyperaldosteronism',time:'calculated',price:0,notes:'Formula: Aldosterone (ng/dL) / Renin Activity (ng/mL/hr)',isCalc:true,calcFormula:'arr'},
 ];
 
 const TEST_CATS=['All','Hematology','Blood Gases','Biochemistry','Hormones','Immunology','Vitamins & Minerals','Tumor Markers','Infections','Urinalysis','Microbiology','Stool','Semen','Special','Calculated'];
@@ -8434,7 +8435,36 @@ function renderWizStep(){
         </div>
         <div class="fg" style="flex:1;min-width:180px;margin-bottom:0">
           <label class="fl" style="font-family:'Cairo',sans-serif;font-size:18px;font-weight:900;color:inherit">رقم الهاتف</label>
-          <input class="fc" id="wp-phone" lang="en" inputmode="tel" placeholder="07xxxxxxxxx" value="${wizPatient.phone||''}" style="font-size:17px;font-family:'Cairo',sans-serif;font-weight:700;color:inherit;margin-top:6px">
+          <div style="display:flex;gap:6px;align-items:center;margin-top:6px">
+            <select id="wp-phone-cc" style="font-size:13px;font-family:'Cairo',sans-serif;font-weight:700;color:inherit;background:var(--bg-input);border:2px solid var(--primary);border-radius:8px;padding:6px 4px;width:auto;min-width:84px;flex-shrink:0;direction:ltr" onchange="localStorage.setItem('savedPhoneCC',this.value)">
+              <option value="964">🇮🇶 +964</option>
+              <option value="966">🇸🇦 +966</option>
+              <option value="971">🇦🇪 +971</option>
+              <option value="965">🇰🇼 +965</option>
+              <option value="973">🇧🇭 +973</option>
+              <option value="974">🇶🇦 +974</option>
+              <option value="968">🇴🇲 +968</option>
+              <option value="967">🇾🇪 +967</option>
+              <option value="962">🇯🇴 +962</option>
+              <option value="961">🇱🇧 +961</option>
+              <option value="963">🇸🇾 +963</option>
+              <option value="20">🇪🇬 +20</option>
+              <option value="218">🇱🇾 +218</option>
+              <option value="216">🇹🇳 +216</option>
+              <option value="213">🇩🇿 +213</option>
+              <option value="212">🇲🇦 +212</option>
+              <option value="249">🇸🇩 +249</option>
+              <option value="252">🇸🇴 +252</option>
+              <option value="98">🇮🇷 +98</option>
+              <option value="90">🇹🇷 +90</option>
+              <option value="44">🇬🇧 +44</option>
+              <option value="33">🇫🇷 +33</option>
+              <option value="1">🇺🇸 +1</option>
+              <option value="91">🇮🇳 +91</option>
+              <option value="92">🇵🇰 +92</option>
+            </select>
+            <input class="fc" id="wp-phone" lang="en" inputmode="tel" placeholder="07xxxxxxxxx" value="${wizPatient.phone||''}" style="font-size:17px;font-family:'Cairo',sans-serif;font-weight:700;color:inherit;flex:1">
+          </div>
         </div>
       </div>
 
@@ -8447,9 +8477,14 @@ function renderWizStep(){
 
     requestAnimationFrame(()=>{
       const docSel=document.getElementById('wp-doctor');
-      if(docSel){docSel.onchange=function(){if(this.value==='__add__'){document.getElementById('inline-add-doctor').classList.add('open');this.value='';}else{document.getElementById('inline-add-doctor').classList.remove('open');}};
-      }
+      if(docSel){docSel.onchange=function(){if(this.value==='__add__'){document.getElementById('inline-add-doctor').classList.add('open');this.value='';}else{document.getElementById('inline-add-doctor').classList.remove('open');}};}
       if(wizPatient.chronic){document.querySelectorAll('.chronic').forEach(cb=>{cb.checked=(wizPatient.chronic||[]).includes(cb.value);});}
+      // استعادة رمز الدولة المحفوظ (الافتراضي: العراق 964)
+      const ccSel=document.getElementById('wp-phone-cc');
+      if(ccSel){
+        const savedCC=localStorage.getItem('savedPhoneCC')||'964';
+        for(let i=0;i<ccSel.options.length;i++){if(ccSel.options[i].value===savedCC){ccSel.selectedIndex=i;break;}}
+      }
       // التركيز تلقائياً على حقل الاسم عند فتح النموذج
       const nameInp=document.getElementById('wp-name');
       if(nameInp) nameInp.focus();
@@ -11328,8 +11363,8 @@ function getInterp(t,val,gender,age){
 // ============================================================
 function getCalcFormulaInputs(formula){
   const inputs={
-    homa_ir:[{code:'INSU-F',label:'Insulin Fasting (μIU/mL)'},{code:'FBS',label:'سكر الصيام (mg/dL)'}],
-    homa_b:[{code:'INSU-F',label:'Insulin Fasting (μIU/mL)'},{code:'FBS',label:'سكر الصيام (mg/dL)'}],
+    homa_ir:[{code:'INSU-F',label:'الأنسولين الصيامي (μIU/mL)'},{code:'FBS',label:'سكر الصيام (mg/dL)'}],
+    homa_b:[{code:'INSU-F',label:'الأنسولين الصيامي (μIU/mL)'},{code:'FBS',label:'سكر الصيام (mg/dL)'}],
     egfr_ckd:[{code:'CREAT',label:'الكرياتينين (mg/dL)'},{code:'AGE_INPUT',label:'العمر (سنة)'},{code:'GENDER_INPUT',label:'الجنس (1=ذكر, 0=أنثى)'}],
     egfr_mdrd:[{code:'CREAT',label:'الكرياتينين (mg/dL)'},{code:'AGE_INPUT',label:'العمر (سنة)'},{code:'GENDER_INPUT',label:'الجنس (1=ذكر, 0=أنثى)'}],
     ldl_friedewald:[{code:'CHOL',label:'الكوليسترول الكلي (mg/dL)'},{code:'HDL',label:'HDL (mg/dL)'},{code:'TG',label:'الدهون الثلاثية (mg/dL)'}],
@@ -11338,7 +11373,7 @@ function getCalcFormulaInputs(formula){
     bmi:[{code:'WEIGHT',label:'الوزن (كغ)'},{code:'HEIGHT',label:'الطول (م)'}],
     ag_ratio:[{code:'ALB',label:'الألبومين (g/dL)'},{code:'TP',label:'البروتين الكلي (g/dL)'}],
     tbil_ratio:[{code:'DBIL',label:'البيليروبين المباشر (mg/dL)'},{code:'TBIL',label:'البيليروبين الكلي (mg/dL)'}],
-    quicki:[{code:'INSU-F',label:'Insulin Fasting (μIU/mL)'},{code:'FBS',label:'سكر الصيام (mg/dL)'}],
+    quicki:[{code:'INSU-F',label:'الأنسولين الصيامي (μIU/mL)'},{code:'FBS',label:'سكر الصيام (mg/dL)'}],
     map:[{code:'SBP',label:'ضغط الدم الانقباضي (mmHg)'},{code:'DBP',label:'ضغط الدم الانبساطي (mmHg)'}],
     sodium_corr:[{code:'Na',label:'الصوديوم المقاس (mEq/L)'},{code:'FBS',label:'الجلوكوز (mg/dL)'}],
     anion_gap:[{code:'Na',label:'الصوديوم (mEq/L)'},{code:'Cl',label:'الكلوريد (mEq/L)'},{code:'BICARB',label:'البيكربونات (mEq/L)'}],
@@ -11348,6 +11383,7 @@ function getCalcFormulaInputs(formula){
     meld:[{code:'TBIL',label:'البيليروبين الكلي (mg/dL)'},{code:'INR',label:'INR'},{code:'CREAT',label:'الكرياتينين (mg/dL)'}],
     fib4:[{code:'AGE_INPUT',label:'العمر (سنة)'},{code:'AST',label:'AST (U/L)'},{code:'PLT',label:'الصفائح الدموية (×10³/μL)'},{code:'ALT',label:'ALT (U/L)'}],
     mchr:[{code:'MCH',label:'MCH (pg)'},{code:'MCHC',label:'MCHC (g/dL)'}],
+    arr:[{code:'ALDOST',label:'Aldosterone (ng/dL)'},{code:'RENIN',label:'Plasma Renin Activity (ng/mL/hr)'}],
   };
   return inputs[formula]||[];
 }
@@ -11386,6 +11422,7 @@ function calcFormula(formula, vals){
     }
     case 'fib4':{const plt=v('PLT'),alt=v('ALT');return(plt&&alt)?((v('AGE_INPUT')*v('AST'))/(plt*Math.sqrt(alt))).toFixed(2):'0';}
     case 'mchr': return v('MCHC')?(v('MCH')/v('MCHC')).toFixed(3):'0';
+    case 'arr': return v('RENIN')?(v('ALDOST')/v('RENIN')).toFixed(1):'0';
     default: return '0';
   }
 }
@@ -12264,19 +12301,7 @@ function buildPrintHTML(req, opts){
             else if(inpRef.min!==null) inpRefTxt=String(inpRef.min)+' \u2013 '+String(inpRef.max);
           } else if(savedCalcInputs[inp.code]){
             inpVal=String(savedCalcInputs[inp.code].value);
-            if(!inpVal && inpVal!==0) return;
-            const fbTest = tests.find(function(x){ return x.code===inp.code; });
-            if(fbTest){
-              inpName = (fbTest.nameShort&&fbTest.nameShort.trim()?fbTest.nameShort.trim():fbTest.nameEn)||inp.label;
-              inpUnit = fbTest.unit||'';
-              const fbRef = getPatientRef(fbTest, ptGender, ptAge);
-              inpMin = fbRef.min; inpMax = fbRef.max;
-              if(ptGender==='female'&&fbTest.refF&&fbTest.refF.trim()) inpRefTxt=fbTest.refF.trim();
-              else if(ptGender!=='female'&&fbTest.refM&&fbTest.refM.trim()) inpRefTxt=fbTest.refM.trim();
-              else if(fbTest.ref&&fbTest.ref.trim()) inpRefTxt=fbTest.ref.trim();
-              else if(fbRef.ref&&fbRef.ref.trim()) inpRefTxt=fbRef.ref;
-              else if(fbRef.min!==null) inpRefTxt=String(fbRef.min)+' – '+String(fbRef.max);
-            } else { inpName=inp.label; }
+            inpName=inp.label; if(!inpVal && inpVal!==0) return;
           } else { return; }
           // تحديد H/L/Normal
           const inpV=parseFloat(inpVal);
@@ -12980,14 +13005,18 @@ function buildCalcTestPrintHTML(req, calcTest){
         inpVal = String(savedCalcInputs[inp.code].value);
       }
       if(!inpVal) return;
-      // استخدم اسم التحليل من قاعدة البيانات (matchTest) أولاً ليعكس أي تعديل من المستخدم
+      // استخدم إعدادات calcInputSettings أولاً (أولوية عليا) ثم قاعدة البيانات
       const customInp = calcTest.calcInputSettings && calcTest.calcInputSettings[inp.code];
-      inpName = (matchTest.nameShort&&matchTest.nameShort.trim()?matchTest.nameShort.trim():matchTest.nameEn) || (customInp&&customInp.nameEn)||'';
-      inpUnit = (customInp&&customInp.unit) || matchTest.unit||'';
+      // الاسم: customInp.nameEn له الأولوية، ثم nameShort، ثم nameEn
+      inpName = (customInp&&customInp.nameEn&&customInp.nameEn.trim()) ? customInp.nameEn.trim() : (matchTest.nameShort&&matchTest.nameShort.trim()?matchTest.nameShort.trim():matchTest.nameEn)||'';
+      // الوحدة: customInp.unit له الأولوية
+      inpUnit = (customInp&&customInp.unit!==undefined&&customInp.unit!=='') ? customInp.unit : matchTest.unit||'';
       const inpRef = getPatientRef(matchTest, ptGender, ptAge);
-      inpMin = (customInp&&customInp.minVal!==undefined) ? customInp.minVal : inpRef.min;
-      inpMax = (customInp&&customInp.maxVal!==undefined) ? customInp.maxVal : inpRef.max;
-      if(customInp&&customInp.ref) inpRefTxt=customInp.ref;
+      inpMin = (customInp&&customInp.minVal!==null&&customInp.minVal!==undefined) ? customInp.minVal : inpRef.min;
+      inpMax = (customInp&&customInp.maxVal!==null&&customInp.maxVal!==undefined) ? customInp.maxVal : inpRef.max;
+      // القيم المرجعية: customInp.ref له الأولوية المطلقة
+      if(customInp&&customInp.ref&&customInp.ref.trim()) inpRefTxt=customInp.ref.trim();
+      else if(customInp&&customInp.minVal!==null&&customInp.minVal!==undefined&&customInp.maxVal!==null&&customInp.maxVal!==undefined) inpRefTxt=String(customInp.minVal)+' \u2013 '+String(customInp.maxVal);
       else if(ptGender==='female'&&matchTest.refF&&matchTest.refF.trim()) inpRefTxt=matchTest.refF.trim();
       else if(ptGender!=='female'&&matchTest.refM&&matchTest.refM.trim()) inpRefTxt=matchTest.refM.trim();
       else if(matchTest.ref&&matchTest.ref.trim()) inpRefTxt=matchTest.ref.trim();
@@ -14162,6 +14191,13 @@ function deleteTest(id){
   const _prot=tests.find(x=>x.id===id&&x.isSpecialExam);
   if(_prot){
     showNotif('محمي','هذا التحليل محمي ولا يمكن حذفه — يُدار من قسم الإعدادات ⚙️','error');
+    return;
+  }
+  // منع حذف التحاليل المحسوبة المحمية (HOMA-IR, HOMA-B, ARR)
+  const _protCalc=['calc001','calc002','calc021'];
+  if(_protCalc.indexOf(id)>-1){
+    const _protTest=tests.find(x=>x.id===id);
+    showNotif('محمي','تحليل '+(_protTest?_protTest.nameEn:id)+' محمي ولا يمكن حذفه من قاعدة التحاليل','error');
     return;
   }
   if(!confirm('Delete this test?')) return;
@@ -22685,7 +22721,12 @@ function printCBCFromPrintSection(){
 // AUTO COUNTRY CODE DETECTION
 // ============================================================
 function _getCountryDialCode(){
-  // خريطة المناطق الزمنية → رمز الدولة
+  // أولاً: استخدام رمز الدولة المحفوظ من المستخدم
+  try{
+    const savedCC=localStorage.getItem('savedPhoneCC');
+    if(savedCC&&savedCC.trim()) return savedCC.trim();
+  }catch(e){}
+  // ثانياً: خريطة المناطق الزمنية → رمز الدولة
   const tzMap={
     'Asia/Baghdad':'964','Asia/Riyadh':'966','Asia/Dubai':'971','Asia/Kuwait':'965',
     'Asia/Bahrain':'973','Asia/Qatar':'974','Asia/Muscat':'968','Asia/Aden':'967',
