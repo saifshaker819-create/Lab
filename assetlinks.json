@@ -3,6 +3,6 @@
       "target": {
         "namespace": "android_app",
         "package_name": "app.vercel.lab_six_sandy.twa",
-        "sha256_cert_fingerprints": ["DC:0E:24:E2:4D:D9:9E:01:0C:F6:0A:AF:AC:74:CE:A2:18:FC:E9:B0:BE:15:0A:C4:77:11:85:01:D0:1A:7B:C8"]
+        "sha256_cert_fingerprints": ["9A:D1:F4:2E:2B:E8:F0:3D:B8:36:84:22:60:16:19:C2:2C:3F:96:92:97:FC:54:84:4A:84:1A:9B:14:B7:10:06"]
       }
     }]
