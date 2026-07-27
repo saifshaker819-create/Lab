@@ -1332,6 +1332,11 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .hdr-right{display:flex;align-items:center;gap:10px;flex-shrink:0;}
 .hbtn{width:38px;height:38px;border-radius:9px;border:1px solid var(--border);background:var(--bg-glass);color:var(--text2);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:11px;transition:all 0.2s;position:relative;}
 .hbtn:hover{background:rgba(0,212,255,0.1);color:var(--primary);border-color:var(--primary);}
+/* 📢 حالات زر المنادات */
+#intercom-btn{user-select:none;-webkit-user-select:none;touch-action:none;}
+#intercom-btn.ic-talking{background:rgba(0,200,90,0.18)!important;border-color:#00c85a!important;color:#00c85a!important;box-shadow:0 0 0 3px rgba(0,200,90,0.18);animation:ic-pulse 1s ease-in-out infinite;}
+#intercom-btn.ic-incoming{background:rgba(0,140,255,0.16)!important;border-color:#2b9bff!important;color:#2b9bff!important;animation:ic-pulse 1.2s ease-in-out infinite;}
+@keyframes ic-pulse{0%,100%{box-shadow:0 0 0 2px rgba(0,200,90,0.10);}50%{box-shadow:0 0 0 6px rgba(0,200,90,0.28);}}
 .ndot{position:absolute;top:5px;right:5px;width:7px;height:7px;background:var(--danger);border-radius:50%;border:2px solid var(--bg-dark);}
 /* IMPROVED GLOBAL SEARCH */
 
@@ -3030,10 +3035,22 @@ body.light-mode .dp-viewer{background:#d8dde3;}
         if(typeof lisRenderRaw==='function') lisRenderRaw();
         return;
       }
+      // ── 🧿 Chorus TRIO: رسائل صادرة (رد J-List) — تُعرض فقط ──────────
+      if(d.chorusOut){
+        lisAddLog('astm','📤 Chorus TRIO — رد صادر:\n'+String(d.data||''));
+        if(typeof lisRenderRaw==='function') lisRenderRaw();
+        return;
+      }
+      // ── 🧿 Chorus TRIO: تشخيص وارد (بايتات خام / ENQ / نهاية) ────────
+      if(d.chorusIn){
+        lisAddLog('astm','🧿 Chorus: '+String(d.data||''));
+        if(typeof lisRenderRaw==='function') lisRenderRaw();
+        return;
+      }
       // إذا أرسل main.js بيانات محللة مسبقاً استخدمها مباشرةً
       // isCBC: يُوجّه للمسار الصحيح حتى لو كان patientId فارغاً
       if(d.parsed && (d.parsed.patientId || d.parsed.isCBC)){
-        lisParseHL7Parsed(d.parsed, targetDev.name);
+        lisParseHL7Parsed(d.parsed, targetDev.name, targetDev);
       } else {
         lisParseByProtocol(d.data, targetDev);
       }
@@ -3210,6 +3227,8 @@ body.light-mode .dp-viewer{background:#d8dde3;}
           <div id="notif-panel-list" style="max-height:224px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--primary) transparent"></div>
         </div>
       </div>
+      <!-- 📢 زر المنادات الصوتية (Intercom) — اضغط باستمرار للتحدث للحاسبات المتصلة -->
+      <button class="hbtn" id="intercom-btn" title="المنادات الصوتية (اضغط للتحدث)">📢</button>
       <button class="hbtn" onclick="nav('settings')">⚙️</button>
       <button class="theme-toggle-btn" id="theme-btn" onclick="toggleTheme()" title="تبديل الوضع"></button>
 
@@ -4172,32 +4191,85 @@ body.light-mode .dp-viewer{background:#d8dde3;}
                 </div>
               </div>
 
-              <!-- 🔢 c111 — قواعد تعديل النتائج -->
+              <!-- 🔢 تعديل نتائج الأجهزة — قائمة منسدلة لكل جهاز -->
               <div class="gc" style="grid-column:1/-1">
-                <div class="gc-hdr"><div class="gc-title">🔢 تعديل نتائج cobas c111</div></div>
-                <div class="gc-body">
-                  <div style="font-size:10.5px;color:var(--text2);line-height:1.9;margin-bottom:14px;
-                              background:rgba(255,255,255,0.03);border-radius:8px;padding:9px 11px">
-                    الافتراضي لكل التحاليل: <b>حذف الكسور + النزول لأقرب ٥</b> (107.12 → 105).<br>
-                    التحاليل المُضافة أدناه تُستثنى من هذا الافتراضي.
-                    <span style="color:#ffcf5a">يخصّ جهاز c111 فقط.</span>
-                  </div>
-                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px" id="c111-rules-grid">
-                    <div>
-                      <div style="font-size:12px;font-weight:800;margin-bottom:3px">🚫 بدون أي تغيير</div>
-                      <div style="font-size:10px;color:var(--text2);margin-bottom:7px">تدخل النتيجة خام كما أرسلها الجهاز (5.7 تبقى 5.7)</div>
-                      <button class="btn btn-s btn-sm" style="width:100%;margin-bottom:8px"
-                        onclick="c111OpenPicker('noChange')">➕ اختيار التحاليل</button>
-                      <div id="c111-list-noChange" style="display:flex;flex-wrap:wrap;gap:5px;min-height:26px"></div>
+                <div class="gc-hdr"><div class="gc-title">🔢 تعديل نتائج الأجهزة</div></div>
+                <div class="gc-body" style="display:flex;flex-direction:column;gap:10px">
+
+                  <!-- ══ cobas c111 ══ -->
+                  <div style="border:1px solid rgba(255,255,255,0.10);border-radius:10px;overflow:hidden">
+                    <div onclick="roundToggleSection('c111')" id="round-hdr-c111"
+                      style="display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:pointer;
+                             padding:11px 13px;background:rgba(255,255,255,0.04);user-select:none">
+                      <div style="font-size:12.5px;font-weight:900">🧪 Roche cobas c111</div>
+                      <div style="display:flex;align-items:center;gap:8px">
+                        <span id="round-count-c111" style="font-size:9.5px;color:var(--text2)"></span>
+                        <span id="round-arrow-c111" style="font-size:11px;color:var(--text2);transition:transform .2s">▼</span>
+                      </div>
                     </div>
-                    <div>
-                      <div style="font-size:12px;font-weight:800;margin-bottom:3px">✂️ حذف الكسور فقط</div>
-                      <div style="font-size:10px;color:var(--text2);margin-bottom:7px">بلا تقريب (107.12 → 107 ، 98 تبقى 98)</div>
-                      <button class="btn btn-s btn-sm" style="width:100%;margin-bottom:8px"
-                        onclick="c111OpenPicker('truncOnly')">➕ اختيار التحاليل</button>
-                      <div id="c111-list-truncOnly" style="display:flex;flex-wrap:wrap;gap:5px;min-height:26px"></div>
+                    <div id="round-body-c111" style="display:none;padding:13px">
+                      <div style="font-size:10.5px;color:var(--text2);line-height:1.9;margin-bottom:14px;
+                                  background:rgba(255,255,255,0.03);border-radius:8px;padding:9px 11px">
+                        الافتراضي لكل التحاليل: <b>حذف الكسور + النزول لأقرب ٥</b> (107.12 → 105).<br>
+                        التحاليل المُضافة أدناه تُستثنى من هذا الافتراضي.
+                        <span style="color:#ffcf5a">يخصّ جهاز c111 فقط.</span>
+                      </div>
+                      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px" id="c111-rules-grid">
+                        <div>
+                          <div style="font-size:12px;font-weight:800;margin-bottom:3px">🚫 بدون أي تغيير</div>
+                          <div style="font-size:10px;color:var(--text2);margin-bottom:7px">تدخل النتيجة خام كما أرسلها الجهاز (5.7 تبقى 5.7)</div>
+                          <button class="btn btn-s btn-sm" style="width:100%;margin-bottom:8px"
+                            onclick="c111OpenPicker('noChange')">➕ اختيار التحاليل</button>
+                          <div id="c111-list-noChange" style="display:flex;flex-wrap:wrap;gap:5px;min-height:26px"></div>
+                        </div>
+                        <div>
+                          <div style="font-size:12px;font-weight:800;margin-bottom:3px">✂️ حذف الكسور فقط</div>
+                          <div style="font-size:10px;color:var(--text2);margin-bottom:7px">بلا تقريب (107.12 → 107 ، 98 تبقى 98)</div>
+                          <button class="btn btn-s btn-sm" style="width:100%;margin-bottom:8px"
+                            onclick="c111OpenPicker('truncOnly')">➕ اختيار التحاليل</button>
+                          <div id="c111-list-truncOnly" style="display:flex;flex-wrap:wrap;gap:5px;min-height:26px"></div>
+                        </div>
+                      </div>
                     </div>
                   </div>
+
+                  <!-- ══ Mindray BS-230 ══ -->
+                  <div style="border:1px solid rgba(255,255,255,0.10);border-radius:10px;overflow:hidden">
+                    <div onclick="roundToggleSection('bs230')" id="round-hdr-bs230"
+                      style="display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:pointer;
+                             padding:11px 13px;background:rgba(255,255,255,0.04);user-select:none">
+                      <div style="font-size:12.5px;font-weight:900">🧫 Mindray BS-230</div>
+                      <div style="display:flex;align-items:center;gap:8px">
+                        <span id="round-count-bs230" style="font-size:9.5px;color:var(--text2)"></span>
+                        <span id="round-arrow-bs230" style="font-size:11px;color:var(--text2);transition:transform .2s">▼</span>
+                      </div>
+                    </div>
+                    <div id="round-body-bs230" style="display:none;padding:13px">
+                      <div style="font-size:10.5px;color:var(--text2);line-height:1.9;margin-bottom:14px;
+                                  background:rgba(255,255,255,0.03);border-radius:8px;padding:9px 11px">
+                        الافتراضي لكل التحاليل: <b>حذف الكسور + النزول لأقرب ٥</b> (107.12 → 105).<br>
+                        التحاليل المُضافة أدناه تُستثنى من هذا الافتراضي.
+                        <span style="color:#ffcf5a">يخصّ جهاز BS-230 فقط — منفصل تماماً عن c111.</span>
+                      </div>
+                      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px" id="bs230-rules-grid">
+                        <div>
+                          <div style="font-size:12px;font-weight:800;margin-bottom:3px">🚫 بدون أي تغيير</div>
+                          <div style="font-size:10px;color:var(--text2);margin-bottom:7px">تدخل النتيجة خام كما أرسلها الجهاز (5.7 تبقى 5.7)</div>
+                          <button class="btn btn-s btn-sm" style="width:100%;margin-bottom:8px"
+                            onclick="bs230OpenPicker('noChange')">➕ اختيار التحاليل</button>
+                          <div id="bs230-list-noChange" style="display:flex;flex-wrap:wrap;gap:5px;min-height:26px"></div>
+                        </div>
+                        <div>
+                          <div style="font-size:12px;font-weight:800;margin-bottom:3px">✂️ حذف الكسور فقط</div>
+                          <div style="font-size:10px;color:var(--text2);margin-bottom:7px">بلا تقريب (107.12 → 107 ، 98 تبقى 98)</div>
+                          <button class="btn btn-s btn-sm" style="width:100%;margin-bottom:8px"
+                            onclick="bs230OpenPicker('truncOnly')">➕ اختيار التحاليل</button>
+                          <div id="bs230-list-truncOnly" style="display:flex;flex-wrap:wrap;gap:5px;min-height:26px"></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
                 </div>
               </div>
 
@@ -4458,66 +4530,130 @@ body.light-mode .dp-viewer{background:#d8dde3;}
             <span class="st-card-arrow" id="arr-stc-print">▼</span>
           </div>
           <div class="st-card-body" id="body-stc-print" style="display:none">
-            <div style="display:flex;flex-direction:column;gap:14px">
-              <div style="display:flex;justify-content:space-between;align-items:center"><div><div style="font-size:12px;font-weight:600">تنبيه النتائج الحرجة</div></div><div class="tog on" onclick="this.classList.toggle('on')"><div class="tog-t"></div></div></div>
-              <div style="display:flex;justify-content:space-between;align-items:center"><div><div style="font-size:12px;font-weight:600">ترقيم تلقائي</div></div><div class="tog on" onclick="this.classList.toggle('on')"><div class="tog-t"></div></div></div>
+            <div style="display:flex;flex-direction:column;gap:12px">
 
-              <!-- طباعة CBC تلقائي -->
-              <div style="display:flex;justify-content:space-between;align-items:center;background:rgba(0,180,100,0.06);border:1px solid rgba(0,180,100,0.25);border-radius:8px;padding:10px 12px">
-                <div>
-                  <div style="font-size:12px;font-weight:700">🔬 طباعة CBC تلقائياً عند استلام النتائج</div>
-                  <div style="font-size:10px;color:var(--text2);margin-top:2px">تطبع فور وصول نتائج CBC من الجهاز</div>
+              <!-- ▼▼ منسدلة: الطباعة عبر الشبكة (المزامنة بين الحاسبات) ▼▼ -->
+              <div class="smart-sub" style="border:1px solid var(--border);border-radius:11px;overflow:hidden">
+                <div onclick="toggleSmartSub('pr-net')" style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;cursor:pointer;background:rgba(0,140,255,0.06)">
+                  <div style="display:flex;align-items:center;gap:10px"><span style="font-size:18px">🌐</span><div><div style="font-size:13px;font-weight:800">الطباعة عبر الشبكة</div><div style="font-size:10px;color:var(--text2)">طباعة متزامنة بين الحاسبات المتصلة عبر «الربط»</div></div></div>
+                  <span class="st-card-arrow" id="arr-pr-net">▼</span>
                 </div>
-                <div class="tog" id="tog-auto-cbc" onclick="this.classList.toggle('on');_saveAutoCBC(this.classList.contains('on'))"><div class="tog-t"></div></div>
-              </div>
-
-              <!-- ═══ اختيار نموذج تقرير CBC ═══ -->
-              <div style="background:rgba(0,180,100,0.04);border:1px solid rgba(0,180,100,0.3);border-radius:10px;padding:14px">
-                <div style="font-size:12px;font-weight:800;color:#00c46a;margin-bottom:10px">📋 نموذج ورقة تقرير CBC</div>
-                <div style="font-size:10px;color:var(--text2);margin-bottom:8px">اختر التصميم الذي يُطبع عند استلام نتائج CBC من الجهاز</div>
-                <select id="st-cbc-template" class="fc" style="width:100%;font-size:12px;font-weight:700" onchange="_saveCBCTemplate(this.value)">
-                  <option value="1">📄 النموذج 1 — كلاسيكي (الجدول القياسي)</option>
-                  <option value="2">🏥 النموذج 2 — بشريط ملون جانبي للأعلام</option>
-                  <option value="3">📊 النموذج 3 — مُجمَّع بمجموعات (WBC / RBC / PLT)</option>
-                  <option value="4">🔵 النموذج 4 — أحادي اللون بحواف دائرية</option>
-                  <option value="5">⚡ النموذج 5 — مدمج وسريع (خط واحد لكل مُعامل)</option>
-                  <option value="6">✨ النموذج 6 — عصري ببطاقات ناعمة وتدرّج لوني</option>
-                  <option value="7">📈 النموذج 7 — مرئي بأشرطة موضع القيمة ضمن المدى</option>
-                  <option value="8">🎯 النموذج 8 — أنيق مينيمال بإبراز ذكي للقيم الشاذة</option>
-                </select>
-                <button class="btn btn-s" style="width:100%;margin-top:8px;font-size:11px;background:rgba(0,180,100,0.15);border-color:rgba(0,180,100,0.5);color:#00c46a" onclick="_previewCBCTemplate()">👁️ معاينة النموذج المختار</button>
-              </div>
-
-              <!-- اختيار الطابعات -->
-              <div style="background:rgba(0,212,255,0.04);border:1px solid var(--border);border-radius:10px;padding:12px">
-                <div style="font-size:12px;font-weight:800;color:var(--primary);margin-bottom:10px">🖨️ اختيار الطابعات</div>
-                <div style="display:flex;flex-direction:column;gap:10px">
-                  <div>
-                    <label class="fl" style="margin-bottom:4px;font-size:11px">طابعة النتائج (التقارير)</label>
-                    <div style="display:flex;gap:6px">
-                      <select id="st-printer-main" class="fc" style="flex:1;font-size:12px" onchange="_savePrinter('printerMain',this.value)">
-                        <option value="">-- الطابعة الافتراضية --</option>
-                      </select>
-                      <button class="btn btn-p btn-sm" onclick="_loadPrinters()" title="تحديث قائمة الطابعات">🔄</button>
-                    </div>
+                <div id="body-pr-net" style="display:none;padding:14px;border-top:1px solid var(--border)">
+                  <div style="font-size:11px;color:var(--text2);margin-bottom:12px;background:rgba(0,140,255,0.06);border:1px solid rgba(0,140,255,0.25);border-radius:9px;padding:10px">
+                    🖨️ عند الطباعة لأي مريض، يمكن أن تُطبع النتيجة في الحاسبة الأخرى المتصلة أيضاً. اختر أحد الأوضاع الثلاثة (يعمل واحد فقط):
                   </div>
-                  <div>
-                    <label class="fl" style="margin-bottom:4px;font-size:11px">طابعة الملصق (الباركود)</label>
-                    <div style="display:flex;gap:6px">
-                      <select id="st-printer-barcode" class="fc" style="flex:1;font-size:12px" onchange="_savePrinter('printerBarcode',this.value)">
-                        <option value="">-- الطابعة الافتراضية --</option>
-                      </select>
-                      <button class="btn btn-p btn-sm" onclick="_loadPrinters()" title="تحديث قائمة الطابعات">🔄</button>
+                  <div style="display:flex;flex-direction:column;gap:10px">
+
+                    <div id="pscope-both" onclick="_setPrintScope('both')" class="pscope-opt" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px;border:2px solid var(--border);border-radius:10px;padding:12px 14px;transition:all .15s">
+                      <div style="display:flex;align-items:center;gap:10px"><span style="font-size:20px">🖥️🖥️</span><div><div style="font-size:12px;font-weight:800">الطباعة في الحاسبتين</div><div style="font-size:10px;color:var(--text2);margin-top:2px">تُطبع عندي وفي الحاسبة المتصلة معاً</div></div></div>
+                      <span class="pscope-check" style="font-size:18px">○</span>
                     </div>
+
+                    <div id="pscope-remote" onclick="_setPrintScope('remote')" class="pscope-opt" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px;border:2px solid var(--border);border-radius:10px;padding:12px 14px;transition:all .15s">
+                      <div style="display:flex;align-items:center;gap:10px"><span style="font-size:20px">📡</span><div><div style="font-size:12px;font-weight:800">الطباعة في الحاسبة المتصلة فقط</div><div style="font-size:10px;color:var(--text2);margin-top:2px">تُطبع في الحاسبة الأخرى فقط — لا تُطبع عندي</div></div></div>
+                      <span class="pscope-check" style="font-size:18px">○</span>
+                    </div>
+
+                    <div id="pscope-local" onclick="_setPrintScope('local')" class="pscope-opt" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px;border:2px solid var(--border);border-radius:10px;padding:12px 14px;transition:all .15s">
+                      <div style="display:flex;align-items:center;gap:10px"><span style="font-size:20px">💻</span><div><div style="font-size:12px;font-weight:800">الطباعة في حاسبتي فقط</div><div style="font-size:10px;color:var(--text2);margin-top:2px">السلوك الاعتيادي — لا تُرسَل للحاسبة الأخرى</div></div></div>
+                      <span class="pscope-check" style="font-size:18px">○</span>
+                    </div>
+
                   </div>
-                  <div style="font-size:10px;color:var(--text2)">💡 اضغط 🔄 لتحديث الطابعات المتاحة</div>
+                  <div style="font-size:10px;color:var(--text2);margin-top:10px">💡 يتطلب تفعيل «الربط» بين الحاسبات. الطباعة عن بُعد تستخدم طابعة ونماذج كل حاسبة الخاصة بها.</div>
                 </div>
               </div>
 
-              <!-- ═══ إعدادات حجم ملصق الباركود ═══ -->
-              <div class="gc" style="margin-top:0">
-                <div class="gc-hdr"><div class="gc-title">🏷️ حجم ملصق الباركود</div></div>
-                <div class="gc-body" style="padding:14px">
+              <!-- ▼▼ منسدلة: طباعة CBC التلقائية ونماذج التقارير ▼▼ -->
+              <div class="smart-sub" style="border:1px solid var(--border);border-radius:11px;overflow:hidden">
+                <div onclick="toggleSmartSub('pr-tpl')" style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;cursor:pointer;background:rgba(0,180,100,0.06)">
+                  <div style="display:flex;align-items:center;gap:10px"><span style="font-size:18px">📋</span><div><div style="font-size:13px;font-weight:800">نماذج التقارير والطباعة التلقائية</div><div style="font-size:10px;color:var(--text2)">نموذج CBC + نموذج النتائج العامة + طباعة CBC تلقائية</div></div></div>
+                  <span class="st-card-arrow" id="arr-pr-tpl">▼</span>
+                </div>
+                <div id="body-pr-tpl" style="display:none;padding:14px;border-top:1px solid var(--border)">
+                  <div style="display:flex;flex-direction:column;gap:14px">
+
+                    <!-- طباعة CBC تلقائي -->
+                    <div style="display:flex;justify-content:space-between;align-items:center;background:rgba(0,180,100,0.06);border:1px solid rgba(0,180,100,0.25);border-radius:8px;padding:10px 12px">
+                      <div>
+                        <div style="font-size:12px;font-weight:700">🔬 طباعة CBC تلقائياً عند استلام النتائج</div>
+                        <div style="font-size:10px;color:var(--text2);margin-top:2px">تطبع فور وصول نتائج CBC من الجهاز</div>
+                      </div>
+                      <div class="tog" id="tog-auto-cbc" onclick="this.classList.toggle('on');_saveAutoCBC(this.classList.contains('on'))"><div class="tog-t"></div></div>
+                    </div>
+
+                    <!-- ═══ اختيار نموذج تقرير CBC ═══ -->
+                    <div style="background:rgba(0,180,100,0.04);border:1px solid rgba(0,180,100,0.3);border-radius:10px;padding:14px">
+                      <div style="font-size:12px;font-weight:800;color:#00c46a;margin-bottom:10px">📋 نموذج ورقة تقرير CBC</div>
+                      <div style="font-size:10px;color:var(--text2);margin-bottom:8px">اختر التصميم الذي يُطبع عند استلام نتائج CBC من الجهاز</div>
+                      <select id="st-cbc-template" class="fc" style="width:100%;font-size:12px;font-weight:700" onchange="_saveCBCTemplate(this.value)">
+                        <option value="1">📄 النموذج 1 — كلاسيكي (الجدول القياسي)</option>
+                        <option value="2">🏥 النموذج 2 — بشريط ملون جانبي للأعلام</option>
+                        <option value="3">📊 النموذج 3 — مُجمَّع بمجموعات (WBC / RBC / PLT)</option>
+                        <option value="4">🔵 النموذج 4 — أحادي اللون بحواف دائرية</option>
+                        <option value="5">⚡ النموذج 5 — مدمج وسريع (خط واحد لكل مُعامل)</option>
+                        <option value="6">✨ النموذج 6 — عصري ببطاقات ناعمة وتدرّج لوني</option>
+                        <option value="7">📈 النموذج 7 — مرئي بأشرطة موضع القيمة ضمن المدى</option>
+                        <option value="8">🎯 النموذج 8 — أنيق مينيمال بإبراز ذكي للقيم الشاذة</option>
+                      </select>
+                      <button class="btn btn-s" style="width:100%;margin-top:8px;font-size:11px;background:rgba(0,180,100,0.15);border-color:rgba(0,180,100,0.5);color:#00c46a" onclick="_previewCBCTemplate()">👁️ معاينة النموذج المختار</button>
+                    </div>
+
+                    <!-- ═══ اختيار نموذج تقرير النتائج العامة ═══ -->
+                    <div style="background:rgba(0,140,255,0.05);border:1px solid rgba(0,140,255,0.35);border-radius:10px;padding:14px">
+                      <div style="font-size:12px;font-weight:800;color:#2b9bff;margin-bottom:10px">📄 نموذج تقرير النتائج العامة</div>
+                      <div style="font-size:10px;color:var(--text2);margin-bottom:8px">اختر شكل صفحة التقرير التي تُطبع لنتائج التحاليل العامة (لا يشمل CBC). أربعة تصاميم حديثة ومرتبة.</div>
+                      <select id="st-report-template" class="fc" style="width:100%;font-size:12px;font-weight:700" onchange="_saveReportTemplate(this.value)">
+                        <option value="1">📄 النموذج 1 — كلاسيكي (التصميم الحالي)</option>
+                        <option value="2">🔵 النموذج 2 — بطاقات بدوائر ملوّنة (نتيجة داخل دائرة)</option>
+                        <option value="3">✨ النموذج 3 — أنيق مينيمال بأحرف متباعدة وخطوط رفيعة</option>
+                        <option value="4">↕️ النموذج 4 — أقسام بأسهم اتجاه (عالي/منخفض)</option>
+                      </select>
+                      <button class="btn btn-s" style="width:100%;margin-top:8px;font-size:11px;background:rgba(0,140,255,0.15);border-color:rgba(0,140,255,0.5);color:#2b9bff" onclick="_previewReportTemplate()">👁️ معاينة النموذج المختار</button>
+                    </div>
+
+                  </div>
+                </div>
+              </div>
+
+              <!-- ▼▼ منسدلة: اختيار الطابعات ▼▼ -->
+              <div class="smart-sub" style="border:1px solid var(--border);border-radius:11px;overflow:hidden">
+                <div onclick="toggleSmartSub('pr-printers')" style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;cursor:pointer;background:rgba(0,212,255,0.06)">
+                  <div style="display:flex;align-items:center;gap:10px"><span style="font-size:18px">🖨️</span><div><div style="font-size:13px;font-weight:800">اختيار الطابعات</div><div style="font-size:10px;color:var(--text2)">طابعة النتائج + طابعة ملصق الباركود</div></div></div>
+                  <span class="st-card-arrow" id="arr-pr-printers">▼</span>
+                </div>
+                <div id="body-pr-printers" style="display:none;padding:14px;border-top:1px solid var(--border)">
+                  <div style="display:flex;flex-direction:column;gap:10px">
+                    <div>
+                      <label class="fl" style="margin-bottom:4px;font-size:11px">طابعة النتائج (التقارير)</label>
+                      <div style="display:flex;gap:6px">
+                        <select id="st-printer-main" class="fc" style="flex:1;font-size:12px" onchange="_savePrinter('printerMain',this.value)">
+                          <option value="">-- الطابعة الافتراضية --</option>
+                        </select>
+                        <button class="btn btn-p btn-sm" onclick="_loadPrinters()" title="تحديث قائمة الطابعات">🔄</button>
+                      </div>
+                    </div>
+                    <div>
+                      <label class="fl" style="margin-bottom:4px;font-size:11px">طابعة الملصق (الباركود)</label>
+                      <div style="display:flex;gap:6px">
+                        <select id="st-printer-barcode" class="fc" style="flex:1;font-size:12px" onchange="_savePrinter('printerBarcode',this.value)">
+                          <option value="">-- الطابعة الافتراضية --</option>
+                        </select>
+                        <button class="btn btn-p btn-sm" onclick="_loadPrinters()" title="تحديث قائمة الطابعات">🔄</button>
+                      </div>
+                    </div>
+                    <div style="font-size:10px;color:var(--text2)">💡 اضغط 🔄 لتحديث الطابعات المتاحة</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- ▼▼ منسدلة: حجم ملصق الباركود ▼▼ -->
+              <div class="smart-sub" style="border:1px solid var(--border);border-radius:11px;overflow:hidden">
+                <div onclick="toggleSmartSub('pr-label')" style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;cursor:pointer;background:rgba(160,120,255,0.06)">
+                  <div style="display:flex;align-items:center;gap:10px"><span style="font-size:18px">🏷️</span><div><div style="font-size:13px;font-weight:800">حجم ملصق الباركود</div><div style="font-size:10px;color:var(--text2)">أبعاد ملصق الطابعة الحرارية</div></div></div>
+                  <span class="st-card-arrow" id="arr-pr-label">▼</span>
+                </div>
+                <div id="body-pr-label" style="display:none;padding:14px;border-top:1px solid var(--border)">
                   <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
                     <div>
                       <label class="fl" style="font-size:11px;margin-bottom:4px">العرض (مم)</label>
@@ -4545,15 +4681,29 @@ body.light-mode .dp-viewer{background:#d8dde3;}
                 </div>
               </div>
 
-              <div class="fg"><label class="fl">العملة</label>
-                <select class="fc" id="st-currency" onchange="saveCurrencyNow()">
-                  <option value="IQD">دينار عراقي (IQD)</option><option value="KWD">دينار كويتي (KWD)</option>
-                  <option value="BHD">دينار بحريني (BHD)</option><option value="JOD">دينار أردني (JOD)</option>
-                  <option value="SAR">ريال سعودي (SAR)</option><option value="AED">درهم إماراتي (AED)</option>
-                  <option value="EGP">جنيه مصري (EGP)</option><option value="USD">دولار أمريكي (USD)</option>
-                  <option value="EUR">يورو (EUR)</option>
-                </select>
+              <!-- ▼▼ منسدلة: إعدادات عامة ▼▼ -->
+              <div class="smart-sub" style="border:1px solid var(--border);border-radius:11px;overflow:hidden">
+                <div onclick="toggleSmartSub('pr-gen')" style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;cursor:pointer;background:rgba(255,255,255,0.03)">
+                  <div style="display:flex;align-items:center;gap:10px"><span style="font-size:18px">⚙️</span><div><div style="font-size:13px;font-weight:800">إعدادات عامة</div><div style="font-size:10px;color:var(--text2)">التنبيهات + الترقيم + العملة</div></div></div>
+                  <span class="st-card-arrow" id="arr-pr-gen">▼</span>
+                </div>
+                <div id="body-pr-gen" style="display:none;padding:14px;border-top:1px solid var(--border)">
+                  <div style="display:flex;flex-direction:column;gap:14px">
+                    <div style="display:flex;justify-content:space-between;align-items:center"><div><div style="font-size:12px;font-weight:600">تنبيه النتائج الحرجة</div></div><div class="tog on" onclick="this.classList.toggle('on')"><div class="tog-t"></div></div></div>
+                    <div style="display:flex;justify-content:space-between;align-items:center"><div><div style="font-size:12px;font-weight:600">ترقيم تلقائي</div></div><div class="tog on" onclick="this.classList.toggle('on')"><div class="tog-t"></div></div></div>
+                    <div class="fg"><label class="fl">العملة</label>
+                      <select class="fc" id="st-currency" onchange="saveCurrencyNow()">
+                        <option value="IQD">دينار عراقي (IQD)</option><option value="KWD">دينار كويتي (KWD)</option>
+                        <option value="BHD">دينار بحريني (BHD)</option><option value="JOD">دينار أردني (JOD)</option>
+                        <option value="SAR">ريال سعودي (SAR)</option><option value="AED">درهم إماراتي (AED)</option>
+                        <option value="EGP">جنيه مصري (EGP)</option><option value="USD">دولار أمريكي (USD)</option>
+                        <option value="EUR">يورو (EUR)</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
               </div>
+
             </div>
           </div>
         </div>
@@ -5575,6 +5725,9 @@ body.light-mode .dp-viewer{background:#d8dde3;}
             <option value="siemens">Siemens (Dimension / Atellica)</option>
             <option value="sysmex">Sysmex (XN / XE)</option>
             <option value="mindray">Mindray (BC / BS)</option>
+            <option value="mindray_bs230">Mindray BS-230 (Chemistry)</option>
+            <option value="mindray_bc30s">Mindray BC-30s (CBC)</option>
+            <option value="mindray_bc6000">Mindray BC-6000 Series (CBC)</option>
             <option value="zybio">Zybio (Z60 / Z3)</option>
             <option value="biobase">Biobase</option>
             <option value="rayto">Rayto</option>
@@ -5654,6 +5807,7 @@ body.light-mode .dp-viewer{background:#d8dde3;}
             <option value="astm">ASTM E1394 (الأشيع)</option>
             <option value="hl7">HL7 v2.x</option>
             <option value="csv">CSV</option>
+            <option value="chorus">Chorus TRIO (ثنائي — DIESSE)</option>
           </select>
         </div>
         <div class="fg" id="lis-baud-row">
@@ -5721,6 +5875,10 @@ body.light-mode .dp-viewer{background:#d8dde3;}
               <div style="font-size:22px">🧬</div><div style="font-weight:800;font-size:12px">Roche cobas c 111</div>
               <div style="font-size:10px;color:var(--text2)">كيمياء — Serial (USB/RS-232)</div>
             </div>
+            <div class="wiz-card" onclick="lisWizSelectVendor('roche_e411','Roche cobas e 411','astm')" data-v="roche_e411">
+              <div style="font-size:22px">🧪</div><div style="font-weight:800;font-size:12px">Roche cobas e 411</div>
+              <div style="font-size:10px;color:var(--text2)">هرمونات/مناعة — Serial (USB/RS-232)</div>
+            </div>
             <div class="wiz-card" onclick="lisWizSelectVendor('sysmex','Sysmex XN/XE','astm')" data-v="sysmex">
               <div style="font-size:22px">🩸</div><div style="font-weight:800;font-size:12px">Sysmex</div>
               <div style="font-size:10px;color:var(--text2)">XN-1000, XE-2100</div>
@@ -5744,6 +5902,22 @@ body.light-mode .dp-viewer{background:#d8dde3;}
             <div class="wiz-card" onclick="lisWizSelectVendor('snibe','MAGLUMI (Snibe)','astm')" data-v="snibe">
               <div style="font-size:22px">💊</div><div style="font-weight:800;font-size:12px">MAGLUMI / Snibe</div>
               <div style="font-size:10px;color:var(--text2)">MAGLUMI 600/800 — هرمونات</div>
+            </div>
+            <div class="wiz-card" onclick="lisWizSelectVendor('mindray_bs230','Mindray BS-230','hl7')" data-v="mindray_bs230">
+              <div style="font-size:22px">🧫</div><div style="font-weight:800;font-size:12px">Mindray BS-230</div>
+              <div style="font-size:10px;color:var(--text2)">كيمياء — HL7 عبر الشبكة</div>
+            </div>
+            <div class="wiz-card" onclick="lisWizSelectVendor('mindray_bc30s','Mindray BC-30s','hl7')" data-v="mindray_bc30s">
+              <div style="font-size:22px">🩸</div><div style="font-weight:800;font-size:12px">Mindray BC-30s</div>
+              <div style="font-size:10px;color:var(--text2)">دم (CBC) — HL7 عبر الشبكة</div>
+            </div>
+            <div class="wiz-card" onclick="lisWizSelectVendor('mindray_bc6000','Mindray BC-6000','hl7')" data-v="mindray_bc6000">
+              <div style="font-size:22px">🩸</div><div style="font-weight:800;font-size:12px">Mindray BC-6000</div>
+              <div style="font-size:10px;color:var(--text2)">دم (CBC) — HL7 عبر الشبكة</div>
+            </div>
+            <div class="wiz-card" onclick="lisWizSelectVendor('diesse_chorus','DIESSE Chorus TRIO','chorus')" data-v="diesse_chorus">
+              <div style="font-size:22px">🧿</div><div style="font-weight:800;font-size:12px">DIESSE Chorus TRIO</div>
+              <div style="font-size:10px;color:var(--text2)">مناعة/أمصال — Serial (RS-232)</div>
             </div>
             <div class="wiz-card" onclick="lisWizSelectVendor('zybio','Zybio Z60','hl7')" data-v="zybio">
               <div style="font-size:22px">🩸</div><div style="font-weight:800;font-size:12px">Zybio Z60 / Z3</div>
@@ -5880,6 +6054,34 @@ body.light-mode .dp-viewer{background:#d8dde3;}
               • في الجهاز: <span style="color:var(--primary)">Utilities → Configuration → Host Settings</span> · Communication = <b>REALTIME</b> · البروتوكول ASTM.<br>
               • البرنامج سيرسل ACK لكل إطار تلقائياً (مطلوب ليُرسل الجهاز النتائج).
             </div>
+            <div id="wiz-e411-serial-hint" style="display:none;margin-top:10px;background:rgba(0,212,255,0.07);border:1px solid rgba(0,212,255,0.25);border-radius:8px;padding:12px;font-size:11px;color:var(--text2)">
+              🧪 <b style="color:var(--primary)">Roche/Hitachi cobas e 411</b> (حسب دليل الشركة v2.2 — الفصل B/D):<br>
+              • وصّل كابل <b style="color:var(--text)">RS-232C (D-SUB9)</b> بمنفذ الجهاز المكتوب عليه <b style="color:var(--text)">"HOST"</b> (يسار الجهاز — الفصل B، الشكل B-1).<br>
+              • الكابل <b style="color:var(--text)">Null-Modem</b>: 2↔3 (RXD/TXD متقاطع) و 5↔5 (SG) — الطول الأقصى 15 متر (الشكل B-2).<br>
+              • الإعدادات الافتراضية: <b style="color:var(--text)">9600</b> · 8bit,NONE,1Stop — يمكن ضبط 19200/9600/4800 من شاشة الجهاز.<br>
+              • في الجهاز: <span style="color:var(--primary)">Utility → System → Host Communication Setting</span> · Host Communication = <b>On</b> · Automatic Result Upload = <b>Yes</b>.<br>
+              • أدخِل <b style="color:var(--text)">Host Code</b> لكل تحليل في <span style="color:var(--primary)">Host Test Code Setting</span> — إلزامي لرفع النتائج (الفصل B-5). ضع نفس الرقم في عمود «القناة» بجدول الربط.<br>
+              • اختر أدناه صيغة البروتوكول المفعّلة على الجهاز (Protocol Type في شاشته):
+              <div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                <span style="color:var(--text)">نوع البروتوكول:</span>
+                <select id="wiz-e411-type" class="fc" style="max-width:220px;display:inline-block">
+                  <option value="cobas">cobas® type (الأشيع)</option>
+                  <option value="elecsys">Elecsys® type</option>
+                </select>
+              </div>
+              • يدعم البرنامج الرد على الاستعلامات (Order Inquiry) والإرسال المبادر (Batch) — سيرسل ACK لكل إطار تلقائياً.
+            </div>
+            <div id="wiz-chorus-serial-hint" style="display:none;margin-top:10px;background:rgba(255,193,7,0.07);border:1px solid rgba(255,193,7,0.3);border-radius:8px;padding:12px;font-size:11px;color:var(--text2)">
+              🧿 <b style="color:#ffc107">DIESSE Chorus TRIO</b> (حسب دليل الشركة Rev 1.3 — القسم 5.6):<br>
+              • وصّل الكابل بمنفذ الجهاز الخلفي المكتوب عليه <b style="color:var(--text)">"HOST"</b> (الشكل 5، رقم 6 — وليس EXT-SERV).<br>
+              • ⚠️ <b style="color:#ffc107">تنبيه مهم:</b> الكابل <b style="color:var(--text)">مستقيم 1:1 (Straight)</b> — «Standard Serial Cable» حسب §5.6.2 — <b style="color:#ff6b6b">وليس Null-Modem</b> المتقاطع المستخدم مع cobas c111/e411. استخدام كابل متقاطع هنا يعني عدم وصول أي بيانات إطلاقاً.<br>
+              • الإعدادات المصنعية: <b style="color:var(--text)">38400</b> baud · 8 bit · بلا parity · 1 stop bit.<br>
+              • لتغيير السرعة يلزم فنّي الشركة (شاشة Service بكلمة مرور): 38400=0 · 19200=1 · 9600=2 · 57600=7.<br>
+              • البروتوكول ثنائي خاص بـ DIESSE (STX/N/CMD/CS) — ليس ASTM ولا HL7. البرنامج يرد تلقائياً بـ EOT على كل إطار.<br>
+              • <b style="color:var(--text)">لجلب قائمة العمل:</b> بشاشة الجهاز افتح <span style="color:var(--primary)">C-List</span> ← أدخل أرقام العينات ← اضغط <b style="color:var(--text)">Host</b>.<br>
+              • <b style="color:var(--text)">لإرسال النتائج:</b> بنافذة النتائج أو من <span style="color:var(--primary)">Archive</span> اضغط <b style="color:var(--text)">Host</b>.<br>
+              • ضع <b style="color:var(--text)">رقم التحليل (Test ID)</b> في عمود «القناة» بجدول الربط — الجهاز يتعامل بالأرقام لا بالأسماء.
+            </div>
           </div>
 
           <!-- File settings -->
@@ -5944,6 +6146,43 @@ body.light-mode .dp-viewer{background:#d8dde3;}
               • الجهاز هو من <b style="color:var(--text)">يتصل بالبرنامج</b> بعد التشغيل، ويعيد المحاولة تلقائياً إذا فشل.<br>
               • البرنامج يرد <b style="color:var(--text)">ACK^R01</b> تلقائياً على كل نتيجة (إلزامي حسب الدليل).<br>
               • نتائج الكنترول (QC) تُتجاهل تلقائياً ولا تُحفظ كنتيجة مريض.<br>
+              • <b style="color:var(--text)">تأكد أن الجدار الناري (Firewall)</b> يسمح بالمنفذ على الحاسوب.
+            </div>
+            <div id="wiz-bc30s-hint" style="display:none;margin-top:12px;background:rgba(0,212,255,0.07);border:1px solid rgba(0,212,255,0.25);border-radius:8px;padding:12px;font-size:11px;color:var(--text2)">
+              🩸 <b style="color:var(--primary)">Mindray BC-30s</b> (حسب دليل الشركة — HL7 Communication Protocol):<br>
+              • في الجهاز: <span style="color:var(--primary)">Setup → Communication</span> — أدخل <b style="color:var(--text)">IP الحاسوب</b> + <b style="color:var(--text)">Port</b> نفسه.<br>
+              • ⚠️ <b style="color:var(--warn,#ffb020)">مهم جداً</b>: اختر البروتوكول <b style="color:var(--text)">HL7</b> وليس <b style="color:var(--text)">8ID/10ID</b> — الأخير لا يعمل عبر الشبكة.<br>
+              • البروتوكول: <b style="color:var(--text)">HL7 v2.3.1</b> عبر <b style="color:var(--text)">MLLP</b> · الترميز <b style="color:var(--text)">UTF-8 (UNICODE)</b>.<br>
+              • الجهاز هو من <b style="color:var(--text)">يتصل بالبرنامج</b>، والبرنامج سيرفر ينتظر (القسم 1).<br>
+              • النتائج: الجهاز يرسل <b style="color:var(--text)">ORU^R01</b> والبرنامج يرد <b style="color:var(--text)">ACK^R01</b> (القسم 1.1.1).<br>
+              • الاستعلام: الجهاز يرسل <b style="color:var(--text)">ORM^O01</b> والبرنامج يرد <b style="color:var(--text)">ORR^O02</b> (القسم 1.1.2).<br>
+              • <b style="color:var(--warn,#ffb020)">الكنترول (QC)</b> — رسائل <b style="color:var(--text)">MSH-11 = Q</b> — تُتجاهل تلقائياً ولا تُحفظ كنتائج مرضى.<br>
+              • الهيستوغرام وبيانات الرسم (OBX نوع ED) تُتجاهل تلقائياً — تُحفظ نتائج التحاليل فقط.<br>
+              • الجهاز يُرسل نبضة <b style="color:var(--text)">heartbeat</b> كل ٣ ثوانٍ — أمر طبيعي ويُهمَل تلقائياً.<br>
+              • <b style="color:var(--text)">تأكد أن الجدار الناري (Firewall)</b> يسمح بالمنفذ على الحاسوب.
+            </div>
+            <div id="wiz-bc6000-hint" style="display:none;margin-top:12px;background:rgba(0,212,255,0.07);border:1px solid rgba(0,212,255,0.25);border-radius:8px;padding:12px;font-size:11px;color:var(--text2)">
+              🩸 <b style="color:var(--primary)">Mindray BC-6000 Series</b> (حسب دليل الشركة — P/N: 046-012058-00):<br>
+              • في الجهاز: <span style="color:var(--primary)">Setup → Communication → LIS</span> — أدخل <b style="color:var(--text)">IP الحاسوب</b> + <b style="color:var(--text)">Port</b> نفسه.<br>
+              • البروتوكول: <b style="color:var(--text)">HL7 v2.3.1</b> عبر <b style="color:var(--text)">MLLP</b> · الترميز <b style="color:var(--text)">UTF-8 (UNICODE)</b> (القسم 1.2.2).<br>
+              • ⚠️ <b style="color:var(--warn,#ffb020)">مهم</b>: فعّل <b style="color:var(--text)">Synchronous response</b> في الجهاز ليكمل الإرسال بعد وصول ACK (القسم 1.1.2).<br>
+              • النتائج: الجهاز يرسل <b style="color:var(--text)">ORU^R01</b> والبرنامج يرد <b style="color:var(--text)">ACK^R01</b> (القسم 1.2.4).<br>
+              • الاستعلام: الجهاز يرسل <b style="color:var(--text)">ORM^O01</b> والبرنامج يرد <b style="color:var(--text)">ORR^O02</b> خلال <b style="color:var(--text)">١٠ ثوانٍ</b> (القسم 1.1.2 و 1.2.6.6).<br>
+              • رقم العينة يُقرأ من <b style="color:var(--text)">OBR-3</b> للنتائج ومن <b style="color:var(--text)">ORC-3</b> للاستعلام (القسم 1.2.6.5).<br>
+              • <b style="color:var(--warn,#ffb020)">الكنترول (QC)</b> — رسائل <b style="color:var(--text)">MSH-11 = Q</b> — تُتجاهل تلقائياً ولا تُحفظ كنتائج مرضى (القسم 1.2.6.3).<br>
+              • الهيستوغرام وبيانات الرسم (OBX نوع <b style="color:var(--text)">ED</b> وأكواد 15xxx) تُتجاهل تلقائياً — تُحفظ نتائج التحاليل فقط.<br>
+              • رايات الإنذار (12xxx مثل Leucocytosis / Anemia) لا تُحفظ كنتائج رقمية.<br>
+              • <b style="color:var(--text)">تأكد أن الجدار الناري (Firewall)</b> يسمح بالمنفذ على الحاسوب.
+            </div>
+            <div id="wiz-bs230-hint" style="display:none;margin-top:12px;background:rgba(0,212,255,0.07);border:1px solid rgba(0,212,255,0.25);border-radius:8px;padding:12px;font-size:11px;color:var(--text2)">
+              🧫 <b style="color:var(--primary)">Mindray BS-230</b> (حسب دليل الشركة — HL7 Interface):<br>
+              • في الجهاز: <span style="color:var(--primary)">Setup → Communication / LIS</span> — أدخل <b style="color:var(--text)">IP الحاسوب</b> + <b style="color:var(--text)">Port</b> نفسه.<br>
+              • البروتوكول: <b style="color:var(--text)">HL7 v2.3.1</b> عبر <b style="color:var(--text)">MLLP</b> · الترميز <b style="color:var(--text)">ASCII</b>.<br>
+              • الجهاز <b style="color:var(--text)">صامت (Silent)</b> — هو من يتصل بالبرنامج، والبرنامج سيرفر ينتظر.<br>
+              • النتائج: الجهاز يرسل <b style="color:var(--text)">ORU^R01</b> والبرنامج يرد <b style="color:var(--text)">ACK^R01</b>.<br>
+              • الاستعلام: الجهاز يرسل <b style="color:var(--text)">QRY^Q02</b> والبرنامج يرد <b style="color:var(--text)">QCK^Q02 + DSR^Q03</b>.<br>
+              • <b style="color:var(--warn,#ffb020)">الكنترول والمعايرة</b> (MSH-16 = 2 أو 1) تُتجاهل تلقائياً ولا تُحفظ كنتائج مرضى.<br>
+              • 🩸 <b style="color:var(--text)">التراكمي HbA1c</b>: يعمل على تيوب <b style="color:var(--text)">EDTA</b> بباركود يبدأ بـ <b style="color:var(--text)">9</b> (نفس تيوب الـ c111).<br>
               • <b style="color:var(--text)">تأكد أن الجدار الناري (Firewall)</b> يسمح بالمنفذ على الحاسوب.
             </div>
           </div>
@@ -9056,6 +9295,11 @@ function startApp(){
   }).catch(e=>console.warn('[MedLab] loadAllBigToCache failed',e));
 
   setTimeout(()=>showNotif('مرحباً','النظام جاهز للعمل 🔬','success'),500);
+  // 📢 تفعيل زر المنادات الصوتية + 🖨️ تهيئة واجهة وضع الطباعة
+  try{ if(window.Intercom) Intercom.bindButton(); }catch(e){}
+  // ⌨️ اختصار: الضغط على مسطرة المسافة مرتين بسرعة يفتح/يغلق التحدّث بالمنادات
+  try{ _bindIntercomHotkey(); }catch(e){}
+  try{ if(typeof _syncPrintScopeUI==='function') _syncPrintScopeUI(); }catch(e){}
   // تهيئة عداد ESR بعد تعيين المستخدم (لضمان صحة prefix التخزين)
   setTimeout(function(){
     if(typeof esrInit==='function') esrInit();
@@ -9513,6 +9757,7 @@ function nav(p){
     const togAC=document.getElementById('tog-auto-cbc');
     if(togAC){ if(settings.autoPrintCBC) togAC.classList.add('on'); else togAC.classList.remove('on'); }
     _loadCBCTemplateSel();
+    _loadReportTemplateSel();
   }
   if(p==='results'){
     // ⚡ هل وصلنا عبر «حفظ وإنشاء الطلب» (wizFinish) لطلب محدد؟
@@ -11507,26 +11752,9 @@ function _genBarcode128Global(text, opts){
   opts = opts || {};
   var BAR_W = opts.barW || 1.8;   // عرض الوحدة الثابت (نفس قيمة ورقة التحاليل)
   var h     = opts.height || 38;  // ارتفاع الأشرطة
-  var PAD   = (opts.pad!=null) ? opts.pad : 4;
+  var PAD   = (opts.pad!=null) ? opts.pad : Math.ceil(BAR_W*10); // منطقة هادئة ≥10 وحدات (معيار Code128)
   var C128chars=' !"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~';
-  var C128widths=[[2,1,2,2,2,2],[2,2,2,1,2,2],[2,2,2,2,2,1],[1,2,1,2,2,3],[1,2,1,3,2,2],[1,3,1,2,2,2],
-    [1,2,2,2,1,3],[1,2,2,3,1,2],[1,3,2,2,1,2],[2,2,1,2,1,3],[2,2,1,3,1,2],[2,3,1,2,1,2],
-    [1,1,2,2,3,2],[1,2,2,1,3,2],[1,2,2,2,3,1],[1,1,3,2,2,2],[1,2,3,1,2,2],[1,2,3,2,2,1],
-    [2,2,3,2,1,1],[2,2,1,1,3,2],[2,2,1,2,3,1],[2,1,3,2,1,2],[2,2,3,1,1,2],[3,1,2,1,3,1],
-    [3,1,1,2,2,2],[3,2,1,1,2,2],[3,2,1,2,2,1],[3,1,2,2,1,2],[3,2,2,1,1,2],[3,2,2,2,1,1],
-    [2,1,2,1,2,3],[2,1,2,3,2,1],[2,3,2,1,2,1],[1,1,1,3,2,3],[1,3,1,1,2,3],[1,3,1,3,2,1],
-    [1,1,2,3,1,3],[1,3,2,1,1,3],[1,3,2,3,1,1],[2,1,1,3,1,3],[2,3,1,1,1,3],[2,3,1,3,1,1],
-    [1,1,3,1,2,3],[1,1,3,3,2,1],[1,3,3,1,2,1],[1,1,2,1,3,3],[1,1,2,3,3,1],[1,3,2,1,3,1],
-    [3,1,3,1,2,1],[2,1,1,3,3,1],[2,3,1,1,3,1],[2,1,3,1,1,3],[2,1,3,3,1,1],[2,1,3,1,3,1],
-    [3,1,1,1,2,3],[3,1,1,3,2,1],[3,3,1,1,2,1],[3,1,2,1,1,3],[3,1,2,3,1,1],[3,3,2,1,1,1],
-    [3,1,4,1,1,1],[2,2,1,4,1,1],[4,3,1,1,1,1],[1,1,1,2,2,4],[1,1,1,4,2,2],[1,2,1,1,2,4],
-    [1,2,1,4,2,1],[1,4,1,1,2,2],[1,4,1,2,2,1],[1,1,2,2,1,4],[1,1,2,4,1,2],[1,2,2,1,1,4],
-    [1,2,2,4,1,1],[1,4,2,1,1,2],[1,4,2,2,1,1],[2,4,1,2,1,1],[2,2,1,1,1,4],[4,1,3,1,1,1],
-    [2,4,1,1,1,2],[1,3,4,1,1,1],[1,1,1,2,4,2],[1,2,1,1,4,2],[1,2,1,2,4,1],[1,1,4,2,1,2],
-    [1,2,4,1,1,2],[1,2,4,2,1,1],[4,1,1,2,1,2],[4,2,1,1,1,2],[4,2,1,2,1,1],[2,1,2,1,4,1],
-    [2,1,4,1,2,1],[4,1,2,1,2,1],[1,1,1,1,4,3],[1,1,1,3,4,1],[1,3,1,1,4,1],[1,1,4,1,1,3],
-    [1,1,4,3,1,1],[4,1,1,1,1,3],[4,1,1,3,1,1],[1,1,3,1,4,1],[1,1,4,1,3,1],[3,1,1,1,4,1],
-    [4,1,1,1,3,1],[2,1,1,4,1,2],[2,1,1,2,1,4],[2,1,1,2,3,2]];
+  var C128widths=[[2,1,2,2,2,2],[2,2,2,1,2,2],[2,2,2,2,2,1],[1,2,1,2,2,3],[1,2,1,3,2,2],[1,3,1,2,2,2],[1,2,2,2,1,3],[1,2,2,3,1,2],[1,3,2,2,1,2],[2,2,1,2,1,3],[2,2,1,3,1,2],[2,3,1,2,1,2],[1,1,2,2,3,2],[1,2,2,1,3,2],[1,2,2,2,3,1],[1,1,3,2,2,2],[1,2,3,1,2,2],[1,2,3,2,2,1],[2,2,3,2,1,1],[2,2,1,1,3,2],[2,2,1,2,3,1],[2,1,3,2,1,2],[2,2,3,1,1,2],[3,1,2,1,3,1],[3,1,1,2,2,2],[3,2,1,1,2,2],[3,2,1,2,2,1],[3,1,2,2,1,2],[3,2,2,1,1,2],[3,2,2,2,1,1],[2,1,2,1,2,3],[2,1,2,3,2,1],[2,3,2,1,2,1],[1,1,1,3,2,3],[1,3,1,1,2,3],[1,3,1,3,2,1],[1,1,2,3,1,3],[1,3,2,1,1,3],[1,3,2,3,1,1],[2,1,1,3,1,3],[2,3,1,1,1,3],[2,3,1,3,1,1],[1,1,2,1,3,3],[1,1,2,3,3,1],[1,3,2,1,3,1],[1,1,3,1,2,3],[1,1,3,3,2,1],[1,3,3,1,2,1],[3,1,3,1,2,1],[2,1,1,3,3,1],[2,3,1,1,3,1],[2,1,3,1,1,3],[2,1,3,3,1,1],[2,1,3,1,3,1],[3,1,1,1,2,3],[3,1,1,3,2,1],[3,3,1,1,2,1],[3,1,2,1,1,3],[3,1,2,3,1,1],[3,3,2,1,1,1],[3,1,4,1,1,1],[2,2,1,4,1,1],[4,3,1,1,1,1],[1,1,1,2,2,4],[1,1,1,4,2,2],[1,2,1,1,2,4],[1,2,1,4,2,1],[1,4,1,1,2,2],[1,4,1,2,2,1],[1,1,2,2,1,4],[1,1,2,4,1,2],[1,2,2,1,1,4],[1,2,2,4,1,1],[1,4,2,1,1,2],[1,4,2,2,1,1],[2,4,1,2,1,1],[2,2,1,1,1,4],[4,1,3,1,1,1],[2,4,1,1,1,2],[1,3,4,1,1,1],[1,1,1,2,4,2],[1,2,1,1,4,2],[1,2,1,2,4,1],[1,1,4,2,1,2],[1,2,4,1,1,2],[1,2,4,2,1,1],[4,1,1,2,1,2],[4,2,1,1,1,2],[4,2,1,2,1,1],[2,1,2,1,4,1],[2,1,4,1,2,1],[4,1,2,1,2,1],[1,1,1,1,4,3],[1,1,1,3,4,1],[1,3,1,1,4,1],[1,1,4,1,1,3],[1,1,4,3,1,1],[4,1,1,1,1,3],[4,1,1,3,1,1],[1,1,3,1,4,1],[1,1,4,1,3,1],[3,1,1,1,4,1],[4,1,1,1,3,1],[2,1,1,4,1,2],[2,1,1,2,1,4],[2,1,1,2,3,2]];
   var START_B=104, STOP=[2,3,3,1,1,1,2];
   var codes=[START_B], check=START_B;
   for(var i=0;i<text.length;i++){
@@ -14523,24 +14751,7 @@ function buildPrintHTML(req, opts){
   function genBarcode128(text){
     const C128 = {
       chars:' !"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~',
-      widths:[[2,1,2,2,2,2],[2,2,2,1,2,2],[2,2,2,2,2,1],[1,2,1,2,2,3],[1,2,1,3,2,2],[1,3,1,2,2,2],
-              [1,2,2,2,1,3],[1,2,2,3,1,2],[1,3,2,2,1,2],[2,2,1,2,1,3],[2,2,1,3,1,2],[2,3,1,2,1,2],
-              [1,1,2,2,3,2],[1,2,2,1,3,2],[1,2,2,2,3,1],[1,1,3,2,2,2],[1,2,3,1,2,2],[1,2,3,2,2,1],
-              [2,2,3,2,1,1],[2,2,1,1,3,2],[2,2,1,2,3,1],[2,1,3,2,1,2],[2,2,3,1,1,2],[3,1,2,1,3,1],
-              [3,1,1,2,2,2],[3,2,1,1,2,2],[3,2,1,2,2,1],[3,1,2,2,1,2],[3,2,2,1,1,2],[3,2,2,2,1,1],
-              [2,1,2,1,2,3],[2,1,2,3,2,1],[2,3,2,1,2,1],[1,1,1,3,2,3],[1,3,1,1,2,3],[1,3,1,3,2,1],
-              [1,1,2,3,1,3],[1,3,2,1,1,3],[1,3,2,3,1,1],[2,1,1,3,1,3],[2,3,1,1,1,3],[2,3,1,3,1,1],
-              [1,1,3,1,2,3],[1,1,3,3,2,1],[1,3,3,1,2,1],[1,1,2,1,3,3],[1,1,2,3,3,1],[1,3,2,1,3,1],
-              [3,1,3,1,2,1],[2,1,1,3,3,1],[2,3,1,1,3,1],[2,1,3,1,1,3],[2,1,3,3,1,1],[2,1,3,1,3,1],
-              [3,1,1,1,2,3],[3,1,1,3,2,1],[3,3,1,1,2,1],[3,1,2,1,1,3],[3,1,2,3,1,1],[3,3,2,1,1,1],
-              [3,1,4,1,1,1],[2,2,1,4,1,1],[4,3,1,1,1,1],[1,1,1,2,2,4],[1,1,1,4,2,2],[1,2,1,1,2,4],
-              [1,2,1,4,2,1],[1,4,1,1,2,2],[1,4,1,2,2,1],[1,1,2,2,1,4],[1,1,2,4,1,2],[1,2,2,1,1,4],
-              [1,2,2,4,1,1],[1,4,2,1,1,2],[1,4,2,2,1,1],[2,4,1,2,1,1],[2,2,1,1,1,4],[4,1,3,1,1,1],
-              [2,4,1,1,1,2],[1,3,4,1,1,1],[1,1,1,2,4,2],[1,2,1,1,4,2],[1,2,1,2,4,1],[1,1,4,2,1,2],
-              [1,2,4,1,1,2],[1,2,4,2,1,1],[4,1,1,2,1,2],[4,2,1,1,1,2],[4,2,1,2,1,1],[2,1,2,1,4,1],
-              [2,1,4,1,2,1],[4,1,2,1,2,1],[1,1,1,1,4,3],[1,1,1,3,4,1],[1,3,1,1,4,1],[1,1,4,1,1,3],
-              [1,1,4,3,1,1],[4,1,1,1,1,3],[4,1,1,3,1,1],[1,1,3,1,4,1],[1,1,4,1,3,1],[3,1,1,1,4,1],
-              [4,1,1,1,3,1],[2,1,1,4,1,2],[2,1,1,2,1,4],[2,1,1,2,3,2]]
+      widths:[[2,1,2,2,2,2],[2,2,2,1,2,2],[2,2,2,2,2,1],[1,2,1,2,2,3],[1,2,1,3,2,2],[1,3,1,2,2,2],[1,2,2,2,1,3],[1,2,2,3,1,2],[1,3,2,2,1,2],[2,2,1,2,1,3],[2,2,1,3,1,2],[2,3,1,2,1,2],[1,1,2,2,3,2],[1,2,2,1,3,2],[1,2,2,2,3,1],[1,1,3,2,2,2],[1,2,3,1,2,2],[1,2,3,2,2,1],[2,2,3,2,1,1],[2,2,1,1,3,2],[2,2,1,2,3,1],[2,1,3,2,1,2],[2,2,3,1,1,2],[3,1,2,1,3,1],[3,1,1,2,2,2],[3,2,1,1,2,2],[3,2,1,2,2,1],[3,1,2,2,1,2],[3,2,2,1,1,2],[3,2,2,2,1,1],[2,1,2,1,2,3],[2,1,2,3,2,1],[2,3,2,1,2,1],[1,1,1,3,2,3],[1,3,1,1,2,3],[1,3,1,3,2,1],[1,1,2,3,1,3],[1,3,2,1,1,3],[1,3,2,3,1,1],[2,1,1,3,1,3],[2,3,1,1,1,3],[2,3,1,3,1,1],[1,1,2,1,3,3],[1,1,2,3,3,1],[1,3,2,1,3,1],[1,1,3,1,2,3],[1,1,3,3,2,1],[1,3,3,1,2,1],[3,1,3,1,2,1],[2,1,1,3,3,1],[2,3,1,1,3,1],[2,1,3,1,1,3],[2,1,3,3,1,1],[2,1,3,1,3,1],[3,1,1,1,2,3],[3,1,1,3,2,1],[3,3,1,1,2,1],[3,1,2,1,1,3],[3,1,2,3,1,1],[3,3,2,1,1,1],[3,1,4,1,1,1],[2,2,1,4,1,1],[4,3,1,1,1,1],[1,1,1,2,2,4],[1,1,1,4,2,2],[1,2,1,1,2,4],[1,2,1,4,2,1],[1,4,1,1,2,2],[1,4,1,2,2,1],[1,1,2,2,1,4],[1,1,2,4,1,2],[1,2,2,1,1,4],[1,2,2,4,1,1],[1,4,2,1,1,2],[1,4,2,2,1,1],[2,4,1,2,1,1],[2,2,1,1,1,4],[4,1,3,1,1,1],[2,4,1,1,1,2],[1,3,4,1,1,1],[1,1,1,2,4,2],[1,2,1,1,4,2],[1,2,1,2,4,1],[1,1,4,2,1,2],[1,2,4,1,1,2],[1,2,4,2,1,1],[4,1,1,2,1,2],[4,2,1,1,1,2],[4,2,1,2,1,1],[2,1,2,1,4,1],[2,1,4,1,2,1],[4,1,2,1,2,1],[1,1,1,1,4,3],[1,1,1,3,4,1],[1,3,1,1,4,1],[1,1,4,1,1,3],[1,1,4,3,1,1],[4,1,1,1,1,3],[4,1,1,3,1,1],[1,1,3,1,4,1],[1,1,4,1,3,1],[3,1,1,1,4,1],[4,1,1,1,3,1],[2,1,1,4,1,2],[2,1,1,2,1,4],[2,1,1,2,3,2]]
     };
     const START_B=104, STOP=[2,3,3,1,1,1,2];
     let codes=[START_B];
@@ -14556,7 +14767,7 @@ function buildPrintHTML(req, opts){
     codes.forEach(c=>{ C128.widths[c].forEach((w,i)=>bars.push({w,dark:i%2===0})); });
     STOP.forEach((w,i)=>bars.push({w,dark:i%2===0}));
     bars.push({w:2,dark:false});
-    const BAR_W=1.8,h=38,PAD=4,totalW=bars.reduce((s,b)=>s+b.w*BAR_W,0)+PAD*2;
+    const BAR_W=1.8,h=38,PAD=Math.ceil(1.8*10),totalW=bars.reduce((s,b)=>s+b.w*BAR_W,0)+PAD*2; // منطقة هادئة ≥10 وحدات
     let x=PAD,rects='';
     bars.forEach(b=>{if(b.dark)rects+='<rect x="'+x+'" y="2" width="'+(b.w*BAR_W)+'" height="'+h+'" fill="#000"/>';x+=b.w*BAR_W;});
     const totalH=h+4;
@@ -14655,7 +14866,7 @@ function buildPrintHTML(req, opts){
   // ─── رأس الأعمدة — مكبّر درجة ونصف ──────────────────────
   const colHdrFs = pfsN;
   const colHdrTextColor = settings.colorStripText || stripColor;
-  const colHdr=`
+  let colHdr=`
   <div style="margin:0 6px 2px;display:flex;direction:ltr;padding:4px 0;border-bottom:2px solid ${stripColor};border-top:1px solid #aab8c8;align-items:center;background:${stripColor}18">
     <div style="flex:4;font-size:${colHdrFs}px;font-weight:900;color:${colHdrTextColor};font-family:'Times New Roman',Times,serif;letter-spacing:0.5px;padding-right:4px;padding-left:18px;text-decoration:underline;text-underline-offset:3px">Test</div>
     <div style="flex:2;font-size:${colHdrFs}px;font-weight:900;color:${colHdrTextColor};font-family:'Times New Roman',Times,serif;text-align:left;letter-spacing:0.5px;padding-left:4px;text-decoration:underline;text-underline-offset:3px">Result</div>
@@ -14663,14 +14874,286 @@ function buildPrintHTML(req, opts){
     <div style="flex:2;font-size:${colHdrFs}px;font-weight:900;color:${colHdrTextColor};font-family:'Times New Roman',Times,serif;text-align:center;letter-spacing:0.5px;text-decoration:underline;text-underline-offset:3px">Last Result</div>
   </div>`;
 
+  // ═══════════════════════════════════════════════════════════════════════
+  //  📋 نماذج تقارير النتائج العامة (Report Templates 1–4)
+  //  النموذج 1 = التصميم الكلاسيكي الحالي (بدون أي تغيير).
+  //  النماذج 2–4 = تصاميم حديثة احترافية — تعيد تنسيق «عنوان القسم» و«صف التحليل»
+  //  و«رأس الأعمدة» فقط، دون المساس بالرأس/التذييل/بيانات المريض/الترقيم/التوقيع.
+  //  كل الحسابات (H/L، الألوان، المدى، الوحدة، السابقة) تبقى كما هي — النماذج
+  //  تستقبل النتائج الجاهزة فقط وتغلّفها بتصميم مختلف.
+  // ═══════════════════════════════════════════════════════════════════════
+  const RTPL = String(settings.reportTemplate||'1');
+  // ألوان مساعدة مشتقة من الإعدادات (كل النماذج تخضع لإعدادات الألوان وأحجام الخط)
+  const _tplAccent = sectionColor;         // لون القسم/العناوين (من الإعدادات)
+  const _tplStrip  = stripColor;           // لون الشريط (من الإعدادات)
+  // ألوان الحالة — قابلة للتخصيص من الإعدادات مع قيم افتراضية متوافقة مع النظام
+  const _tplHighColor = settings.colorHigh || '#cc0000'; // عالي
+  const _tplLowColor  = settings.colorLow  || '#0055cc'; // ناصي/منخفض
+  const _tplNormColor = settings.colorNormal || '#111111'; // طبيعي (أسود)
+  // أحجام خطوط مشتقة من الإعدادات (pfs/ptfs/subcatFs) — تُستعمل داخل النماذج الجديدة
+  const _tplValFs = Math.round(pfsN * 1.9);   // حجم قيمة الدائرة = مشتق من حجم خط النتائج
+  const _tplLblFs = Math.max(pfsN - 3, 6);    // حجم كلمة RESULT الصغيرة
+  // رأس أعمدة بديل حسب النموذج (colHdr الأصلي يبقى للنموذج 1)
+  (function(){
+    if(RTPL==='2'){
+      // نموذج 2 «بطاقات بدوائر» — لا يستخدم رأس أعمدة (كل تحليل في بطاقة مستقلة)
+      colHdr='';
+    } else if(RTPL==='3'){
+      // خطوط رفيعة راقية + حروف كبيرة متباعدة (بدون خلفية) — يخضع للإعدادات
+      colHdr=`
+      <div style="margin:0 6px 2px;display:flex;direction:ltr;padding:5px 0 6px;border-bottom:1.5px solid ${_tplStrip};align-items:flex-end">
+        <div style="flex:4;font-size:${colHdrFs-1}px;font-weight:800;color:${_tplStrip};letter-spacing:1.6px;text-transform:uppercase;padding-left:16px">Test</div>
+        <div style="flex:2;font-size:${colHdrFs-1}px;font-weight:800;color:${_tplStrip};text-align:left;letter-spacing:1.6px;text-transform:uppercase">Result</div>
+        <div style="flex:3;font-size:${colHdrFs-1}px;font-weight:800;color:${_tplStrip};text-align:left;letter-spacing:1.6px;text-transform:uppercase;padding-left:6px">Reference</div>
+        <div style="flex:2;font-size:${colHdrFs-1}px;font-weight:800;color:${_tplStrip};text-align:center;letter-spacing:1.6px;text-transform:uppercase">Previous</div>
+      </div>`;
+    } else if(RTPL==='4'){
+      // نموذج 4 «أقسام بأسهم» — رأس أعمدة بلون الشريط من الإعدادات
+      colHdr=`
+      <div style="margin:0 6px 4px;display:flex;direction:ltr;padding:4px 2px;border-bottom:1.5px solid ${_tplStrip};align-items:center">
+        <div style="flex:4;font-size:${colHdrFs}px;font-weight:700;color:${_tplStrip};padding-left:6px">Test</div>
+        <div style="flex:2;font-size:${colHdrFs}px;font-weight:700;color:${_tplStrip};text-align:left">Result</div>
+        <div style="flex:1.4;font-size:${colHdrFs}px;font-weight:700;color:${_tplStrip};text-align:left">Unit</div>
+        <div style="flex:3;font-size:${colHdrFs}px;font-weight:700;color:${_tplStrip};text-align:left;padding-left:4px">Normal Range</div>
+        <div style="flex:2;font-size:${colHdrFs}px;font-weight:700;color:${_tplStrip};text-align:center">Previous</div>
+      </div>`;
+    }
+  })();
+
+  // ── باني عنوان القسم حسب النموذج ──
+  function _tplSectionHeader(cat, catTests){
+    const _parentCat=catTests[0]&&catTests[0].cat||cat;
+    const _devName=settings.sectionDevices&&(settings.sectionDevices[_parentCat]||settings.sectionDevices[cat]);
+    const _devColor=settings.colorDevice||'#0055cc';
+    const _devFs=Math.max((settings.deviceFontSize?parseInt(settings.deviceFontSize):pfsN)-1,7);
+    const devHtml=_devName?`<div style="font-size:${_devFs}px;color:${_devColor};font-weight:700;letter-spacing:0.4px;text-decoration:underline;text-underline-offset:2px">⚙ ${_devName}</div>`:'';
+    const title=cat.toLowerCase();
+    if(RTPL==='2'){
+      // نموذج 2 — عنوان اللوحة بأحرف كبيرة بلون القسم من الإعدادات (كما في الصورة: HORMONES PANEL)
+      return `<div style="margin:0;direction:ltr;padding:0 2px;display:flex;align-items:flex-end;justify-content:space-between;gap:8px">
+        <div style="font-size:${subcatFs};font-weight:900;color:${_tplAccent};text-transform:uppercase;letter-spacing:0.8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${title}</div>
+        ${devHtml}
+      </div>`;
+    } else if(RTPL==='3'){
+      return `<div style="margin:8px 6px 3px;direction:ltr;padding:4px 12px;background:${_tplAccent}0d;border-left:3px solid ${_tplAccent};border-radius:0 5px 5px 0;display:flex;align-items:center;justify-content:space-between;gap:8px">
+        <div style="font-size:${subcatFs};font-weight:900;color:${_tplAccent};text-transform:uppercase;letter-spacing:1.4px;white-space:nowrap">${title}</div>
+        ${devHtml}
+      </div>`;
+    } else if(RTPL==='4'){
+      // نموذج 4 — عنوان القسم في شريط رمادي فاتح، النص بلون القسم من الإعدادات (كما في الصورة)
+      return `<div style="margin:10px 6px 0;direction:ltr;padding:6px 12px;background:#eef1f4;border:1px solid #dde3ea;border-bottom:none;border-radius:7px 7px 0 0;display:flex;align-items:center;justify-content:space-between;gap:8px">
+        <div style="font-size:${subcatFs};font-weight:900;color:${_tplAccent};text-transform:uppercase;letter-spacing:1px;white-space:nowrap">${title}</div>
+        ${devHtml}
+      </div>`;
+    }
+    // النموذج 1 — التصميم الأصلي تماماً
+    return `<div style="margin:4px 6px 0;direction:ltr">
+      <div style="padding:3px 10px 2px">
+        <div style="display:inline-block;font-size:${subcatFs};font-weight:900;color:${sectionColor};font-family:'Times New Roman',Times,serif;text-transform:capitalize;letter-spacing:0.5px;white-space:nowrap;border-bottom:2px solid ${sectionColor};padding-bottom:2px">${title}</div>
+      </div>
+      ${devHtml?`<div style="padding:0 10px 2px">${devHtml}</div>`:''}
+    </div>`;
+  }
+
+  // ── فتح/إغلاق حاوية القسم (للنماذج التي تحتاج تخطيطاً خاصاً) ──
+  function _tplSectionOpen(){
+    if(RTPL==='2'){
+      // شبكة بطاقات مرنة — 3 بطاقات في الصف، بارتفاع موحّد (stretch) داخل الصف
+      return `<div style="display:flex;flex-wrap:wrap;align-items:stretch;gap:7px;direction:ltr;margin:0 6px 2px;padding:0 0 2px">`;
+    }
+    if(RTPL==='4'){
+      // جسم القسم داخل بطاقة بحدود رمادية (تكملة لرأس القسم)
+      return `<div style="margin:0 6px 2px;direction:ltr;border:1px solid #dde3ea;border-top:none;border-radius:0 0 7px 7px;padding:5px 4px 6px">`;
+    }
+    return '';
+  }
+  function _tplSectionClose(){
+    if(RTPL==='2'||RTPL==='4'){ return `</div>`; }
+    return '';
+  }
+
+  // ── دالة مساعدة: بناء دائرة (donut) بلون الحالة والنتيجة بداخلها (نموذج 2) ──
+  // تعتمد على conic-gradient بلا صور — توفّر الحبر نسبياً وتطبع بدقة.
+  function _tplDonut(value, ringColor){
+    const sz = Math.max(_tplValFs*2.7, 48); // قطر الدائرة مشتق من حجم الخط
+    const thick = Math.max(Math.round(sz*0.055), 3); // ⭐ حلقة أنحف (كانت 0.13)
+    const inner = sz - thick*2;
+    return `<div style="position:relative;width:${sz}px;height:${sz}px;flex-shrink:0;margin:0 auto">
+      <div style="position:absolute;inset:0;border-radius:50%;background:${ringColor}"></div>
+      <div style="position:absolute;top:${thick}px;left:${thick}px;width:${inner}px;height:${inner}px;border-radius:50%;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1">
+        <div style="font-size:${_tplValFs}px;font-weight:900;color:#000000;text-align:center;white-space:nowrap">${value}</div>
+        <div style="font-size:${_tplLblFs}px;font-weight:700;color:#777;letter-spacing:0.5px;margin-top:1px">RESULT</div>
+      </div>
+    </div>`;
+  }
+
+  // ── باني صف/بطاقة تحليل حسب النموذج ──
+  // p = { name, resultBox, flag, refHtml, prevHtml, bullet, isAbn, value, isHigh, isLow, refTxt, unit, prevVal, prevDate }
+  function _tplRow(p){
+    const bullet = p.bullet!==undefined ? p.bullet : '●';
+    if(RTPL==='2'){
+      // نموذج 2 «بطاقة بدائرة» — كما في الصورة الأولى تماماً:
+      //  دائرة ملوّنة (أسود=طبيعي، أحمر=عالي، أزرق=ناصي) بداخلها القيمة وأسفلها RESULT،
+      //  ثم القيم الطبيعية + الوحدة، ثم آخر نتيجة (Last Result).
+      const ringColor = p.isHigh ? _tplHighColor : (p.isLow ? _tplLowColor : _tplNormColor);
+      const badge = p.isHigh
+        ? `<span style="font-size:${_tplLblFs}px;font-weight:900;color:#fff;background:${_tplHighColor};border-radius:4px;padding:1px 7px;letter-spacing:0.5px">HIGH</span>`
+        : p.isLow
+        ? `<span style="font-size:${_tplLblFs}px;font-weight:900;color:#fff;background:${_tplLowColor};border-radius:4px;padding:1px 7px;letter-spacing:0.5px">LOW</span>`
+        : '';
+      // ⭐ فوق القيم الطبيعية كلمة REFERENCE
+      const refInner = (p.refTxt && p.refTxt!=='—')
+        ? `<div style="font-size:${pfs};font-weight:700;color:#000;text-align:center">${p.refTxt}${p.unit?`&nbsp;<span style="color:#333;font-weight:600">${p.unit}</span>`:''}</div>`
+        : (p.unit?`<div style="font-size:${pfs};font-weight:600;color:#333;text-align:center">${p.unit}</div>`:'');
+      const refLine = (refInner)
+        ? `<div style="text-align:center;margin-top:2px">
+             <div style="font-size:${_tplLblFs}px;font-weight:800;color:#888;letter-spacing:0.6px">REFERENCE</div>
+             ${refInner}
+           </div>`
+        : '';
+      const prevLine = (p.prevVal)
+        ? `<div style="font-size:${ptfs};font-weight:600;color:#333;text-align:center;margin-top:2px">Last: <b style="color:#000">${p.prevVal}</b>${p.prevDate?` <span style="color:#666">(${p.prevDate})</span>`:''}</div>`
+        : '';
+      // عرض البطاقة: يستوعب 3 في الصف مع التفاف تلقائي عند التحاليل الكثيرة
+      // البطاقة نفسها — تملأ ارتفاع العمود بالكامل (height:100%) لتتساوى كل البطاقات
+      //  البنية الداخلية: [رأس: الاسم+الشارة] [الدائرة] [منطقة REFERENCE+Last تتمدد لأسفل]
+      //  منطقة المرجع تأخذ المساحة المتبقية (flex:1) فتتساوى حواف البطاقات مهما اختلف المحتوى.
+      const _cardHtml=`<div style="width:100%;height:100%;box-sizing:border-box;border:1px solid #d7dde5;border-radius:9px;padding:8px 8px 9px;background:#fff;display:flex;flex-direction:column;gap:4px;page-break-inside:avoid;break-inside:avoid">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;min-height:${Math.max(subcatFsN+4,16)}px">
+          <div style="font-size:${subcatFs};font-weight:800;color:${_tplAccent};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.name}</div>
+          ${badge}
+        </div>
+        ${_tplDonut(p.value||'—', ringColor)}
+        <div style="flex:1;display:flex;flex-direction:column;justify-content:flex-start">
+          ${refLine}
+          ${prevLine}
+        </div>
+      </div>`;
+      // عنوان المجموعة (إن مُرِّر) يظهر فوق أول بطاقة من مجموعتها، بارتفاع ثابت تماماً
+      //  (height ثابت وليس min-height) كي تبدأ كل البطاقات من نفس المستوى بالضبط
+      //  فتتساوى ارتفاعات البطاقات في الصف الواحد سواء حملت عنواناً أم لا.
+      const _titleH = Math.max(subcatFsN+9, 22);
+      const _titleHtml = p.sectionTitle
+        ? `<div style="height:${_titleH}px;overflow:hidden;display:flex;align-items:flex-end">${p.sectionTitle}</div>`
+        : `<div style="height:${_titleH}px"></div>`;
+      return `<div style="flex:0 0 calc((100% - 14px) / 3);width:calc((100% - 14px) / 3);box-sizing:border-box;display:flex;flex-direction:column;page-break-inside:avoid;break-inside:avoid">
+        ${_titleHtml}
+        <div style="flex:1;display:flex;width:100%">${_cardHtml}</div>
+      </div>`;
+    } else if(RTPL==='3'){
+      return `
+      <div style="margin:0 6px;display:flex;align-items:flex-start;direction:ltr;padding:3px 0">
+        <div style="flex:4;font-size:${pfs};font-weight:600;color:#1a1a1a;padding-top:2px;padding-left:16px">${p.name}</div>
+        <div style="flex:2;display:flex;align-items:center;justify-content:flex-start;gap:4px;padding-left:4px">
+          <div style="display:flex;align-items:center;gap:3px">${p.resultBox}${p.flag}</div>
+        </div>
+        <div style="flex:3;padding:1px 4px 0 6px">${p.refHtml}</div>
+        <div style="flex:2;padding:1px 4px;text-align:center;font-size:${pfs};font-weight:600">${p.prevHtml}</div>
+      </div>`;
+    } else if(RTPL==='4'){
+      // نموذج 4 «صف بسهم»:
+      //  الاسم | النتيجة داخل مستطيل + سهم بجانبه (▲ أحمر للعالي، ▼ أزرق للناصي) | الوحدة | المدى | آخر نتيجة+تاريخ
+      //  ⭐ القيمة تُوضع داخل مستطيل (p.resultBox) تماماً كالنموذج الأول الكلاسيكي،
+      //     والسهم يظهر بجانب المستطيل مع محاذاة رأسية مضبوطة تناسب مكان النتيجة.
+      const arrow = p.isHigh
+        ? `<span style="color:${_tplHighColor};font-size:${pfs};font-weight:900;flex-shrink:0">▲</span>`
+        : p.isLow
+        ? `<span style="color:${_tplLowColor};font-size:${pfs};font-weight:900;flex-shrink:0">▼</span>`
+        : `<span style="width:10px;flex-shrink:0;display:inline-block"></span>`;
+      // آخر نتيجة مع التاريخ (كباقي التقارير): القيمة ثم التاريخ بينهما مسافة
+      const prevCell = p.prevVal
+        ? `<b style="color:#000">${p.prevVal}</b>${p.prevDate?`<div style="font-size:${Math.max(pfsN-2,7)}px;color:#555;font-weight:600">${p.prevDate}</div>`:''}`
+        : '';
+      // ⭐ المدى الطبيعي: يظهر كل سطر أسفل الآخر تماماً كما في قاعدة التحاليل
+      //    (يُقسَّم على '\n' أو '|' فتظهر الأسطر عمودياً مثل النموذج 1، وليس سطراً واحداً)
+      let _refCell='';
+      if(p.refTxt && p.refTxt!=='—'){
+        var _rp=[];
+        if(p.refTxt.indexOf('\n')>-1){ _rp=p.refTxt.split('\n'); }
+        else if(p.refTxt.indexOf('|')>-1){ _rp=p.refTxt.split('|'); }
+        _rp=_rp.map(function(s){return s.trim();}).filter(Boolean);
+        if(_rp.length>=2){
+          _refCell=_rp.map(function(part){return `<div style="white-space:nowrap">${part}</div>`;}).join('');
+        } else {
+          _refCell=p.refTxt;
+        }
+      }
+      return `
+      <div style="margin:0 2px;display:flex;align-items:center;direction:ltr;padding:2.5px 6px">
+        <div style="flex:4;font-size:${pfs};font-weight:700;color:#000000;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.name}</div>
+        <div style="flex:2;display:flex;align-items:center;gap:4px">${p.resultBox}${arrow}</div>
+        <div style="flex:1.4;font-size:${pfs};font-weight:600;color:#000000">${p.unit||''}</div>
+        <div style="flex:3;font-size:${pfs};font-weight:600;color:#000000;padding-left:4px;line-height:1.5">${_refCell}</div>
+        <div style="flex:2;font-size:${pfs};font-weight:600;color:#000000;text-align:center;line-height:1.2">${prevCell}</div>
+      </div>`;
+    }
+    // النموذج 1 — الصف الأصلي تماماً
+    return `
+      <div style="margin:0 6px;display:flex;align-items:flex-start;direction:ltr;padding:2px 0">
+        <div style="flex:4;font-size:${pfs};font-weight:600;color:#000000;padding-top:3px">
+          ${bullet} ${p.name}
+        </div>
+        <div style="flex:2;display:flex;align-items:flex-start;justify-content:flex-start;gap:2px;padding-left:4px;padding-top:2px">
+          <span style="font-size:${pfs};font-weight:900;color:#000;flex-shrink:0;line-height:1.4">:</span>
+          <div style="display:flex;align-items:center;gap:2px">${p.resultBox}${p.flag}</div>
+        </div>
+        <div style="flex:3;padding:2px 4px 0 6px">${p.refHtml}</div>
+        <div style="flex:2;padding:2px 4px;text-align:center;font-size:${pfs};font-weight:600">${p.prevHtml}</div>
+      </div>`;
+  }
+  // فاصل الصفوف حسب النموذج
+  function _tplRowSep(){
+    if(RTPL==='3'){ return `<div style="margin:0 6px;border-top:1px solid #eef1f5"></div>`; }
+    if(RTPL==='4'){ return `<div style="margin:0 8px;border-top:1px solid #f0f2f5"></div>`; }
+    if(RTPL==='2'){ return ''; } // البطاقات لا تحتاج فواصل
+    return null; // النموذج 1 — اترك المنطق الأصلي
+  }
+
   // ─── نتائج التحاليل ────────────────────────────────────
   // catChunks: مصفوفة كل عنصر = HTML كامل لمجموعة فرعية واحدة (بدون فاصل سابق)
   const catChunks = [];
   let body='';
   if(!blankBody){
   let _visibleCatCount = 0; // عداد المجموعات المعروضة فعلاً
-  sortedGroupKeys.forEach((cat)=>{
-    const catTests=grouped[cat];
+  // ⭐ وحدات العرض: افتراضياً كل مجموعة فرعية وحدة مستقلة (سلوك جميع النماذج كما هو).
+  //   للنموذج 2 (البطاقات): ندمج المجموعات الفرعية الصغيرة المتجاورة في وحدة واحدة
+  //   كي لا تترك البطاقةُ المفردة صفاً شبه فارغ — تصعد معها مجموعة أخرى بتحليل أو تحليلين.
+  //   الدمج يبقى «chunk» عادياً فيعمل الترقيم والتجميع اليدوي دون أي تغيير.
+  let _renderUnits = sortedGroupKeys.map(k=>[k]);
+  if(RTPL==='2'){
+    // عدّ التحاليل ذات النتائج في كل مجموعة فرعية
+    const _cnt = {};
+    sortedGroupKeys.forEach(k=>{
+      _cnt[k] = grouped[k].filter(t=>{ const v=req.results[t.id]||''; return v && v.trim()!==''; }).length;
+    });
+    const _units=[]; let _buf=[]; let _bufCount=0;
+    const ROW_CAP=3; // الصف يحمل ٣ تحاليل كحد أقصى (كل بطاقة = تحليل واحد)
+    const _flush=()=>{ if(_buf.length){ _units.push(_buf); _buf=[]; _bufCount=0; } };
+    sortedGroupKeys.forEach(k=>{
+      const c=_cnt[k];
+      if(c<=0) return; // لا نتائج — تُتخطى
+      if(c>=ROW_CAP){
+        // مجموعة تملأ الصف أو أكبر → أفرغ المخزن ثم ضعها وحدها
+        _flush();
+        _units.push([k]);
+        return;
+      }
+      // مجموعة صغيرة (١ أو ٢): إن كانت إضافتها ستتجاوز سعة الصف (٣) → أغلق الوحدة الحالية أولاً
+      if(_bufCount + c > ROW_CAP){ _flush(); }
+      _buf.push(k); _bufCount+=c;
+      // إن اكتمل الصف تماماً (٣ تحاليل) → أغلقه
+      if(_bufCount>=ROW_CAP){ _flush(); }
+    });
+    _flush();
+    if(_units.length) _renderUnits=_units;
+  }
+
+  _renderUnits.forEach((unitKeys)=>{
+    // unitKeys: مصفوفة مفاتيح مجموعات فرعية تُعرض ضمن chunk واحد (عادةً مفتاح واحد)
+    // نجمع تحاليلها ونحدد المفتاح الأساسي للفاصل/اسم الجهاز
+    const _primaryCat = unitKeys[0];
+    const cat = _primaryCat; // توافق مع بقية الشيفرة التي تشير إلى cat
+    const catTests = unitKeys.reduce((acc,k)=>acc.concat(grouped[k]||[]),[]);
 
     // ✅ تحقق أولاً: هل يوجد أي تحليل بنتيجة في هذه المجموعة؟
     const catHasResults = catTests.some(t => {
@@ -14695,14 +15178,18 @@ function buildPrintHTML(req, opts){
       else if(_catDotted) _catDividerHtml = `<div style="margin:5px 6px;border-top:2px dotted #aab8c8"></div>`;
       else                _catDividerHtml = `<div style="margin:4px 6px;border-top:1px dotted #aab8c8"></div>`;
     }
-    _chunkHtml+=`<div style="margin:4px 6px 0;direction:ltr">
-      <div style="padding:3px 10px 2px">
-        <div style="display:inline-block;font-size:${subcatFs};font-weight:900;color:${sectionColor};font-family:'Times New Roman',Times,serif;text-transform:capitalize;letter-spacing:0.5px;white-space:nowrap;border-bottom:2px solid ${sectionColor};padding-bottom:2px">${cat.toLowerCase()}</div>
-      </div>
-      ${(()=>{const _parentCat=catTests[0]&&catTests[0].cat||cat;const _devName=settings.sectionDevices&&(settings.sectionDevices[_parentCat]||settings.sectionDevices[cat]);const _devColor=settings.colorDevice||'#0055cc';const _devFs=Math.max((settings.deviceFontSize?parseInt(settings.deviceFontSize):pfsN)-1,7);return _devName?`<div style="font-size:${_devFs}px;color:${_devColor};font-weight:700;padding:0 10px 2px;letter-spacing:0.4px;text-decoration:underline;text-underline-offset:2px">⚙ ${_devName}</div>`:'';})()}
-    </div>`;
+    // ⭐ للنموذج 2: عنوان كل مجموعة فرعية يُعرض كعنصر flex بعرض كامل داخل الشبكة،
+    //   فتظل البطاقات تملأ الصفوف بينما تفصل العناوين المجموعات.
+    //   لبقية النماذج: عنوان واحد ثم صفوف (كما كان).
+    if(RTPL==='2'){
+      _chunkHtml+=_tplSectionOpen(); // يفتح شبكة flex واحدة للوحدة كاملة
+    } else {
+      _chunkHtml+=_tplSectionHeader(cat, catTests);
+      _chunkHtml+=_tplSectionOpen();
+    }
 
-    catTests.forEach((t,tIdx)=>{
+    // نعرّف الدالة التي تعالج تحليلاً واحداً (تُستدعى ضمن حلقة المفاتيح)
+    const _renderOneTest = (t, tIdx, _secTitleHtml)=>{
       const val = req.results[t.id]||'';
       // Fix 2: Skip tests with no result entered — don't print empty rows
       if(!blankBody && (!val || val.trim()==='')) return;
@@ -14756,20 +15243,29 @@ function buildPrintHTML(req, opts){
           const inpResultBox=`<div style="border:1.5px solid ${inpBoxBorder};border-radius:5px;background:#fff;padding:3px 6px;font-size:${pfs};font-weight:900;color:${inpValColor};min-width:80px;max-width:160px;text-align:center;white-space:nowrap;display:inline-flex;align-items:center;justify-content:center"><span>${inpVal}</span></div>`;
           const inpShowUnit = inpUnit && inpUnit!=='qualitative';
           const inpRefHtml = `<div style="display:block;font-size:${pfs}">${inpRefTxt==='—'?`<span style="font-size:${pfs}">—</span>`:`<span style="font-size:${pfs};font-weight:600;color:#000">${inpRefTxt}</span>${inpShowUnit?`&nbsp;&nbsp;<span style="font-size:${pfs};font-weight:600;color:#444">${inpUnit}</span>`:''}`}</div>`;
-          _chunkHtml+=`
-      <div style="margin:0 6px;display:flex;align-items:flex-start;direction:ltr;padding:2px 0">
-        <div style="flex:4;font-size:${pfs};font-weight:600;color:#000000;padding-top:3px">
-          ● ${inpName}
-        </div>
-        <div style="flex:2;display:flex;align-items:flex-start;justify-content:flex-start;gap:2px;padding-left:4px;padding-top:2px">
-          <span style="font-size:${pfs};font-weight:900;color:#000;flex-shrink:0;line-height:1.4">:</span>
-          <div style="display:flex;align-items:center;gap:2px">${inpResultBox}${inpFlag}</div>
-        </div>
-        <div style="flex:3;padding:2px 4px 0 6px">${inpRefHtml}</div>
-        <div style="flex:2"></div>
-      </div>`;
-          if(settings.div_test_dotted) _chunkHtml+=`<div style="margin:1px 6px;border-top:1px dotted #cccccc"></div>`;
-          else if(settings.div_test_solid) _chunkHtml+=`<div style="margin:1px 6px;border-top:1px solid #cccccc"></div>`;
+          _chunkHtml+=_tplRow({
+            name: inpName,
+            resultBox: inpResultBox,
+            flag: inpFlag,
+            refHtml: inpRefHtml,
+            prevHtml: '',
+            bullet: '○',
+            isAbn: (inpIsHigh||inpIsLow),
+            abnColor: inpValColor,
+            // حقول للنماذج الجديدة:
+            value: inpVal,
+            isHigh: inpIsHigh,
+            isLow: inpIsLow,
+            refTxt: inpRefTxt,
+            unit: (inpShowUnit?inpUnit:''),
+            prevVal: '',
+            prevDate: ''
+          });
+          const _inpSep=_tplRowSep();
+          if(_inpSep===null){
+            if(settings.div_test_dotted) _chunkHtml+=`<div style="margin:1px 6px;border-top:1px dotted #cccccc"></div>`;
+            else if(settings.div_test_solid) _chunkHtml+=`<div style="margin:1px 6px;border-top:1px solid #cccccc"></div>`;
+          } else { _chunkHtml+=_inpSep; }
         });
       }
 
@@ -14907,18 +15403,36 @@ function buildPrintHTML(req, opts){
       // مربع النتيجة — القيمة فقط بدون وحدة
       const resultBox=`<div style="border:1.5px solid ${boxBorder};border-radius:5px;background:#fff;padding:3px 6px;font-size:${pfs};font-weight:900;color:${valColor};min-width:80px;max-width:160px;text-align:center;white-space:nowrap;display:inline-flex;align-items:center;justify-content:center"><span>${displayValFull}</span></div>`;
 
-      _chunkHtml+=`
-      <div style="margin:0 6px;display:flex;align-items:flex-start;direction:ltr;padding:2px 0">
-        <div style="flex:4;font-size:${pfs};font-weight:600;color:#000000;padding-top:3px">
-          ● ${t.nameShort&&t.nameShort.trim()?t.nameShort.trim():t.nameEn}
-        </div>
-        <div style="flex:2;display:flex;align-items:flex-start;justify-content:flex-start;gap:2px;padding-left:4px;padding-top:2px">
-          <span style="font-size:${pfs};font-weight:900;color:#000;flex-shrink:0;line-height:1.4">:</span>
-          <div style="display:flex;align-items:center;gap:2px">${resultBox}${flagLetter}</div>
-        </div>
-        <div style="flex:3;padding:2px 4px 0 6px">${refWithUnit}</div>
-        <div style="flex:2;padding:2px 4px;text-align:center;font-size:${pfs};font-weight:600">${prevHtml}</div>
-      </div>`;
+      // ── بيانات إضافية للنماذج الجديدة (دوائر/أسهم) ──
+      // آخر نتيجة (قيمة + تاريخ) لعرضها في النموذج 2/4
+      let _prevVal='', _prevDate='';
+      {
+        const _pf=prevReqs.filter(pr=>pr.results&&pr.results[t.id]!==undefined&&pr.results[t.id]!=='');
+        if(_pf.length){
+          _prevVal=_pf[0].results[t.id];
+          const _rd=_pf[0].resultDate||_pf[0].date||'';
+          try{const d=new Date(_rd);if(!isNaN(d))_prevDate=`${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`;}catch(e){_prevDate=_rd;}
+        }
+      }
+      _chunkHtml+=_tplRow({
+        name: (t.nameShort&&t.nameShort.trim()?t.nameShort.trim():t.nameEn),
+        resultBox: resultBox,
+        flag: flagLetter,
+        refHtml: refWithUnit,
+        prevHtml: prevHtml,
+        bullet: '●',
+        isAbn: (isHigh||isLow||isQualAbnormal),
+        abnColor: valColor,
+        // حقول للنماذج الجديدة:
+        value: displayValFull,
+        isHigh: isHigh,
+        isLow: (isLow||isQualAbnormal),
+        refTxt: refTxt,
+        unit: (showUnit?unitTxt:''),
+        prevVal: _prevVal,
+        prevDate: _prevDate,
+        sectionTitle: _secTitleHtml||''
+      });
       // فاصل بين تحليل وتحليل
       const _testDotted=settings.div_test_dotted;
       const _testSolid=settings.div_test_solid;
@@ -14929,11 +15443,39 @@ function buildPrintHTML(req, opts){
       const testsWithResults = catTests.filter(tt => { const v=req.results[tt.id]||''; return v && v.trim()!==''; });
       const isLastTestInCat = t.id === testsWithResults[testsWithResults.length-1]?.id;
       const skipTestSep = hasSectionSep && isLastTestInCat;
-      if(!skipTestSep){
-        if(_testSolid)       _chunkHtml+=`<div style="margin:1px 6px;border-top:1px solid #cccccc"></div>`;
-        else if(_testDotted) _chunkHtml+=`<div style="margin:1px 6px;border-top:1px dotted #cccccc"></div>`;
+      const _mainSep=_tplRowSep();
+      if(_mainSep===null){
+        if(!skipTestSep){
+          if(_testSolid)       _chunkHtml+=`<div style="margin:1px 6px;border-top:1px solid #cccccc"></div>`;
+          else if(_testDotted) _chunkHtml+=`<div style="margin:1px 6px;border-top:1px dotted #cccccc"></div>`;
+        }
+      } else if(_mainSep!=='' && !isLastTestInCat){
+        _chunkHtml+=_mainSep;
       }
-    });
+    }; // end _renderOneTest
+
+    // ── تشغيل عرض التحاليل ──
+    if(RTPL==='2'){
+      // ⭐ لا نضع العنوان كعنصر بعرض كامل (كان يكسر الصف).
+      //   بدلاً: عنوان كل مجموعة فرعية يُمرَّر إلى أول بطاقة من بطاقاتها،
+      //   فتظل جميع البطاقات تتدفق ٣ في الصف، والعنوان يظهر فوق أول بطاقة لكل مجموعة.
+      let _tIdxGlobal=0;
+      unitKeys.forEach((k)=>{
+        const _kTests=(grouped[k]||[]).filter(t=>{ const v=req.results[t.id]||''; return v && v.trim()!==''; });
+        if(!_kTests.length) return;
+        const _secTitleHtml=_tplSectionHeader(k,(grouped[k]||[]));
+        let _firstInGroup=true;
+        (grouped[k]||[]).forEach((t)=>{
+          const v=req.results[t.id]||'';
+          if(!blankBody && (!v||v.trim()==='')) return; // نحدد أول بطاقة فعلية بنتيجة
+          _renderOneTest(t,_tIdxGlobal++, _firstInGroup?_secTitleHtml:'');
+          _firstInGroup=false;
+        });
+      });
+    } else {
+      catTests.forEach((t,tIdx)=>{ _renderOneTest(t,tIdx); });
+    }
+    _chunkHtml+=_tplSectionClose();
     // أضف الـ chunk إلى المصفوفة وإلى body
     // ⭐ كل chunk يحمل: cat (اسم المجموعة) + html (المحتوى) + catDividerHtml (فاصل المجموعة)
     // الـ body المباشر (للـ blankBody) يحتوي على الفاصل بشكل صحيح كما كان (لا يتأثر)
@@ -15814,6 +16356,25 @@ function _doPrintFallback(html, afterCB){
 
 function doPrint(reqId){
   if(reqId) currentReqId=reqId;
+  // 🖨️ الطباعة المتزامنة عبر الشبكة (طباعة في الحاسبتين / الأخرى فقط / حاسبتي فقط)
+  //    يُنفَّذ فقط عندما يكون الاستدعاء محلياً (ليس ناتجاً عن أمر وارد من جهاز آخر)
+  if(!window._remotePrintApplying){
+    try{
+      if(typeof _shouldPrintRemote==='function' && _shouldPrintRemote() && typeof _sendRemotePrint==='function'){
+        _sendRemotePrint(currentReqId);
+      }
+      // وضع «الطباعة في الحاسبة المتصلة فقط» → لا نطبع محلياً، فقط نُعلِم ونخرج
+      if(typeof _shouldPrintLocal==='function' && !_shouldPrintLocal()){
+        try{
+          var _rq=requests.find(function(r){return r.id===currentReqId;});
+          if(_rq){ _rq.printed=true; _rq._updatedAt=Date.now(); save('requests',requests); }
+        }catch(e){}
+        if(typeof showNotif==='function') showNotif('🖨️ طباعة','أُرسلت الطباعة إلى الحاسبة المتصلة','success');
+        try{ renderRequests(); nav('requests'); }catch(e){}
+        return;
+      }
+    }catch(e){ console.warn('[RemotePrint] doPrint hook',e); }
+  }
   // 🔎 Delta Check — بوابة قبل الطباعة (تغطي: حفظ وطباعة من الإدخال + طباعة من واجهة الطباعة)
   //   تُتجاوز عند: تعطيل الميزة، أو المتابعة بعد الموافقة الصريحة (_dcPrintApproved)
   try{
@@ -18865,7 +19426,12 @@ function loadSettings(){
   if(settings.currency){const sel=document.getElementById('st-currency');if(sel){for(let o of sel.options){if(o.value===settings.currency){o.selected=true;break;}}}}
   // نموذج CBC
   const cbcTplSel=document.getElementById('st-cbc-template');
-  if(cbcTplSel) cbcTplSel.value=settings.cbcTemplate||'1';  document.getElementById('sb-labname').textContent='🏥 '+(settings.name||'المختبر');
+  if(cbcTplSel) cbcTplSel.value=settings.cbcTemplate||'1';
+  const repTplSel=document.getElementById('st-report-template');
+  if(repTplSel) repTplSel.value=settings.reportTemplate||'1';
+  // 🖨️ وضع الطباعة عبر الشبكة (طباعة في الحاسبتين / الأخرى فقط / حاسبتي فقط)
+  try{ if(typeof _syncPrintScopeUI==='function') _syncPrintScopeUI(); }catch(e){}
+  document.getElementById('sb-labname').textContent='🏥 '+(settings.name||'المختبر');
   document.getElementById('sb-director').textContent=settings.dir||'';
   // Images
   if(settings.headerImg){document.getElementById('header-img-show').src=settings.headerImg;document.getElementById('header-img-preview').style.display='block';}
@@ -24701,12 +25267,12 @@ function _buildUAPrintHTML(r){
   const printTime   = new Date().toLocaleString('en-GB',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
   const barcodeId   = (String(pt.barcode||pt.id||r.patientId||'000000').replace(/[^0-9A-Za-z]/g,'')||'000000');
   function _uaBarcode128(text){
-    const C128={chars:' !"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~',widths:[[2,1,2,2,2,2],[2,2,2,1,2,2],[2,2,2,2,2,1],[1,2,1,2,2,3],[1,2,1,3,2,2],[1,3,1,2,2,2],[1,2,2,2,1,3],[1,2,2,3,1,2],[1,3,2,2,1,2],[2,2,1,2,1,3],[2,2,1,3,1,2],[2,3,1,2,1,2],[1,1,2,2,3,2],[1,2,2,1,3,2],[1,2,2,2,3,1],[1,1,3,2,2,2],[1,2,3,1,2,2],[1,2,3,2,2,1],[2,2,3,2,1,1],[2,2,1,1,3,2],[2,2,1,2,3,1],[2,1,3,2,1,2],[2,2,3,1,1,2],[3,1,2,1,3,1],[3,1,1,2,2,2],[3,2,1,1,2,2],[3,2,1,2,2,1],[3,1,2,2,1,2],[3,2,2,1,1,2],[3,2,2,2,1,1],[2,1,2,4,1,1],[2,1,4,2,1,1],[4,1,2,2,1,1],[4,1,1,1,4,1],[1,1,4,2,2,1],[2,1,1,1,4,2],[2,1,1,4,1,2],[2,4,1,2,1,1],[4,1,1,2,1,2],[1,2,4,1,1,2],[1,4,1,4,1,1],[2,2,1,4,1,1],[4,4,1,1,1,1],[1,1,2,3,2,2],[1,2,2,3,2,1],[2,2,2,3,1,1],[1,1,3,2,3,1],[2,1,1,4,2,1],[1,4,2,1,2,1],[2,1,4,1,1,3],[1,3,2,3,1,1],[2,1,1,1,1,5],[2,1,1,5,1,1],[5,1,1,2,1,1],[2,1,5,1,1,2],[2,1,3,1,3,1],[2,3,1,1,3,1],[1,3,1,3,2,1],[1,4,2,2,1,1],[1,2,2,4,1,1],[1,2,4,1,2,1],[1,4,1,2,2,1],[2,1,4,4,1,1],[3,1,2,1,1,3],[3,1,1,1,2,3],[3,3,1,1,2,1],[3,1,2,3,1,1],[2,1,1,3,3,1],[1,1,2,2,1,4],[1,2,1,1,4,2],[1,2,1,4,1,2],[1,4,1,1,2,2],[3,1,1,2,4,1],[1,3,2,1,4,1],[2,3,1,2,3,1],[1,4,2,1,1,3],[4,1,4,1,1,2],[2,1,1,1,3,4],[3,1,4,1,2,1],[1,1,4,2,1,3],[1,4,4,1,1,2],[3,3,1,2,1,2],[3,1,1,4,2,1],[2,1,2,2,4,1],[2,1,4,2,2,1],[4,2,1,2,1,2],[2,4,2,2,1,1],[1,3,4,1,1,2],[2,3,4,1,1,1],[1,2,4,2,2,1],[3,2,4,1,1,1],[4,2,4,1,1,1],[2,2,1,1,1,5],[2,1,1,2,1,5],[3,2,1,1,1,4],[2,2,1,2,3,2],[2,2,3,2,1,2],[2,2,1,1,4,2],[2,2,3,1,2,2],[2,1,4,1,3,1],[4,2,1,1,3,1],[1,1,2,4,2,2],[1,2,2,4,2,1],[1,2,4,4,1,1],[1,4,4,2,1,1],[4,2,2,1,1,2],[4,2,2,2,1,1],[4,1,2,1,2,2],[1,2,4,1,3,1],[4,1,2,2,2,1],[1,1,1,1,4,3],[1,1,1,3,4,1],[1,3,1,1,4,1],[1,1,4,1,1,3],[1,1,4,3,1,1],[4,1,1,1,1,3],[4,1,1,3,1,1],[1,1,3,1,4,1],[1,1,4,1,3,1],[3,1,1,1,4,1],[4,1,1,1,3,1],[2,1,1,4,1,2],[2,1,1,2,1,4],[2,1,1,2,3,2]]};
+    const C128={chars:' !"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~',widths:[[2,1,2,2,2,2],[2,2,2,1,2,2],[2,2,2,2,2,1],[1,2,1,2,2,3],[1,2,1,3,2,2],[1,3,1,2,2,2],[1,2,2,2,1,3],[1,2,2,3,1,2],[1,3,2,2,1,2],[2,2,1,2,1,3],[2,2,1,3,1,2],[2,3,1,2,1,2],[1,1,2,2,3,2],[1,2,2,1,3,2],[1,2,2,2,3,1],[1,1,3,2,2,2],[1,2,3,1,2,2],[1,2,3,2,2,1],[2,2,3,2,1,1],[2,2,1,1,3,2],[2,2,1,2,3,1],[2,1,3,2,1,2],[2,2,3,1,1,2],[3,1,2,1,3,1],[3,1,1,2,2,2],[3,2,1,1,2,2],[3,2,1,2,2,1],[3,1,2,2,1,2],[3,2,2,1,1,2],[3,2,2,2,1,1],[2,1,2,1,2,3],[2,1,2,3,2,1],[2,3,2,1,2,1],[1,1,1,3,2,3],[1,3,1,1,2,3],[1,3,1,3,2,1],[1,1,2,3,1,3],[1,3,2,1,1,3],[1,3,2,3,1,1],[2,1,1,3,1,3],[2,3,1,1,1,3],[2,3,1,3,1,1],[1,1,2,1,3,3],[1,1,2,3,3,1],[1,3,2,1,3,1],[1,1,3,1,2,3],[1,1,3,3,2,1],[1,3,3,1,2,1],[3,1,3,1,2,1],[2,1,1,3,3,1],[2,3,1,1,3,1],[2,1,3,1,1,3],[2,1,3,3,1,1],[2,1,3,1,3,1],[3,1,1,1,2,3],[3,1,1,3,2,1],[3,3,1,1,2,1],[3,1,2,1,1,3],[3,1,2,3,1,1],[3,3,2,1,1,1],[3,1,4,1,1,1],[2,2,1,4,1,1],[4,3,1,1,1,1],[1,1,1,2,2,4],[1,1,1,4,2,2],[1,2,1,1,2,4],[1,2,1,4,2,1],[1,4,1,1,2,2],[1,4,1,2,2,1],[1,1,2,2,1,4],[1,1,2,4,1,2],[1,2,2,1,1,4],[1,2,2,4,1,1],[1,4,2,1,1,2],[1,4,2,2,1,1],[2,4,1,2,1,1],[2,2,1,1,1,4],[4,1,3,1,1,1],[2,4,1,1,1,2],[1,3,4,1,1,1],[1,1,1,2,4,2],[1,2,1,1,4,2],[1,2,1,2,4,1],[1,1,4,2,1,2],[1,2,4,1,1,2],[1,2,4,2,1,1],[4,1,1,2,1,2],[4,2,1,1,1,2],[4,2,1,2,1,1],[2,1,2,1,4,1],[2,1,4,1,2,1],[4,1,2,1,2,1],[1,1,1,1,4,3],[1,1,1,3,4,1],[1,3,1,1,4,1],[1,1,4,1,1,3],[1,1,4,3,1,1],[4,1,1,1,1,3],[4,1,1,3,1,1],[1,1,3,1,4,1],[1,1,4,1,3,1],[3,1,1,1,4,1],[4,1,1,1,3,1],[2,1,1,4,1,2],[2,1,1,2,1,4],[2,1,1,2,3,2]]};
     const START_B=104,STOP=[2,3,3,1,1,1,2];let codes=[START_B];let check=START_B;
     for(let i=0;i<text.length;i++){const idx=C128.chars.indexOf(text[i]);if(idx<0)continue;codes.push(idx);check+=(i+1)*idx;}
     codes.push(check%103);let bars=[];codes.forEach(c=>{C128.widths[c].forEach((w,i)=>bars.push({w,dark:i%2===0}));});
     STOP.forEach((w,i)=>bars.push({w,dark:i%2===0}));bars.push({w:2,dark:false});
-    const h=38,totalW=bars.reduce((s,b)=>s+b.w*2,0);let x=0,rects='';
+    const h=38,_QZ=20,totalW=bars.reduce((s,b)=>s+b.w*2,0)+_QZ*2;let x=_QZ,rects=''; // منطقة هادئة ≥10 وحدات
     bars.forEach(b=>{if(b.dark)rects+=`<rect x="${x}" y="0" width="${b.w*2}" height="${h}" fill="#000"/>`;x+=b.w*2;});
     return `<svg xmlns="http://www.w3.org/2000/svg" width="${totalW}" height="${h}" viewBox="0 0 ${totalW} ${h}" style="display:block">${rects}</svg>`;
   }
@@ -25218,12 +25784,12 @@ function _buildStoolPrintHTML(r){
   const _sPrintTime   = new Date().toLocaleString('en-GB',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
   const _sBarcodeId   = (String(pt.barcode||pt.id||r.patientId||'000000').replace(/[^0-9A-Za-z]/g,'')||'000000');
   function _stoolBarcode128(text){
-    const C128={chars:' !"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~',widths:[[2,1,2,2,2,2],[2,2,2,1,2,2],[2,2,2,2,2,1],[1,2,1,2,2,3],[1,2,1,3,2,2],[1,3,1,2,2,2],[1,2,2,2,1,3],[1,2,2,3,1,2],[1,3,2,2,1,2],[2,2,1,2,1,3],[2,2,1,3,1,2],[2,3,1,2,1,2],[1,1,2,2,3,2],[1,2,2,1,3,2],[1,2,2,2,3,1],[1,1,3,2,2,2],[1,2,3,1,2,2],[1,2,3,2,2,1],[2,2,3,2,1,1],[2,2,1,1,3,2],[2,2,1,2,3,1],[2,1,3,2,1,2],[2,2,3,1,1,2],[3,1,2,1,3,1],[3,1,1,2,2,2],[3,2,1,1,2,2],[3,2,1,2,2,1],[3,1,2,2,1,2],[3,2,2,1,1,2],[3,2,2,2,1,1],[2,1,2,4,1,1],[2,1,4,2,1,1],[4,1,2,2,1,1],[4,1,1,1,4,1],[1,1,4,2,2,1],[2,1,1,1,4,2],[2,1,1,4,1,2],[2,4,1,2,1,1],[4,1,1,2,1,2],[1,2,4,1,1,2],[1,4,1,4,1,1],[2,2,1,4,1,1],[4,4,1,1,1,1],[1,1,2,3,2,2],[1,2,2,3,2,1],[2,2,2,3,1,1],[1,1,3,2,3,1],[2,1,1,4,2,1],[1,4,2,1,2,1],[2,1,4,1,1,3],[1,3,2,3,1,1],[2,1,1,1,1,5],[2,1,1,5,1,1],[5,1,1,2,1,1],[2,1,5,1,1,2],[2,1,3,1,3,1],[2,3,1,1,3,1],[1,3,1,3,2,1],[1,4,2,2,1,1],[1,2,2,4,1,1],[1,2,4,1,2,1],[1,4,1,2,2,1],[2,1,4,4,1,1],[3,1,2,1,1,3],[3,1,1,1,2,3],[3,3,1,1,2,1],[3,1,2,3,1,1],[2,1,1,3,3,1],[1,1,2,2,1,4],[1,2,1,1,4,2],[1,2,1,4,1,2],[1,4,1,1,2,2],[3,1,1,2,4,1],[1,3,2,1,4,1],[2,3,1,2,3,1],[1,4,2,1,1,3],[4,1,4,1,1,2],[2,1,1,1,3,4],[3,1,4,1,2,1],[1,1,4,2,1,3],[1,4,4,1,1,2],[3,3,1,2,1,2],[3,1,1,4,2,1],[2,1,2,2,4,1],[2,1,4,2,2,1],[4,2,1,2,1,2],[2,4,2,2,1,1],[1,3,4,1,1,2],[2,3,4,1,1,1],[1,2,4,2,2,1],[3,2,4,1,1,1],[4,2,4,1,1,1],[2,2,1,1,1,5],[2,1,1,2,1,5],[3,2,1,1,1,4],[2,2,1,2,3,2],[2,2,3,2,1,2],[2,2,1,1,4,2],[2,2,3,1,2,2],[2,1,4,1,3,1],[4,2,1,1,3,1],[1,1,2,4,2,2],[1,2,2,4,2,1],[1,2,4,4,1,1],[1,4,4,2,1,1],[4,2,2,1,1,2],[4,2,2,2,1,1],[4,1,2,1,2,2],[1,2,4,1,3,1],[4,1,2,2,2,1],[1,1,1,1,4,3],[1,1,1,3,4,1],[1,3,1,1,4,1],[1,1,4,1,1,3],[1,1,4,3,1,1],[4,1,1,1,1,3],[4,1,1,3,1,1],[1,1,3,1,4,1],[1,1,4,1,3,1],[3,1,1,1,4,1],[4,1,1,1,3,1],[2,1,1,4,1,2],[2,1,1,2,1,4],[2,1,1,2,3,2]]};
+    const C128={chars:' !"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~',widths:[[2,1,2,2,2,2],[2,2,2,1,2,2],[2,2,2,2,2,1],[1,2,1,2,2,3],[1,2,1,3,2,2],[1,3,1,2,2,2],[1,2,2,2,1,3],[1,2,2,3,1,2],[1,3,2,2,1,2],[2,2,1,2,1,3],[2,2,1,3,1,2],[2,3,1,2,1,2],[1,1,2,2,3,2],[1,2,2,1,3,2],[1,2,2,2,3,1],[1,1,3,2,2,2],[1,2,3,1,2,2],[1,2,3,2,2,1],[2,2,3,2,1,1],[2,2,1,1,3,2],[2,2,1,2,3,1],[2,1,3,2,1,2],[2,2,3,1,1,2],[3,1,2,1,3,1],[3,1,1,2,2,2],[3,2,1,1,2,2],[3,2,1,2,2,1],[3,1,2,2,1,2],[3,2,2,1,1,2],[3,2,2,2,1,1],[2,1,2,1,2,3],[2,1,2,3,2,1],[2,3,2,1,2,1],[1,1,1,3,2,3],[1,3,1,1,2,3],[1,3,1,3,2,1],[1,1,2,3,1,3],[1,3,2,1,1,3],[1,3,2,3,1,1],[2,1,1,3,1,3],[2,3,1,1,1,3],[2,3,1,3,1,1],[1,1,2,1,3,3],[1,1,2,3,3,1],[1,3,2,1,3,1],[1,1,3,1,2,3],[1,1,3,3,2,1],[1,3,3,1,2,1],[3,1,3,1,2,1],[2,1,1,3,3,1],[2,3,1,1,3,1],[2,1,3,1,1,3],[2,1,3,3,1,1],[2,1,3,1,3,1],[3,1,1,1,2,3],[3,1,1,3,2,1],[3,3,1,1,2,1],[3,1,2,1,1,3],[3,1,2,3,1,1],[3,3,2,1,1,1],[3,1,4,1,1,1],[2,2,1,4,1,1],[4,3,1,1,1,1],[1,1,1,2,2,4],[1,1,1,4,2,2],[1,2,1,1,2,4],[1,2,1,4,2,1],[1,4,1,1,2,2],[1,4,1,2,2,1],[1,1,2,2,1,4],[1,1,2,4,1,2],[1,2,2,1,1,4],[1,2,2,4,1,1],[1,4,2,1,1,2],[1,4,2,2,1,1],[2,4,1,2,1,1],[2,2,1,1,1,4],[4,1,3,1,1,1],[2,4,1,1,1,2],[1,3,4,1,1,1],[1,1,1,2,4,2],[1,2,1,1,4,2],[1,2,1,2,4,1],[1,1,4,2,1,2],[1,2,4,1,1,2],[1,2,4,2,1,1],[4,1,1,2,1,2],[4,2,1,1,1,2],[4,2,1,2,1,1],[2,1,2,1,4,1],[2,1,4,1,2,1],[4,1,2,1,2,1],[1,1,1,1,4,3],[1,1,1,3,4,1],[1,3,1,1,4,1],[1,1,4,1,1,3],[1,1,4,3,1,1],[4,1,1,1,1,3],[4,1,1,3,1,1],[1,1,3,1,4,1],[1,1,4,1,3,1],[3,1,1,1,4,1],[4,1,1,1,3,1],[2,1,1,4,1,2],[2,1,1,2,1,4],[2,1,1,2,3,2]]};
     const START_B=104,STOP=[2,3,3,1,1,1,2];let codes=[START_B];let check=START_B;
     for(let i=0;i<text.length;i++){const idx=C128.chars.indexOf(text[i]);if(idx<0)continue;codes.push(idx);check+=(i+1)*idx;}
     codes.push(check%103);let bars=[];codes.forEach(c=>{C128.widths[c].forEach((w,i)=>bars.push({w,dark:i%2===0}));});
     STOP.forEach((w,i)=>bars.push({w,dark:i%2===0}));bars.push({w:2,dark:false});
-    const h=38,totalW=bars.reduce((s,b)=>s+b.w*2,0);let x=0,rects='';
+    const h=38,_QZ=20,totalW=bars.reduce((s,b)=>s+b.w*2,0)+_QZ*2;let x=_QZ,rects=''; // منطقة هادئة ≥10 وحدات
     bars.forEach(b=>{if(b.dark)rects+=`<rect x="${x}" y="0" width="${b.w*2}" height="${h}" fill="#000"/>`;x+=b.w*2;});
     return `<svg xmlns="http://www.w3.org/2000/svg" width="${totalW}" height="${h}" viewBox="0 0 ${totalW} ${h}" style="display:block">${rects}</svg>`;
   }
@@ -25900,6 +26466,105 @@ function _loadCBCTemplateSel(){
   if(sel&&typeof settings==='object') sel.value=settings.cbcTemplate||'1';
 }
 
+/* ─── نموذج تقرير النتائج العامة (Report Templates 1–4) ─── */
+function _saveReportTemplate(val){
+  if(typeof settings==='object') settings.reportTemplate=val;
+  if(typeof saveSettings==='function') saveSettings();
+  try{ showNotif('✅ تم الحفظ','تم اختيار نموذج التقرير رقم '+val,'success'); }catch(e){}
+}
+function _loadReportTemplateSel(){
+  const sel=document.getElementById('st-report-template');
+  if(sel&&typeof settings==='object') sel.value=settings.reportTemplate||'1';
+}
+function _previewReportTemplate(){
+  // معاينة حية: نبني تقريراً تجريبياً بالنموذج المختار عبر buildPrintHTML نفسها
+  // مع بيانات وهمية — دون المساس بأي طلب حقيقي.
+  const tpl=(document.getElementById('st-report-template')||{}).value||settings.reportTemplate||'1';
+  const _prevTplSaved = settings.reportTemplate;
+  settings.reportTemplate = tpl; // مؤقتاً للمعاينة فقط
+  try{
+    // تحاليل تجريبية من قاعدة التحاليل الفعلية (أول عدة تحاليل عامة) لضمان واقعية المعاينة
+    let demoTestObjs = (Array.isArray(tests)?tests:[]).filter(function(t){
+      return t && !t.isSpecialExam && !t.isCalc;
+    });
+    // اختر تحاليل من مجموعات فرعية مختلفة لإظهار تعدد الأقسام
+    const bySub={};
+    demoTestObjs.forEach(function(t){ const k=t.subCat||t.cat||'General'; (bySub[k]=bySub[k]||[]).push(t); });
+    const pickedTests=[];
+    Object.keys(bySub).slice(0,3).forEach(function(k){ bySub[k].slice(0,3).forEach(function(t){ pickedTests.push(t); }); });
+    let demoTests = pickedTests.length? pickedTests : demoTestObjs.slice(0,6);
+
+    // إن لم توجد تحاليل في القاعدة — أنشئ تحاليل وهمية بسيطة
+    let _synthetic=false;
+    if(!demoTests.length){
+      _synthetic=true;
+      demoTests=[
+        {id:'_d1',code:'GLU',nameEn:'Glucose (F)',nameShort:'Glucose',unit:'mg/dL',subCat:'Biochemistry',cat:'Biochemistry',minVal:70,maxVal:110,refM:'70 – 110'},
+        {id:'_d2',code:'UREA',nameEn:'Blood Urea',nameShort:'Urea',unit:'mg/dL',subCat:'Kidney Functions',cat:'Kidney Functions',minVal:15,maxVal:45,refM:'15 – 45'},
+        {id:'_d3',code:'CREAT',nameEn:'Creatinine',nameShort:'Creat.',unit:'mg/dL',subCat:'Kidney Functions',cat:'Kidney Functions',minVal:0.6,maxVal:1.3,refM:'0.6 – 1.3'},
+        {id:'_d4',code:'CHOL',nameEn:'Cholesterol',nameShort:'Chol.',unit:'mg/dL',subCat:'Lipid Profile',cat:'Lipid Profile',minVal:0,maxVal:200,refM:'< 200'},
+        {id:'_d5',code:'TG',nameEn:'Triglycerides',nameShort:'TG',unit:'mg/dL',subCat:'Lipid Profile',cat:'Lipid Profile',minVal:0,maxVal:150,refM:'< 150'}
+      ];
+      // احقنها مؤقتاً في مصفوفة tests كي تجدها buildPrintHTML عبر tests.find
+      demoTests.forEach(function(t){ tests.push(t); });
+    }
+
+    // مريض وهمي
+    const demoPt={
+      id:'DEMO-1', patientId:'DEMO-1', barcode:'123456',
+      title:'Mr.', gender:'male', ageVal:35, ageDisplay:'35 Y', dob:''
+    };
+    const _hadDemoPt = patients.some(function(p){return p.id==='DEMO-1';});
+    if(!_hadDemoPt) patients.push(demoPt);
+
+    // نتائج وهمية — بعضها ضمن المدى وبعضها شاذ لإظهار التمييز اللوني
+    const demoResults={};
+    demoTests.forEach(function(t,i){
+      let v;
+      const mn=(t.minVal!=null?t.minVal:0), mx=(t.maxVal!=null?t.maxVal:100);
+      if(i%4===0){ v=(mx + Math.max(1,(mx-mn)*0.4)); }        // مرتفع (H)
+      else if(i%4===2){ v=(mn - Math.max(1,(mx-mn)*0.3)); }    // منخفض (L)
+      else { v=((mn+mx)/2); }                                   // طبيعي
+      if(v<0) v=Math.abs(v);
+      demoResults[t.id]=String(Math.round(v*10)/10);
+    });
+
+    const demoReq={
+      id:'DEMO-REQ-1', patientId:'DEMO-1', patientName:'Ahmed Khalid Al-Rashidi',
+      doctorName:'Dr. Omar Saleh', date:new Date().toISOString().slice(0,10),
+      resultDate:new Date().toISOString().slice(0,10),
+      tests:demoTests.map(function(t){return t.id;}),
+      results:demoResults, status:'done', pageGroups:[]
+    };
+
+    const html=buildPrintHTML(demoReq,{});
+
+    // تنظيف البيانات الوهمية المحقونة
+    if(_synthetic){ tests.splice(tests.length-demoTests.length, demoTests.length); }
+    if(!_hadDemoPt){ const ix=patients.findIndex(function(p){return p.id==='DEMO-1';}); if(ix>-1) patients.splice(ix,1); }
+
+    // اعرض داخل overlay + iframe (نفس أسلوب معاينة CBC)
+    const blob=new Blob([html],{type:'text/html'});
+    const blobUrl=URL.createObjectURL(blob);
+    var old=document.getElementById('_rep_preview_overlay');
+    if(old) old.remove();
+    var overlay=document.createElement('div');
+    overlay.id='_rep_preview_overlay';
+    overlay.style.cssText='position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.82);display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:16px;';
+    overlay.innerHTML='<div style="width:100%;max-width:860px;display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
+      +'<span style="color:#fff;font-size:14px;font-weight:700">📄 معاينة نموذج التقرير — النموذج '+tpl+'</span>'
+      +'<button onclick="document.getElementById(\'_rep_preview_overlay\').remove();URL.revokeObjectURL(\''+blobUrl+'\')" style="background:rgba(255,34,68,0.2);border:1px solid rgba(255,34,68,0.5);color:#ff4466;border-radius:8px;padding:6px 14px;cursor:pointer;font-size:13px;font-weight:700">✕ إغلاق</button>'
+      +'</div>'
+      +'<iframe src="'+blobUrl+'" style="width:100%;max-width:860px;flex:1;border:none;border-radius:8px;background:#fff;min-height:calc(100vh - 80px)"></iframe>';
+    document.body.appendChild(overlay);
+  }catch(e){
+    console.error('[ReportTemplate preview]',e);
+    try{ showNotif('⚠️ خطأ','تعذّرت المعاينة: '+e.message,'error'); }catch(_){}
+  }finally{
+    settings.reportTemplate = _prevTplSaved; // استرجاع القيمة المحفوظة الأصلية
+  }
+}
+
 function _previewCBCTemplate(){
   // نبني بيانات تجريبية للمعاينة
   const demoParams={
@@ -26092,22 +26757,123 @@ function _buildCBCReportHTML(cbcParams, pt, req, templateId){
   // النموذج 5 — مدمج وسريع بعمودين جنبًا إلى جنب
   // ══════════════════════════════════════════════════════════
   if(tpl==='5'){
+    // ══════════════════════════════════════════════════════════
+    // 🩸 BC-6000 — الرسوم البيانية ورايات الإنذار (النموذج ٥ حصراً)
+    // ──────────────────────────────────────────────────────────
+    // دليل BC-6000 (الملحق B، البند ٤ و ٥): الهيستوغرام والـ Scattergram
+    // يُرسَلان كصور BMP بترميز Base64 داخل OBX من نوع ED.
+    // تُعرض هنا فقط — بقية النماذج (١ و٢ و٣ و٤ و٦) لا تتأثر إطلاقاً.
+    // إن لم يُرسل الجهاز صوراً (أو كان جهازاً آخر) لا يظهر أي فراغ.
+    var _g=(req&&req.cbcGraphics)||[];
+    var _al=(req&&req.cbcAlarms)||[];
+    // ترتيب منطقي حسب الدليل: RBC ثم PLT (هيستوغرام) ثم DIFF/BASO/RET/NRBC/WNB
+    // 🩸 BC-5000/BC-5150 (دليل 3107 HL7، جدول ٥.٨): أكواد مختلفة عن BC-6000
+    //    15000 WBC Histogram · 15008 WBC BMP · 15050 RBC · 15100 PLT
+    //    15200/15201 WBC DIFF Scattergram
+    var _gOrder=['15000','15008','15050','15100','15200','15201',
+                 '15056','15116','15250','15300','15301','15302','15350','15600'];
+    var _gLabel={
+      // BC-5000 / BC-5150
+      '15000':'WBC Histogram','15008':'WBC Histogram',
+      '15050':'RBC Histogram','15100':'PLT Histogram',
+      '15201':'WBC DIFF Scattergram',
+      // BC-6000
+      '15056':'RBC Histogram','15116':'PLT Histogram',
+      '15200':'WBC DIFF Scattergram','15250':'BASO Scattergram',
+      '15300':'RET Scattergram','15301':'PLT-O Scattergram',
+      '15302':'RET-EXT Scattergram','15350':'NRBC Scattergram',
+      '15600':'WNB Scattergram'
+    };
+    var _gSorted=_g.slice().sort(function(a,b){
+      var ia=_gOrder.indexOf(a.code), ib=_gOrder.indexOf(b.code);
+      return (ia<0?99:ia)-(ib<0?99:ib);
+    });
+    // شبكة الصور: عمودان — عرض مضبوط ليطابق عمودَي الجدول أعلاه
+    // ⚠️ نستخدم <table> وليس CSS Grid: محرّك الطباعة في بعض النسخ لا يدعم
+    //    Grid فتنهار الأعمدة وتصبح صورة واحدة في كل سطر. الجدول يعمل في كل
+    //    المحرّكات ويضمن صورتين في كل صف دائماً.
+    // ── 📐 حجم الصور: يتكيّف مع عددها لتبقى النتائج والرسوم في ورقة واحدة ──
+    //    الجهاز يُرسل صوراً صغيرة (≈200×200)، فبدل تركها ضائعة وسط خلية
+    //    كبيرة نُكبّرها لملء الخلية مع الحفاظ على نسبة الأبعاد.
+    //    صفّان (٣-٤ صور) = ارتفاع أقل · صف واحد (١-٢) = ارتفاع أكبر.
+    var _gRows=Math.ceil(_gSorted.length/2);
+    var _gH=(_gRows<=1)?230:(_gRows===2)?104:(_gRows===3)?72:56;
+
+    // ── 🎨 خلفية الرسوم: سوداء (كما يُرسلها الجهاز) أو مقلوبة لبيضاء ──────
+    //    settings.cbcGraphInvert:
+    //      'off'   = بلا تغيير — الأصدق، ومطابق لورقة الجهاز (الافتراضي)
+    //      'histo' = قلب الهيستوغرامات فقط وترك الـ Scattergram أسود ✅ موصى به
+    //      'all'   = قلب كل الصور
+    //    نستخدم invert(1) hue-rotate(180deg) معاً: الأولى تقلب الإضاءة
+    //    (أسود→أبيض) والثانية تُعيد الأصباغ لقرب أصلها، فلا يصير الأحمر
+    //    سماوياً ولا الأخضر بنفسجياً. الـ Scattergram يُستثنى افتراضياً لأن
+    //    ألوان مجموعاته (LYM/NEU/MON) لها دلالة تشخيصية لا يصح العبث بها.
+    var _gInvMode=(typeof settings!=='undefined'&&settings.cbcGraphInvert)||'histo';
+    var _gFilter='filter:invert(1) hue-rotate(180deg);-webkit-filter:invert(1) hue-rotate(180deg);';
+    var _gInv='';
+    if(_gInvMode==='all')        _gInv='.gimg{'+_gFilter+'}';
+    else if(_gInvMode==='histo') _gInv='.gimg.ginv{'+_gFilter+'}';
+
+    var _gHTML='';
+    if(_gSorted.length){
+      var _rows='';
+      for(var _i=0;_i<_gSorted.length;_i+=2){
+        _rows+='<tr>';
+        for(var _k=_i;_k<_i+2;_k++){
+          if(_k<_gSorted.length){
+            var g=_gSorted[_k];
+            var _lbl=_gLabel[g.code]||g.name||g.code;
+            // الهيستوغرام فقط يأخذ ginv — الـ Scattergram يبقى بألوانه الأصلية
+            var _isScat=/scatter/i.test(_lbl)||/^152|^153|^156/.test(g.code);
+            var _cls='gimg'+((_gInvMode==='histo'&&!_isScat)?' ginv':'');
+            _rows+='<td class="gcell"><div class="gcard">'
+              +'<div class="gttl">'+_lbl+'</div>'
+              +'<img class="'+_cls+'" src="data:image/bmp;base64,'+g.b64+'" alt="'+_lbl+'">'
+              +'</div></td>';
+          } else {
+            _rows+='<td class="gcell"></td>';   // خلية فارغة إذا كان العدد فردياً
+          }
+        }
+        _rows+='</tr>';
+      }
+      _gHTML='<div class="gwrap"><div class="ghdr">Histograms &amp; Scattergrams</div>'
+        +'<table class="ggrid"><tbody>'+_rows+'</tbody></table></div>';
+    }
+    // رايات الإنذار — شريط مدمج أسفل الرسوم
+    var _alHTML='';
+    if(_al.length){
+      var _chips=_al.map(function(a){
+        return '<span class="achip">'+String(a.name||a.code).replace(/[<>]/g,'')+'</span>';
+      }).join('');
+      _alHTML='<div class="awrap"><span class="attl">⚑ Flags:</span>'+_chips+'</div>';
+    }
     const half1=['WBC','NEU#','LYM#','MON#','EOS#','BAS#','NEU%','LYM%','MON%','EOS%','BAS%'];
     const half2=['RBC','HGB','HCT','MCV','MCH','MCHC','RDW-CV','RDW-SD','PLT','MPV','PDW','PCT'];
-    function buildCol(keys,hdrColor){
-      let r='<table style="width:100%;border-collapse:collapse"><thead><tr><th style="background:'+hdrColor+';color:#fff;padding:4px 7px;font-size:11px;text-align:left">Parameter</th><th style="background:'+hdrColor+';color:#fff;padding:4px 7px;font-size:11px;text-align:center">Result</th><th style="background:'+hdrColor+';color:#fff;padding:4px 5px;font-size:10px;text-align:center">F</th><th style="background:'+hdrColor+';color:#fff;padding:4px 5px;font-size:10px;text-align:center">Unit</th><th style="background:'+hdrColor+';color:#fff;padding:4px 5px;font-size:10px;text-align:center">Ref</th></tr></thead><tbody>';
+    // 🎨 النموذج ٥ — رأس الجدول أبيض والخط ملوّن:
+    //   • العمود الأزرق (WBC): رأس أبيض وخطّه أزرق، وقيَمه زرقاء.
+    //   • العمود الأحمر (RBC/PLT): رأس أبيض، خط RBC أحمر وخط PLT أزرق،
+    //     وتُلوَّن قيمُ كل معامل بلون مجموعته (RBC=أحمر · PLT=أزرق).
+    const _BLUE5='#1565c0', _RED5='#b71c1c';
+    const _PLT_KEYS5={'PLT':1,'MPV':1,'PDW':1,'PCT':1};
+    function buildCol(keys,hdrColor,mode){
+      // mode: 'blue' = العمود الأزرق · 'rbcplt' = عمود RBC/PLT
+      let r='<table style="width:100%;border-collapse:collapse"><thead><tr><th style="background:#fff;color:'+hdrColor+';padding:4px 7px;font-size:11px;text-align:left;border-bottom:2px solid '+hdrColor+'">Parameter</th><th style="background:#fff;color:'+hdrColor+';padding:4px 7px;font-size:11px;text-align:center;border-bottom:2px solid '+hdrColor+'">Result</th><th style="background:#fff;color:'+hdrColor+';padding:4px 5px;font-size:10px;text-align:center;border-bottom:2px solid '+hdrColor+'">F</th><th style="background:#fff;color:'+hdrColor+';padding:4px 5px;font-size:10px;text-align:center;border-bottom:2px solid '+hdrColor+'">Unit</th><th style="background:#fff;color:'+hdrColor+';padding:4px 5px;font-size:10px;text-align:center;border-bottom:2px solid '+hdrColor+'">Ref</th></tr></thead><tbody>';
       keys.forEach(function(key,i){
         const p=cbcParams[key];
         if(!p&&!(typeof CBC_PARAMS_MAP!=='undefined'&&CBC_PARAMS_MAP[key])) return;
         const {val,flag,flagColor,ref,unit}=getParam(key);
+        // لون النص الأساسي حسب المجموعة (يُبرَز لون العلَم فقط عند وجود راية)
+        let baseColor=_BLUE5;
+        if(mode==='rbcplt') baseColor=_PLT_KEYS5[key]?_BLUE5:_RED5;
+        const valColor=flag?flagColor:baseColor;
         const bg=i%2===0?'#fff':'#f8f9fc';
-        r+='<tr style="background:'+bg+'"><td style="padding:3px 7px;border-bottom:1px solid #eee;font-size:11px;font-weight:700;color:#2c3e50">'+(LABELS[key]||key)+'</td><td style="padding:3px 7px;border-bottom:1px solid #eee;font-size:13px;font-weight:900;text-align:center;color:'+flagColor+'">'+val+'</td><td style="padding:3px 5px;border-bottom:1px solid #eee;font-size:10px;font-weight:800;text-align:center;color:'+flagColor+'">'+(flag||'')+'</td><td style="padding:3px 5px;border-bottom:1px solid #eee;font-size:9px;text-align:center;color:#000;font-weight:600">'+unit+'</td><td style="padding:3px 5px;border-bottom:1px solid #eee;font-size:9px;text-align:center;color:#000;font-weight:600">'+ref+'</td></tr>';
+        r+='<tr style="background:'+bg+'"><td style="padding:3px 7px;border-bottom:1px solid #eee;font-size:11px;font-weight:700;color:'+baseColor+'">'+(LABELS[key]||key)+'</td><td style="padding:3px 7px;border-bottom:1px solid #eee;font-size:13px;font-weight:900;text-align:center;color:'+valColor+'">'+val+'</td><td style="padding:3px 5px;border-bottom:1px solid #eee;font-size:10px;font-weight:800;text-align:center;color:'+flagColor+'">'+(flag||'')+'</td><td style="padding:3px 5px;border-bottom:1px solid #eee;font-size:9px;text-align:center;color:#000;font-weight:600">'+unit+'</td><td style="padding:3px 5px;border-bottom:1px solid #eee;font-size:9px;text-align:center;color:#000;font-weight:600">'+ref+'</td></tr>';
       });
       r+='</tbody></table>';
       return r;
     }
-    const css='*{margin:0;padding:0;box-sizing:border-box}html,body{background:#fff;font-family:Arial,sans-serif;}@page{margin:0!important;size:A4 portrait;-webkit-print-color-adjust:exact;print-color-adjust:exact;}body{padding:1mm 3mm;-webkit-print-color-adjust:exact;print-color-adjust:exact;}.ttl{text-align:center;font-size:13px;font-weight:900;color:#fff;background:'+tableColor+';padding:4px;margin:4px 0;border-radius:4px;}.pt-strip{display:flex;justify-content:space-between;align-items:center;background:'+tableColor+'11;border:1.5px solid '+tableColor+'55;border-radius:5px;padding:6px 12px;margin:5px 0;}.pt-main{display:flex;flex-direction:column;gap:3px;}.pt-r{display:flex;gap:6px;font-size:11px;}.pt-k{color:#667;font-weight:600;min-width:48px;}.pt-v{font-weight:800;color:#1a2035;font-size:13px;}.pt-ids{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end;align-items:center;}.idc{background:'+tableColor+';color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:3px;}.cols{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:5px;}.col-hdr{font-size:11px;font-weight:800;padding:3px 7px;border-radius:4px 4px 0 0;color:#fff;text-align:center;}.foot{border-top:1.5px solid '+tableColor+';margin-top:6px;padding-top:3px;display:flex;justify-content:space-between;font-size:10px;color:#666;}';
-    return '<!DOCTYPE html><html dir="ltr"><head><meta charset="utf-8"><style>'+css+'</style></head><body>'+hdr+'<div class="ttl">Hematology Analysis Report — WB-CBC+DIFF</div><div class="pt-strip"><div class="pt-main"><div class="pt-r"><span class="pt-k">Patient:</span><span class="pt-v" style="color:'+nameColor+';font-size:16px">'+ptFullName+'</span></div><div class="pt-r"><span class="pt-k">Sex/Age:</span><span class="pt-v">'+gender+' / '+age+'</span></div><div class="pt-r"><span class="pt-k">Doctor:</span><span class="pt-v">'+doctorName+'</span></div></div><div class="pt-ids"><div class="idc">ID: '+barcodeId+'</div><div class="idc">'+sampleDate+'</div><div class="idc">WB-CBC+DIFF</div></div></div><div class="cols"><div><div class="col-hdr" style="background:#1565c0">WBC Differential</div>'+buildCol(half1,'#1565c0')+'</div><div><div class="col-hdr" style="background:#b71c1c">RBC / PLT Indices</div>'+buildCol(half2,'#b71c1c')+'</div></div><div class="foot"><span>Operator: '+operator+'</span><span>WB-CBC+DIFF</span><span>'+today+'</span></div></body></html>';
+    const css='*{margin:0;padding:0;box-sizing:border-box}html,body{background:#fff;font-family:Arial,sans-serif;}@page{margin:0!important;size:A4 portrait;-webkit-print-color-adjust:exact;print-color-adjust:exact;}body{padding:1mm 3mm;-webkit-print-color-adjust:exact;print-color-adjust:exact;}.ttl{text-align:center;font-size:13px;font-weight:900;color:#000;background:'+tableColor+';padding:4px;margin:4px 0;border-radius:4px;}.pt-strip{display:flex;justify-content:space-between;align-items:center;background:'+tableColor+'11;border:1.5px solid '+tableColor+'55;border-radius:5px;padding:6px 12px;margin:5px 0;}.pt-main{display:flex;flex-direction:column;gap:3px;}.pt-r{display:flex;gap:6px;font-size:11px;}.pt-k{color:#667;font-weight:600;min-width:48px;}.pt-v{font-weight:800;color:#1a2035;font-size:13px;}.pt-ids{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end;align-items:center;}.idc{background:'+tableColor+';color:#000;font-size:10px;font-weight:700;padding:2px 8px;border-radius:3px;}.cols{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:5px;}.col-hdr{font-size:11px;font-weight:800;padding:3px 7px;border-radius:4px 4px 0 0;color:#fff;text-align:center;}.foot{border-top:1.5px solid '+tableColor+';margin-top:6px;padding-top:3px;display:flex;justify-content:space-between;font-size:10px;color:#666;}.gwrap{margin-top:4px;page-break-inside:avoid;}.ghdr{font-size:11px;font-weight:800;color:#fff;background:'+tableColor+';padding:2px 8px;border-radius:4px 4px 0 0;text-align:center;}.ggrid{width:100%;border-collapse:separate;border-spacing:3px;border:1px solid '+tableColor+'44;border-top:none;border-radius:0 0 4px 4px;table-layout:fixed;}.gcell{width:50%;vertical-align:top;}.gcard{border:1px solid #dfe3ea;border-radius:3px;background:#fff;padding:2px;text-align:center;page-break-inside:avoid;}.gttl{font-size:9px;font-weight:700;color:#445;margin-bottom:1px;}.gimg{display:block;width:100%;height:auto;max-height:'+_gH+'px;margin:0 auto;image-rendering:auto;}'+_gInv+'.awrap{margin-top:5px;padding:4px 8px;border:1px solid #e0a800;background:#fff8e1;border-radius:4px;display:flex;flex-wrap:wrap;gap:4px;align-items:center;page-break-inside:avoid;}.attl{font-size:10px;font-weight:800;color:#8a6100;}.achip{font-size:9px;font-weight:700;color:#8a6100;background:#ffe9a8;border:1px solid #e8c76a;border-radius:9px;padding:1px 7px;}';
+    return '<!DOCTYPE html><html dir="ltr"><head><meta charset="utf-8"><style>'+css+'</style></head><body>'+hdr+'<div class="ttl">Hematology Analysis Report — WB-CBC+DIFF</div><div class="pt-strip"><div class="pt-main"><div class="pt-r"><span class="pt-k">Patient:</span><span class="pt-v" style="color:'+nameColor+';font-size:16px">'+ptFullName+'</span></div><div class="pt-r"><span class="pt-k">Sex/Age:</span><span class="pt-v">'+gender+' / '+age+'</span></div><div class="pt-r"><span class="pt-k">Doctor:</span><span class="pt-v">'+doctorName+'</span></div></div><div class="pt-ids"><div class="idc">ID: '+barcodeId+'</div><div class="idc">'+sampleDate+'</div><div class="idc">WB-CBC+DIFF</div></div></div><div class="cols"><div><div class="col-hdr" style="background:#fff;color:#1565c0;border:1.5px solid #1565c0">WBC Differential</div>'+buildCol(half1,'#1565c0','blue')+'</div><div><div class="col-hdr" style="background:#fff;color:#b71c1c;border:1.5px solid #b71c1c">RBC / PLT Indices</div>'+buildCol(half2,'#b71c1c','rbcplt')+'</div></div>'+_alHTML+_gHTML+'<div class="foot"><span>Operator: '+operator+'</span><span>WB-CBC+DIFF</span><span>'+today+'</span></div></body></html>';
   }
 
   // ══════════════════════════════════════════════════════════
@@ -26923,12 +27689,12 @@ function _buildSemenPrintHTML(r){
   const _smPrintTime   = new Date().toLocaleString('en-GB',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
   const _smBarcodeId   = (String(pt.barcode||pt.id||r.patientId||'000000').replace(/[^0-9A-Za-z]/g,'')||'000000');
   function _semenBarcode128(text){
-    const C128={chars:' !"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~',widths:[[2,1,2,2,2,2],[2,2,2,1,2,2],[2,2,2,2,2,1],[1,2,1,2,2,3],[1,2,1,3,2,2],[1,3,1,2,2,2],[1,2,2,2,1,3],[1,2,2,3,1,2],[1,3,2,2,1,2],[2,2,1,2,1,3],[2,2,1,3,1,2],[2,3,1,2,1,2],[1,1,2,2,3,2],[1,2,2,1,3,2],[1,2,2,2,3,1],[1,1,3,2,2,2],[1,2,3,1,2,2],[1,2,3,2,2,1],[2,2,3,2,1,1],[2,2,1,1,3,2],[2,2,1,2,3,1],[2,1,3,2,1,2],[2,2,3,1,1,2],[3,1,2,1,3,1],[3,1,1,2,2,2],[3,2,1,1,2,2],[3,2,1,2,2,1],[3,1,2,2,1,2],[3,2,2,1,1,2],[3,2,2,2,1,1],[2,1,2,4,1,1],[2,1,4,2,1,1],[4,1,2,2,1,1],[4,1,1,1,4,1],[1,1,4,2,2,1],[2,1,1,1,4,2],[2,1,1,4,1,2],[2,4,1,2,1,1],[4,1,1,2,1,2],[1,2,4,1,1,2],[1,4,1,4,1,1],[2,2,1,4,1,1],[4,4,1,1,1,1],[1,1,2,3,2,2],[1,2,2,3,2,1],[2,2,2,3,1,1],[1,1,3,2,3,1],[2,1,1,4,2,1],[1,4,2,1,2,1],[2,1,4,1,1,3],[1,3,2,3,1,1],[2,1,1,1,1,5],[2,1,1,5,1,1],[5,1,1,2,1,1],[2,1,5,1,1,2],[2,1,3,1,3,1],[2,3,1,1,3,1],[1,3,1,3,2,1],[1,4,2,2,1,1],[1,2,2,4,1,1],[1,2,4,1,2,1],[1,4,1,2,2,1],[2,1,4,4,1,1],[3,1,2,1,1,3],[3,1,1,1,2,3],[3,3,1,1,2,1],[3,1,2,3,1,1],[2,1,1,3,3,1],[1,1,2,2,1,4],[1,2,1,1,4,2],[1,2,1,4,1,2],[1,4,1,1,2,2],[3,1,1,2,4,1],[1,3,2,1,4,1],[2,3,1,2,3,1],[1,4,2,1,1,3],[4,1,4,1,1,2],[2,1,1,1,3,4],[3,1,4,1,2,1],[1,1,4,2,1,3],[1,4,4,1,1,2],[3,3,1,2,1,2],[3,1,1,4,2,1],[2,1,2,2,4,1],[2,1,4,2,2,1],[4,2,1,2,1,2],[2,4,2,2,1,1],[1,3,4,1,1,2],[2,3,4,1,1,1],[1,2,4,2,2,1],[3,2,4,1,1,1],[4,2,4,1,1,1],[2,2,1,1,1,5],[2,1,1,2,1,5],[3,2,1,1,1,4],[2,2,1,2,3,2],[2,2,3,2,1,2],[2,2,1,1,4,2],[2,2,3,1,2,2],[2,1,4,1,3,1],[4,2,1,1,3,1],[1,1,2,4,2,2],[1,2,2,4,2,1],[1,2,4,4,1,1],[1,4,4,2,1,1],[4,2,2,1,1,2],[4,2,2,2,1,1],[4,1,2,1,2,2],[1,2,4,1,3,1],[4,1,2,2,2,1],[1,1,1,1,4,3],[1,1,1,3,4,1],[1,3,1,1,4,1],[1,1,4,1,1,3],[1,1,4,3,1,1],[4,1,1,1,1,3],[4,1,1,3,1,1],[1,1,3,1,4,1],[1,1,4,1,3,1],[3,1,1,1,4,1],[4,1,1,1,3,1],[2,1,1,4,1,2],[2,1,1,2,1,4],[2,1,1,2,3,2]]};
+    const C128={chars:' !"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~',widths:[[2,1,2,2,2,2],[2,2,2,1,2,2],[2,2,2,2,2,1],[1,2,1,2,2,3],[1,2,1,3,2,2],[1,3,1,2,2,2],[1,2,2,2,1,3],[1,2,2,3,1,2],[1,3,2,2,1,2],[2,2,1,2,1,3],[2,2,1,3,1,2],[2,3,1,2,1,2],[1,1,2,2,3,2],[1,2,2,1,3,2],[1,2,2,2,3,1],[1,1,3,2,2,2],[1,2,3,1,2,2],[1,2,3,2,2,1],[2,2,3,2,1,1],[2,2,1,1,3,2],[2,2,1,2,3,1],[2,1,3,2,1,2],[2,2,3,1,1,2],[3,1,2,1,3,1],[3,1,1,2,2,2],[3,2,1,1,2,2],[3,2,1,2,2,1],[3,1,2,2,1,2],[3,2,2,1,1,2],[3,2,2,2,1,1],[2,1,2,1,2,3],[2,1,2,3,2,1],[2,3,2,1,2,1],[1,1,1,3,2,3],[1,3,1,1,2,3],[1,3,1,3,2,1],[1,1,2,3,1,3],[1,3,2,1,1,3],[1,3,2,3,1,1],[2,1,1,3,1,3],[2,3,1,1,1,3],[2,3,1,3,1,1],[1,1,2,1,3,3],[1,1,2,3,3,1],[1,3,2,1,3,1],[1,1,3,1,2,3],[1,1,3,3,2,1],[1,3,3,1,2,1],[3,1,3,1,2,1],[2,1,1,3,3,1],[2,3,1,1,3,1],[2,1,3,1,1,3],[2,1,3,3,1,1],[2,1,3,1,3,1],[3,1,1,1,2,3],[3,1,1,3,2,1],[3,3,1,1,2,1],[3,1,2,1,1,3],[3,1,2,3,1,1],[3,3,2,1,1,1],[3,1,4,1,1,1],[2,2,1,4,1,1],[4,3,1,1,1,1],[1,1,1,2,2,4],[1,1,1,4,2,2],[1,2,1,1,2,4],[1,2,1,4,2,1],[1,4,1,1,2,2],[1,4,1,2,2,1],[1,1,2,2,1,4],[1,1,2,4,1,2],[1,2,2,1,1,4],[1,2,2,4,1,1],[1,4,2,1,1,2],[1,4,2,2,1,1],[2,4,1,2,1,1],[2,2,1,1,1,4],[4,1,3,1,1,1],[2,4,1,1,1,2],[1,3,4,1,1,1],[1,1,1,2,4,2],[1,2,1,1,4,2],[1,2,1,2,4,1],[1,1,4,2,1,2],[1,2,4,1,1,2],[1,2,4,2,1,1],[4,1,1,2,1,2],[4,2,1,1,1,2],[4,2,1,2,1,1],[2,1,2,1,4,1],[2,1,4,1,2,1],[4,1,2,1,2,1],[1,1,1,1,4,3],[1,1,1,3,4,1],[1,3,1,1,4,1],[1,1,4,1,1,3],[1,1,4,3,1,1],[4,1,1,1,1,3],[4,1,1,3,1,1],[1,1,3,1,4,1],[1,1,4,1,3,1],[3,1,1,1,4,1],[4,1,1,1,3,1],[2,1,1,4,1,2],[2,1,1,2,1,4],[2,1,1,2,3,2]]};
     const START_B=104,STOP=[2,3,3,1,1,1,2];let codes=[START_B];let check=START_B;
     for(let i=0;i<text.length;i++){const idx=C128.chars.indexOf(text[i]);if(idx<0)continue;codes.push(idx);check+=(i+1)*idx;}
     codes.push(check%103);let bars=[];codes.forEach(c=>{C128.widths[c].forEach((w,i)=>bars.push({w,dark:i%2===0}));});
     STOP.forEach((w,i)=>bars.push({w,dark:i%2===0}));bars.push({w:2,dark:false});
-    const h=38,totalW=bars.reduce((s,b)=>s+b.w*2,0);let x=0,rects='';
+    const h=38,_QZ=20,totalW=bars.reduce((s,b)=>s+b.w*2,0)+_QZ*2;let x=_QZ,rects=''; // منطقة هادئة ≥10 وحدات
     bars.forEach(b=>{if(b.dark)rects+=`<rect x="${x}" y="0" width="${b.w*2}" height="${h}" fill="#000"/>`;x+=b.w*2;});
     return `<svg xmlns="http://www.w3.org/2000/svg" width="${totalW}" height="${h}" viewBox="0 0 ${totalW} ${h}" style="display:block">${rects}</svg>`;
   }
@@ -29088,6 +29854,22 @@ const LIS_DEFAULT_MAPPINGS=[
   // CRP (اختياري حسب موديل الجهاز)
   {deviceCode:'72426-1', medlabCode:'CRP',  name:'CRP (Zybio)',    device:'all',note:'Zybio Z60'},
   {deviceCode:'12008',   medlabCode:'CRP',  name:'Hs-CRP (Zybio)', device:'all',note:'Zybio Z60'},
+  // ── 🩸 Mindray BC-6000 Series — أكواد الدليل (جدول 10 · P/N 046-012058-00) ──
+  // ⚠️ مهم: أكواد BC-6000 تختلف رقمياً عن Zybio رغم تشابه التحاليل:
+  //   WBC 6690-2 (لا 6790-2) · MPV 32623-1 (لا 33623-1)
+  //   PDW 32207-3 (لا 33207-3) · RDW-SD 21000-5 (لا 22000-5) · PCT 10002 (لا 12003)
+  // لذلك تُضاف هنا مستقلة — ولا تُعدَّل أكواد Zybio إطلاقاً.
+  // بقية الأكواد (RBC 789-8 · HGB 718-7 · HCT 4544-3 · PLT 777-3 · MCV 787-2 ·
+  // MCH 785-6 · MCHC 786-4 · RDW-CV 788-0 · NEU/LYM/MON/EOS/BAS) مشتركة
+  // ومُعرَّفة أعلاه فلا حاجة لتكرارها.
+  {deviceCode:'6690-2',  medlabCode:'WBC',  name:'WBC (BC-6000)',     device:'all',note:'Mindray BC-6000'},
+  {deviceCode:'12227-5', medlabCode:'WBC',  name:'WBC corr (BC-6000)',device:'all',note:'Mindray BC-6000'},
+  {deviceCode:'21000-5', medlabCode:'RDWSD',name:'RDW-SD (BC-6000)',  device:'all',note:'Mindray BC-6000'},
+  {deviceCode:'32623-1', medlabCode:'MPV',  name:'MPV (BC-6000)',     device:'all',note:'Mindray BC-6000'},
+  {deviceCode:'32207-3', medlabCode:'PDW',  name:'PDW (BC-6000)',     device:'all',note:'Mindray BC-6000'},
+  {deviceCode:'10002',   medlabCode:'PCT',  name:'PCT (BC-6000)',     device:'all',note:'Mindray BC-6000'},
+  {deviceCode:'10014',   medlabCode:'PLCR', name:'P-LCR (BC-6000)',   device:'all',note:'Mindray BC-6000'},
+  {deviceCode:'10013',   medlabCode:'PLCC', name:'P-LCC (BC-6000)',   device:'all',note:'Mindray BC-6000'},
   // Vitamins
   {deviceCode:'VITD',medlabCode:'VITD',name:'Vitamin D',device:'all',note:''},
   {deviceCode:'25OHD',medlabCode:'VITD',name:'Vitamin D 25-OH',device:'all',note:''},
@@ -29257,6 +30039,12 @@ function lisWizSelectVendor(vendor,name,proto){
   // ⭐ cobas c 111: يتصل عبر Serial (كابل USB↔RS-232) حسب دليل الشركة (الفصل 5).
   const c111Hint=document.getElementById('wiz-c111-serial-hint');
   if(c111Hint) c111Hint.style.display=vendor==='roche_c111'?'block':'none';
+  // ⭐ cobas e 411: يتصل عبر Serial (RS-232C/D-SUB9) حسب دليل الشركة (الفصل B).
+  const e411Hint=document.getElementById('wiz-e411-serial-hint');
+  if(e411Hint) e411Hint.style.display=vendor==='roche_e411'?'block':'none';
+  // ⭐ Chorus TRIO: Serial (RS-232C) بروتوكول ثنائي خاص — كابل مستقيم لا متقاطع.
+  const chorusHint=document.getElementById('wiz-chorus-serial-hint');
+  if(chorusHint) chorusHint.style.display=vendor==='diesse_chorus'?'block':'none';
   document.getElementById('wiz-btn-next').disabled=false;
 }
 
@@ -29320,6 +30108,20 @@ function lisWizShowConnFields(){
   // 🩸 Zybio: تعليمات الربط تظهر فقط في وضع السيرفر ولهذا الجهاز
   const zHint=document.getElementById('wiz-zybio-hint');
   if(zHint) zHint.style.display=(_wizVendor==='zybio'&&_wizConn==='tcpserver')?'block':'none';
+  // 🧫 BS-230: تعليمات الربط تظهر فقط في وضع السيرفر ولهذا الجهاز
+  const bHint=document.getElementById('wiz-bs230-hint');
+  if(bHint) bHint.style.display=(_wizVendor==='mindray_bs230'&&_wizConn==='tcpserver')?'block':'none';
+  // 🩸 BC-30s: تعليمات الربط تظهر فقط في وضع السيرفر ولهذا الجهاز
+  const cHint=document.getElementById('wiz-bc30s-hint');
+  if(cHint) cHint.style.display=(_wizVendor==='mindray_bc30s'&&_wizConn==='tcpserver')?'block':'none';
+  // 🩸 BC-6000: تعليمات الربط تظهر فقط في وضع السيرفر ولهذا الجهاز
+  const sHint=document.getElementById('wiz-bc6000-hint');
+  if(sHint) sHint.style.display=(_wizVendor==='mindray_bc6000'&&_wizConn==='tcpserver')?'block':'none';
+  // 🧿 Chorus TRIO: السرعة المصنعية 38400 حسب دليل الشركة §5.6.2 — نختارها تلقائياً
+  if(_wizVendor==='diesse_chorus'&&_wizConn==='serial'){
+    const bd=document.getElementById('wiz-baud');
+    if(bd) bd.value='38400';
+  }
 }
 
 function lisWizBuildSummary(){
@@ -29372,7 +30174,10 @@ async function lisWizFinish(){
     name:_wizDevName,
     vendor:_wizVendor,
     // 🩸 Zybio Z60/Z3 جهاز دم (CBC) — بقية الأجهزة تبقى كما هي
-    type:(_wizVendor==='zybio'?'hematology':'chemistry'),
+    // 🧫 BS-230 جهاز كيمياء (chemistry) حسب دليل الشركة
+    // 🩸 BC-30s جهاز دم (CBC) حسب دليل الشركة (OBR-24 = HM)
+    // 🩸 BC-6000 جهاز دم (CBC) حسب دليل الشركة (OBR-24 = HM — جدول 7)
+    type:((_wizVendor==='zybio'||_wizVendor==='mindray_bc30s'||_wizVendor==='mindray_bc6000')?'hematology':'chemistry'),
     conn:connMap[_wizConn],
     protocol:_wizProtocol,
     baud,
@@ -29383,7 +30188,14 @@ async function lisWizFinish(){
     connected:false,
     rxCount:0,
     // 🩸 Zybio: الرد ACK^R01 إلزامي حسب دليل الشركة (3.8.1)
-    sendAck:(_wizVendor==='zybio'),
+    // 🧫 BS-230: الرد ACK^R01 إلزامي أيضاً + يدعم استعلام QRY^Q02
+    // 🩸 BC-30s: الرد ACK^R01 إلزامي حسب الدليل (1.1.1 و 4.6.2)
+    // 🩸 BC-6000: الرد ACK^R01 إلزامي حسب الدليل (1.2.4 و 1.2.6.2)
+    sendAck:(_wizVendor==='zybio'||_wizVendor==='mindray_bs230'||_wizVendor==='mindray_bc30s'||_wizVendor==='mindray_bc6000'),
+    // 🧪 cobas e 411: صيغة البروتوكول المختارة على شاشة الجهاز (cobas/elecsys)
+    e411Type:(_wizVendor==='roche_e411'
+      ? ((document.getElementById('wiz-e411-type')?.value)||'cobas')
+      : undefined),
     _wizConn:_wizConn,
   };
 
@@ -29493,7 +30305,10 @@ function lisLoadState(){
     // ضمان أن القوائم مصفوفات دائماً (حماية من ملف إعدادات قديم/تالف)
     if(!Array.isArray(_lisSettings.c111NoChange))  _lisSettings.c111NoChange=[];
     if(!Array.isArray(_lisSettings.c111TruncOnly)) _lisSettings.c111TruncOnly=[];
-  }catch(e){lisDevices=[];lisResults=[];lisMappings=[];_lisSettings={autoTransfer:true,sound:true,delay:2,linkMode:'localstorage',c111NoChange:[],c111TruncOnly:[]};}
+    // 🧫 BS-230 — قوائم مستقلة تماماً عن c111 (لا تتشارك أي بيانات)
+    if(!Array.isArray(_lisSettings.bs230NoChange))  _lisSettings.bs230NoChange=[];
+    if(!Array.isArray(_lisSettings.bs230TruncOnly)) _lisSettings.bs230TruncOnly=[];
+  }catch(e){lisDevices=[];lisResults=[];lisMappings=[];_lisSettings={autoTransfer:true,sound:true,delay:2,linkMode:'localstorage',c111NoChange:[],c111TruncOnly:[],bs230NoChange:[],bs230TruncOnly:[]};}
   // ── إعادة ضبط حالة الاتصال عند كل تشغيل ──────────────────
   // الاتصالات الفعلية (TCP/Serial) لا تبقى بعد إغلاق البرنامج.
   // لو حفظنا connected:true وأعدنا تحميله، تظهر الـ UI خضراء بدون
@@ -29610,17 +30425,20 @@ async function _pushResultsToDeviceLocal(_remote){
     const devObj=(lisDevices||[]).find(d=>d.id===devId)||{};
     const devName=devObj.name||devId;
     const isC111=(devObj.vendor==='roche_c111');  // cobas c 111 عبر Serial (ASTM)
+    const isE411=(devObj.vendor==='roche_e411');  // cobas e 411 عبر Serial (ASTM)
     lisAddLog('info','📤 إرسال '+byDevice[devId].length+' تحليل إلى '+devName+' (عينة '+sampleId+')');
     try{
       let res;
-      if(isC111){
-        // ── cobas c 111: ASTM Push (TSDWN^BATCH) — الأكواد رقمية (channel/HAC) ──
+      if(isC111||isE411){
+        // ── cobas c111/e411: ASTM Push (TSDWN^BATCH) — الأكواد رقمية (channel/HAC) ──
+        //    نفس قناة c111PushOrder؛ main.js يوجّهها لبناء e411 حسب vendor الجهاز.
+        const _dn=isE411?'e411':'c111';
         if(!window.electronAPI || !window.electronAPI.c111PushOrder){
           failMsgs.push(devName+': c111PushOrder غير مفعّل في preload');
           lisAddLog('err','❌ c111PushOrder غير متاح في preload!');
           continue;
         }
-        // c111 يحتاج كوداً رقمياً: نستخدم channel إن وُجد، وإلا code إن كان رقماً
+        // الجهاز يحتاج كوداً رقمياً: نستخدم channel إن وُجد، وإلا code إن كان رقماً
         const c111Tests=byDevice[devId].map(t=>{
           let hac='';
           if(t.channel && /^\d+$/.test(String(t.channel).trim())) hac=String(t.channel).trim();
@@ -29629,7 +30447,7 @@ async function _pushResultsToDeviceLocal(_remote){
         }).filter(Boolean);
         if(!c111Tests.length){
           failMsgs.push(devName+': لا أكواد رقمية (HAC) — أضِف رقم القناة في جدول الربط');
-          lisAddLog('warn','⚠️ '+devName+': لا أكواد رقمية صالحة لـ c111 (راجع عمود القناة)');
+          lisAddLog('warn','⚠️ '+devName+': لا أكواد رقمية صالحة لـ '+_dn+' (راجع عمود القناة)');
           continue;
         }
         res=await window.electronAPI.c111PushOrder({
@@ -29855,6 +30673,15 @@ function lisAutoFillDevice(){
     snibe:   {name:'MAGLUMI 600',        proto:'astm', conn:'serial',   baud:'9600'},
     // 🩸 Zybio Z60/Z3: الجهاز هو من يتصل بالبرنامج (LIS Server) — دليل الشركة 2.1
     zybio:   {name:'Zybio Z60',          proto:'hl7',  conn:'tcpserver', port:'5100'},
+    // 🧫 Mindray BS-230: جهاز صامت — يتصل بالبرنامج (LIS Server) عبر HL7
+    mindray_bs230:{name:'Mindray BS-230',proto:'hl7',  conn:'tcpserver', port:'5100'},
+    // 🩸 Mindray BC-30s: جهاز دم (CBC) — يتصل بالبرنامج (LIS Server) عبر HL7
+    mindray_bc30s:{name:'Mindray BC-30s',proto:'hl7',  conn:'tcpserver', port:'5100'},
+    // 🩸 Mindray BC-6000 Series: جهاز دم (CBC) — HL7 v2.3.1 عبر MLLP (الدليل 1.2)
+    mindray_bc6000:{name:'Mindray BC-6000',proto:'hl7', conn:'tcpserver', port:'5100'},
+    // 🧿 DIESSE Chorus TRIO: مناعة/أمصال — Serial RS-232C ببروتوكول ثنائي
+    //    خاص (§5.6). السرعة المصنعية 38400 والكابل مستقيم (لا Null-Modem).
+    diesse_chorus:{name:'DIESSE Chorus TRIO',proto:'chorus',conn:'serial', baud:'38400'},
     biobase: {name:'Biobase',            proto:'astm', conn:'serial'},
     rayto:   {name:'Rayto',              proto:'astm', conn:'serial'},
     other:   {name:'',                   proto:'astm', conn:'serial'},
@@ -30022,10 +30849,13 @@ async function lisConnectSerialDevice(dev){
         path:     portPath,
         baudRate: baud,
         name:     dev.name,
-        // ⭐ cobas c 111: مرّر البصمة لتفعيل محرك ASTM الكامل + اسم البرنامج للرؤوس
-        vendor:   dev.vendor === 'roche_c111' ? 'roche_c111' : (dev.vendor || ''),
-        dataBits: 8, parity: 'none', stopBits: 1,   // N_8_1 — افتراضي cobas c111
+        // ⭐ cobas c 111 / e 411: مرّر البصمة لتفعيل محرك ASTM الكامل + اسم البرنامج للرؤوس
+        // 🧿 Chorus TRIO: نفس الحقل يفعّل محرّك البروتوكول الثنائي (diesse_chorus)
+        vendor:   (dev.vendor === 'roche_c111' || dev.vendor === 'roche_e411' || dev.vendor === 'diesse_chorus') ? dev.vendor : (dev.vendor || ''),
+        dataBits: 8, parity: 'none', stopBits: 1,   // N_8_1 — يطابق c111/e411 و Chorus TRIO (§5.6.2)
         systemId: (typeof labSettings!=='undefined' && labSettings && labSettings.systemId) ? labSettings.systemId : 'MedLabPro',
+        // 🧪 e411: صيغة البروتوكول (cobas/elecsys) — يُهمَل لغير e411
+        e411Type: dev.vendor === 'roche_e411' ? (dev.e411Type || 'cobas') : undefined,
       });
       if(!openRes.ok){
         lisAddLog('err','[Electron] فشل فتح Serial: '+openRes.error);
@@ -30210,6 +31040,14 @@ let _cbcServerRunning      = false;  // هل الاتصال نشط؟
 let _cbcActiveDev          = null;   // الجهاز النشط حالياً
 let _cbcIpcListenersInited = false;  // هل تم تسجيل الـ listeners؟
 
+// ── حاجز منع تكرار الرسالة الخام (BC-5000) ─────────────────────────
+// بعض أجهزة CBC (ومرحّل الشبكة LAN) تُعيد إرسال نفس رسالة ORU عدة مرات
+// خلال ثوانٍ. كل نسخة كانت تُعاد معالجتها بالكامل (تحليل + رسم) فتُسبّب
+// تجميداً مؤقتاً. هنا نتجاهل أي رسالة *مطابقة حرفياً* لآخر رسالة وصلت
+// خلال آخر ٨ ثوانٍ. معزول تماماً بمدخل BC-5000 فقط — لا يمسّ بقية الأجهزة.
+let _cbcLastRawSig  = '';
+let _cbcLastRawTime = 0;
+
 // ── تسجيل الـ IPC listeners مرة واحدة فقط ───────────────────
 // يُستدعى عند أول اتصال TCP — لا يُعاد الاستدعاء في الاتصالات اللاحقة
 function _cbcInitIpcListeners(){
@@ -30219,6 +31057,17 @@ function _cbcInitIpcListeners(){
   // ── بيانات CBC (ORU^R01) ──────────────────────────────────
   window.electronAPI.onCbcData(function(text){
     if(!text||!text.trim()) return;
+    // ── منع التكرار: رسالة مطابقة حرفياً وصلت خلال آخر ٨ ثوانٍ = إعادة إرسال ──
+    //    نتجاهلها قبل أي تحليل/رسم لمنع إعادة المعالجة ٥ مرات والتجميد المؤقت.
+    var _rawSig=text.trim();
+    var _rawNow=Date.now();
+    if(_rawSig===_cbcLastRawSig && (_rawNow-_cbcLastRawTime)<8000){
+      lisAddLog('warn','⏭ رسالة CBC مكررة (تجاهل) — نفس البيانات خلال '+Math.round((_rawNow-_cbcLastRawTime)/1000)+' ثانية');
+      _cbcLastRawTime=_rawNow; // نُجدّد الوقت حتى تُحجب سلسلة التكرارات المتتالية كاملةً
+      return;
+    }
+    _cbcLastRawSig=_rawSig;
+    _cbcLastRawTime=_rawNow;
     lisAddLog('data','📥 TCP بيانات: '+text.length+' حرف');
     lisRawMessages.unshift(text);
     // وجّه البيانات للجهاز النشط
@@ -30420,13 +31269,21 @@ async function lisHandleHl7Query(info){
 // معزول تماماً — لا يمسّ HL7/MAGLUMI/BC-5000.
 // ═══════════════════════════════════════════════════════════════
 async function lisHandleC111Query(info){
+  // 🧪 e411 يأتي عبر نفس الحدث لكن بعلم isE411 — الرد يمرّ عبر نفس القناة
+  //    (main.js يوجّهه لـ e411 حسب queryId). منطق الهول بلود يخصّ c111 فقط.
+  // 🧿 Chorus TRIO كذلك: نفس القناة بعلم isChorus، والرد يُوجَّه في main.js
+  //    حسب queryId. الجهاز مناعي/أمصال — لا علاقة له بتيوب الهول بلود.
+  const _isE411Q   = !!(info && info.isE411);
+  const _isChorusQ = !!(info && info.isChorus);
   const sidRaw = String(info.sampleId||'').trim();
-  // 🩸 تيوب الهول بلود يحمل الرقم ببادئة 9 → نرجع للرقم الأصلي للبحث عن المريض
-  const _isWbTube = !!(sidRaw && sidRaw.charAt(0)===C111_WB_PREFIX &&
+  // 🩸 تيوب الهول بلود يحمل الرقم ببادئة 9 → نرجع للرقم الأصلي للبحث عن المريض (c111 فقط)
+  const _isWbTube = !_isE411Q && !_isChorusQ && !!(sidRaw && sidRaw.charAt(0)===C111_WB_PREFIX &&
                        _bcCleanCode(sidRaw).length>6);
   const sid = _isWbTube ? _c111BaseSidFromWb(sidRaw) : sidRaw;
   if(_isWbTube) lisAddLog('astm','🩸 تيوب EDTA (تراكمي) — '+sidRaw+' → المريض '+sid);
-  lisAddLog('astm','🔍 cobas c111 يطلب طلبات العينة — SID:'+sid);
+  const _devLabel = _isChorusQ ? 'Chorus TRIO' : (_isE411Q ? 'cobas e411' : 'cobas c111');
+  lisAddLog('astm','🔍 '+_devLabel+' يطلب طلبات العينة — SID:'+sid+
+    (_isChorusQ&&info.storable!=null?(' (خانات متاحة: '+info.storable+')'):''));
 
   let testsToSend = [];
   try {
@@ -30467,7 +31324,10 @@ async function lisHandleC111Query(info){
     // 🩸 هل يوجد تعارض تيوبين فعلاً (تراكمي + سيرم معاً)؟ — نجمع عبر كل الطلبات
     let _wbTot=0, _serumTot=0;
     reqList.forEach(_rq=>{ const _s=_c111SplitReqTests(_rq); _wbTot+=_s.wb.length; _serumTot+=_s.serum.length; });
-    const _reqNeedsSplit = (_wbTot>0 && _serumTot>0);
+    // 🧿 Chorus TRIO: جهاز مناعة/أمصال يعمل بالسيرم فقط ولا يعرف تيوب EDTA.
+    //    تفعيل منطق فصل التيوبين له قد يُسقِط تحاليله بالخطأ إذا كان المريض
+    //    يحمل تحليلاً تراكمياً في نفس الطلب. لذلك نُعطّل الفصل لـ Chorus.
+    const _reqNeedsSplit = (!_isChorusQ && _wbTot>0 && _serumTot>0);
     if(_reqNeedsSplit) lisAddLog('astm','🩸 الطلب يحتاج تيوبين — تيوب '+(_isWbTube?'EDTA (تراكمي)':'سيرم')+' الآن');
 
     if(reqList.length){
@@ -30518,11 +31378,12 @@ async function lisHandleC111Query(info){
       tests:    testsToSend,
       systemId: (typeof labSettings!=='undefined' && labSettings && labSettings.systemId) ? labSettings.systemId : 'MedLabPro',
     });
+    const _dn = _devLabel;
     if(res && res.ok){
-      if(testsToSend.length) lisAddLog('ok','✅ أُرسلت '+testsToSend.length+' طلبات لـ cobas c111 — SID:'+sid+' ('+testsToSend.map(t=>t.code).join(', ')+')');
-      else lisAddLog('warn','⚠️ لا طلبات للعينة '+sid+' — رُدّ Z على c111');
+      if(testsToSend.length) lisAddLog('ok','✅ أُرسلت '+testsToSend.length+' طلبات لـ '+_dn+' — SID:'+sid+' ('+testsToSend.map(t=>t.code).join(', ')+')');
+      else lisAddLog('warn','⚠️ لا طلبات للعينة '+sid+' — رُدّ (لا طلبات) على '+_dn);
     } else {
-      lisAddLog('err','❌ فشل إرسال الطلبات لـ c111: '+(res&&res.error||'غير معروف'));
+      lisAddLog('err','❌ فشل إرسال الطلبات لـ '+_dn+': '+(res&&res.error||'غير معروف'));
     }
   } else {
     lisAddLog('err','❌ c111QueryResponse غير متاح في preload!');
@@ -30687,6 +31548,13 @@ function lisOpenTcpGuide(){
 // ═══════════════════════════════════════════════
 function lisParseByProtocol(text,dev){
   const proto=(dev.protocol||'astm').toLowerCase();
+  // 🧿 Chorus TRIO: بروتوكول ثنائي — النتائج تصل جاهزة (parsed) من main.js
+  //    ولا تمرّ من هنا إطلاقاً. لو وصل نص خام لأي سبب (تشخيص/ضوضاء) فلا
+  //    نمرّره لمحلّل ASTM لأنه سيُنتج قراءات خاطئة — نسجّله فقط.
+  if(proto==='chorus'){
+    lisAddLog('astm','🧿 Chorus TRIO — بيانات خام (لا تُحلَّل كنص): '+String(text||'').slice(0,120));
+    return;
+  }
   if(proto==='hl7') lisParseHL7(text,dev.name);
   else if(proto==='csv') lisParseCSV(text,dev.name);
   else lisParseASTM(text,dev.name,dev);
@@ -30734,7 +31602,16 @@ function _c111NormalizeResultSid(sid){
 //   يُعيد: 'none' (بلا تعديل) | 'trunc' (حذف كسور فقط) | 'round5' (الافتراضي)
 // يقبل كود الجهاز (مثل 418) ويحوّله لكود MedLab عبر جدول الربط،
 // لأن قوائم الإعدادات تُخزَّن بأكواد MedLab.
-function _c111RuleFor(deviceCode, deviceName){
+function _c111RuleFor(deviceCode, deviceName){ return _roundRuleFor(deviceCode, deviceName, 'c111'); }
+
+// 🧫 BS-230 — نفس منطق c111 تماماً لكن بقوائم مستقلة (bs230NoChange/bs230TruncOnly)
+function _bs230RuleFor(deviceCode, deviceName){ return _roundRuleFor(deviceCode, deviceName, 'bs230'); }
+
+// محرك موحّد: scope='c111' أو 'bs230' — يحدد أي قائمتين تُقرأ.
+// سلوك c111 لم يتغيّر إطلاقاً (نفس المفاتيح ونفس الترتيب ونفس الافتراضي).
+function _roundRuleFor(deviceCode, deviceName, scope){
+  var _kNo  = (scope==='bs230')?'bs230NoChange' :'c111NoChange';
+  var _kTr  = (scope==='bs230')?'bs230TruncOnly':'c111TruncOnly';
   try{
     const _up=v=>String(v||'').trim().toUpperCase();
     // الجهاز يرسل رقم قناة ٣ خانات (ACN) مثل 418 — قد يصل بأصفار بادئة (057)
@@ -30770,8 +31647,8 @@ function _c111RuleFor(deviceCode, deviceName){
       }
     }
     const _hit=arr=>(arr||[]).some(c=>_cands.has(_up(c)));
-    if(_hit(_lisSettings.c111NoChange))  return 'none';
-    if(_hit(_lisSettings.c111TruncOnly)) return 'trunc';
+    if(_hit(_lisSettings[_kNo]))  return 'none';
+    if(_hit(_lisSettings[_kTr])) return 'trunc';
   }catch(e){}
   return 'round5';
 }
@@ -30855,10 +31732,19 @@ function lisParseASTM(raw,deviceName,devObj){
       case 'R':{
         const testCode=lisParseTestCode(fields[2]||'');
         const rawVal=(fields[3]||'').trim();
+        // 🧪 هل الجهاز e411؟ (للتعامل مع القيم الكيفية ذات الإشارة السالبة)
+        const _isE411 = !!(devObj && devObj.vendor === 'roche_e411');
         // ── تنظيف القيمة: بعض الأجهزة ترسل رقم + حرف وحدة مثل '4.50T' أو '9.5E1' ──
         // استخراج الرقم من أي موضع في القيمة (3.63T او 171T او 3.63H او T)
         const _nm=rawVal.match(/([<>]?\s*\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/);
         let value=_nm?_nm[1].replace(/\s/g,''):rawVal;
+        // ⭐ e411 فقط: النتائج الكيفية تُرسَل بإشارة (الدليل §E — Result record):
+        //    "1"=Positive · "0"=Border · "-1"=Negative (متبوعة أحياناً بـ ^COI).
+        //    الـ regex العام لا يلتقط "-" القائدة، فنعالجها هنا معزولةً لـ e411.
+        if(_isE411){
+          const _q=rawVal.match(/^\s*(-?\d+(?:\.\d+)?)/);
+          if(_q) value=_q[1];
+        }
         // ⭐ c111 فقط: حذف الكسور + التقريب لأسفل لأقرب مضاعف لـ ٥
         //    107.12 → 105 | 98 → 95 | 123.10 → 120 | 55.40 → 55
         if(_isC111){
@@ -30941,7 +31827,10 @@ function lisParseASTM(raw,deviceName,devObj){
   });
 }
 function lisParseTestCode(raw){
-  const clean=(raw||'').replace(/\^+/g,' ').trim();
+  // ⭐ e411 Universal Test ID: ^^^<code>//not  أو  ^^^<code>/2/pre-diluted
+  //    (cobas type يفصل بـ /) و ^^^<code>^<dil>^<pre> (Elecsys type يفصل بـ ^).
+  //    نحوّل كلا الفاصلين إلى مسافة ثم نلتقط أول رمز صالح (الكود عادةً رقمي).
+  const clean=(raw||'').replace(/[\^\/]+/g,' ').trim();
   const parts=clean.split(/\s+/);
   return (parts.find(p=>p.length>0&&p.length<20&&/^[A-Z0-9\-]+$/i.test(p))||raw).toUpperCase();
 }
@@ -30998,6 +31887,32 @@ const CBC_PARAMS_MAP = {
 const CBC_PARAM_KEYS=Object.keys(CBC_PARAMS_MAP);
 function cbcIsParam(code){const c=(code||'').toUpperCase().replace(/\s/g,'');return CBC_PARAM_KEYS.some(k=>c===k||c.startsWith(k));}
 function cbcNormalizeCode(code){const c=(code||'').toUpperCase().replace(/\s/g,'');return CBC_PARAM_KEYS.find(k=>c===k)||CBC_PARAM_KEYS.find(k=>c.startsWith(k))||c;}
+// ═══════════════════════════════════════════════════════════════
+// 🩸 BC-6000 — تخزين الرسوم البيانية ورايات الإنذار مع عينة الـ CBC
+// ─────────────────────────────────────────────────────────────
+// معزول تماماً: يُستدعى فقط عندما يرسل الجهاز مقاطع ED (صور) أو رايات IS.
+// الأجهزة الأخرى لا ترسلها فلا تُنشأ الحقول أصلاً ويبقى سلوكها كما هو.
+// تُحفظ في نفس بفر الـ CBC لتُفلَش مع النتائج إلى الطلب الصحيح.
+function cbcAttachExtras(sampleId, graphics, alarms, patName){
+  if(!sampleId) return;
+  if(!(graphics&&graphics.length)&&!(alarms&&alarms.length)) return;
+  if(!_cbcBuffer[sampleId]) _cbcBuffer[sampleId]={params:{},name:patName||'',timer:null};
+  const buf=_cbcBuffer[sampleId];
+  if(graphics&&graphics.length){
+    if(!buf.graphics) buf.graphics=[];
+    graphics.forEach(function(g){
+      // لا تُكرّر نفس الكود إن أُعيد إرساله
+      if(!buf.graphics.some(function(x){return x.code===g.code;})) buf.graphics.push(g);
+    });
+  }
+  if(alarms&&alarms.length){
+    if(!buf.alarms) buf.alarms=[];
+    alarms.forEach(function(a){
+      if(!buf.alarms.some(function(x){return x.code===a.code;})) buf.alarms.push(a);
+    });
+  }
+}
+
 function cbcAddParam(sampleId,code,value,unit,refRange,flag,patName){
   if(!sampleId) return;
   if(!_cbcBuffer[sampleId]) _cbcBuffer[sampleId]={params:{},name:patName||'',timer:null};
@@ -31088,6 +32003,10 @@ function cbcFlush(sampleId){
     // ── حفظ CBC بدون المساس بالتحاليل الأخرى ──────────────
     // نحفظ بيانات CBC الجديدة
     targetReq.cbcData=buf.params;
+    // 🩸 BC-6000: الرسوم البيانية ورايات الإنذار — تُحفظ فقط إن وُجدت.
+    // الأجهزة الأخرى لا ترسلها فلا يُضاف أي حقل ويبقى شكل الطلب كما هو.
+    if(buf.graphics&&buf.graphics.length) targetReq.cbcGraphics=buf.graphics;
+    if(buf.alarms&&buf.alarms.length)     targetReq.cbcAlarms=buf.alarms;
     // دمج نتيجة CBC فقط — لا نبني results من الصفر
     if(!targetReq.results) targetReq.results={};
     if(!targetReq.resultDetails) targetReq.resultDetails={};
@@ -31201,9 +32120,73 @@ function lisParseHL7(raw,deviceName){
   });
 
   // ── المرور الثاني: معالجة OBX بعد معرفة SID ──
+  // 🩸 BC-5000/BC-5150 — الرسوم البيانية والتعليقات (النموذج ٥ حصراً)
+  //    تُجمَّع هنا ثم تُسلَّم لـ cbcAttachExtras بعد انتهاء المرور.
+  const _bcG=[];   // صور BMP/Base64 (هيستوغرام + Scattergram)
+  const _bcA=[];   // التعليقات/رايات الإنذار المرفوعة (T)
   segs.forEach(function(seg){
     const f=seg.split('|');
     if(f[0]!=='OBX') return;
+
+    // ═══════════════════════════════════════════════════════════════
+    // 🩸 BC-5000 (3107 HL7) — الرسوم البيانية + التعليقات
+    // ───────────────────────────────────────────────────────────────
+    // مأخوذ حرفياً من دليل الشركة المرفق:
+    //
+    // (١) الرسوم — القسم ٦.٢ «Binary Data Communication» + جدول ٥.٨:
+    //     نوع OBX-2 = 'ED'، وحقل OBX-5 على الشكل:
+    //       "^Image^BMP^Base64^<بيانات>"            ← صورة جاهزة للعرض ✅
+    //       "^Application^Octer-stream^Base64^<..>" ← ثنائي خام (يُتجاهل)
+    //     الأكواد (جدول ٥.٨): 15000 WBC Histogram · 15050 RBC Histogram
+    //     15100 PLT Histogram · 15008 WBC BMP · 15200/15201 DIFF Scattergram
+    //     ⚠️ الدليل يكتبها «Octer-stream» (وليس Octet) — نتحقق من Image/BMP
+    //        فقط فلا يهمّ الإملاء، ونتجاهل الخام تلقائياً.
+    //
+    // (٢) التعليقات — جدول ٥.٨ «Flags of Abnormal Blood Cell Differential
+    //     or Morphology» + القسم ٦: نوع OBX-2 = 'IS'، والقيمة 'T' = true
+    //     (الراية مرفوعة) و 'F' = false (تُهمَل). مثال الدليل:
+    //       OBX|27|IS|12045^Multiple alerts^99MRC||T||||||F
+    //     الأكواد: 12011..12016 و 12045..12052 بترميز 99MRC،
+    //     بالإضافة إلى LOINC: 34165-1 و 15192-8.
+    //
+    // 🔒 معزول تماماً: لا يدخل النتائج (results/cbcAddParam) إطلاقاً،
+    //    و return يمنع وصول هذه المقاطع للمنطق الحالي فلا يتغيّر سلوك
+    //    أي جهاز آخر — MAGLUMI/CL-900i/Zybio لا يُرسلون ED ولا 12xxx.
+    // ═══════════════════════════════════════════════════════════════
+    const _t2=(f[2]||'').trim().toUpperCase();
+    const _c3=(f[3]||'').split('^');
+    const _cd=(_c3[0]||'').trim();
+    const _nm=(_c3[1]||'').trim();
+
+    if(_t2==='ED'){
+      const _p=(f[5]||'').split('^');
+      // [0]=فارغ [1]=Image [2]=BMP [3]=Base64 [4..]=البيانات
+      if(_p.length>=5&&/^image$/i.test((_p[1]||'').trim())
+         &&/^bmp$/i.test((_p[2]||'').trim())
+         &&/^base64$/i.test((_p[3]||'').trim())){
+        const _b64=(_p.slice(4).join('^')||'').trim().replace(/\s/g,'');
+        // سقف حجم (١.٥ مليون حرف ≈ 1MB) + فحص سلامة Base64
+        if(_b64&&_b64.length<=1500000&&/^[A-Za-z0-9+/=]+$/.test(_b64)){
+          if(!_bcG.some(function(x){return x.code===_cd;})){
+            _bcG.push({code:_cd,name:_nm,b64:_b64});
+          }
+        }
+      }
+      return;   // ED لا يدخل النتائج أبداً
+    }
+
+    const _BC5K_FLAGS={
+      '34165-1':'Imm Granulocytes?','15192-8':'Atypical Lymphs?'
+    };
+    if(_t2==='IS'&&(/^12\d{3}$/.test(_cd)||_BC5K_FLAGS[_cd])){
+      const _v=(f[5]||'').trim().toUpperCase();
+      if(_v==='T'||_v==='TRUE'||_v==='Y'||_v==='1'){
+        if(!_bcA.some(function(x){return x.code===_cd;})){
+          _bcA.push({code:_cd,name:_BC5K_FLAGS[_cd]||_nm||_cd});
+        }
+      }
+      return;   // التعليقات لا تدخل النتائج أبداً
+    }
 
     // ── استخراج كود التحليل ──
     // MAGLUMI يرسل: OBX|1||Vit B12 III||442^|...
@@ -31245,28 +32228,102 @@ function lisParseHL7(raw,deviceName){
       });
     }
   });
+
+  // ── 🩸 BC-5000: تسليم الرسوم والتعليقات لمخزن CBC (النموذج ٥) ─────────
+  // نستخدم نفس المسار المُجرَّب (cbcAttachExtras → cbcGraphics/cbcAlarms)
+  // بلا أي منطق تخزين جديد. لا يُنفَّذ إطلاقاً إن لم يُرسل الجهاز شيئاً،
+  // فيبقى شكل الطلب وسلوك بقية الأجهزة كما هو تماماً.
+  try{
+    if((_bcG.length||_bcA.length)&&typeof cbcAttachExtras==='function'){
+      const _sid=pid.id||'HL7';
+      cbcAttachExtras(_sid,_bcG,_bcA,pid.name);
+      if(_bcG.length) lisAddLog('ok','🖼️ '+deviceName+' — استُلمت '+_bcG.length+' صورة بيانية (SID:'+_sid+')');
+      if(_bcA.length) lisAddLog('warn','🚩 '+deviceName+' — تعليقات الجهاز: '+_bcA.map(function(a){return a.name;}).join(' · '));
+    }
+  }catch(_){}
 }
 
 // ── استخدام البيانات المحللة مسبقاً من main.js ──────────────────────────────
 // تُستدعى عندما يرسل main.js حقل parsed مع البيانات
 // تتجنب إعادة تحليل HL7 وتضمن استخدام patientId الصحيح من PID
-function lisParseHL7Parsed(parsed, deviceName){
-  if(!parsed||!parsed.results||!parsed.results.length) return;
+function lisParseHL7Parsed(parsed, deviceName, devObj){
+  if(!parsed) return;
+  // ── 🩸 BC-6000: التقاط الرسوم والرايات قبل أي خروج مبكر ───────────────
+  // قد يُرسل الجهاز الصور في رسالة منفصلة بلا نتائج رقمية (الملحق B البند ٤)،
+  // وحينها كان الشرط أدناه سيُسقطها. نلتقطها أولاً ثم نُكمل طبيعياً.
+  // معزول: لا يعمل إلا إذا كانت المصفوفات غير فارغة — وهي فارغة لكل جهاز آخر.
+  // ولا نحفظ شيئاً لرسائل الكنترول (QC) لأنها ليست بيانات مريض.
+  try{
+    if(!parsed.isQC && parsed.patientId &&
+       ((parsed.graphics&&parsed.graphics.length)||(parsed.alarms&&parsed.alarms.length))){
+      if(typeof cbcAttachExtras==='function'){
+        cbcAttachExtras(parsed.patientId,parsed.graphics||[],parsed.alarms||[],parsed.patientName);
+      }
+      if(parsed.graphics&&parsed.graphics.length){
+        lisAddLog('ok','🖼️ '+deviceName+' — استُلمت '+parsed.graphics.length+' صورة بيانية (SID:'+parsed.patientId+')');
+      }
+      if(parsed.alarms&&parsed.alarms.length){
+        lisAddLog('warn','🚩 '+deviceName+' — رايات إنذار: '+parsed.alarms.map(function(a){return a.name;}).join(' · '));
+      }
+    }
+  }catch(_){}
+  if(!parsed.results||!parsed.results.length) return;
   // ── 🩸 Zybio — رسائل الكنترول (QC) لا تُحفظ كنتائج مريض ─────────────
   // دليل الشركة (3.8.2): عندما MSH-11 = 'Q' تكون الرسالة نتيجة Quality
   // Control (L-J / X-B) وليست عينة مريض. نسجّلها في السجل فقط.
   // معزول: isQC لا تكون true إلا إذا أرسل الجهاز 'Q' صراحةً.
   if(parsed.isQC){
-    lisAddLog('info','🧪 '+deviceName+' — رسالة كنترول (QC) تم تجاهلها (لا تُحفظ كنتيجة مريض)');
+    // 🧫 BS-230: يميّز الكنترول والمعايرة عبر MSH-16 (2=QC، 1=Calibration)
+    var _qcWhy=parsed.qcReason?(' — '+parsed.qcReason):'';
+    lisAddLog('info','🧪 '+deviceName+' — رسالة كنترول/معايرة تم تجاهلها (لا تُحفظ كنتيجة مريض)'+_qcWhy);
     return;
   }
+
+  // ── 🧫 BS-230 — تيوب الهول بلود (HbA1c) ──────────────────────────────
+  // تيوب EDTA يحمل رقم المريض مسبوقاً بـ 9 (نفس اتفاقية c111). النتيجة
+  // تعود بالرقم المسبوق، فنُرجعه لأصله ليطابق الطلب الصحيح.
+  // يستخدم نفس دوال c111 الموجودة — بلا منطق مكرر.
+  if(parsed.patientId&&typeof _c111BaseSidFromWb==='function'){
+    var _sidRaw=String(parsed.patientId).trim();
+    if(/^9\d+$/.test(_sidRaw)){
+      var _sidBase=_c111BaseSidFromWb(_sidRaw);
+      if(_sidBase&&_sidBase!==_sidRaw){
+        lisAddLog('info','🩸 '+deviceName+' — تيوب هول بلود: '+_sidRaw+' → '+_sidBase+' (تراكمي)');
+        parsed.patientId=_sidBase;
+      }
+    }
+  }
   lisAddLog('astm','تحليل HL7 (parsed) من: '+deviceName+' | SID:'+parsed.patientId);
+
+  // 🧫 BS-230 فقط: تفعيل قواعد التقريب (نفس فكرة c111 بقوائم مستقلة)
+  var _isBS230Dev=!!(devObj&&devObj.vendor==='mindray_bs230');
+
+  // ⚠️ نتائج بلا رقم عينة — ستُحفظ تحت 'HL7' ولن تلتصق بأي مريض
+  if(_isBS230Dev&&!parsed.patientId){
+    lisAddLog('warn','⚠️ BS-230: وصلت '+parsed.results.length
+      +' نتيجة بلا رقم عينة (OBR-2/OBR-3 و PID فارغة) — لن ترتبط بأي مريض. '
+      +'تأكّد أن الجهاز يقرأ الباركود ويُرسله.');
+  }
 
   parsed.results.forEach(function(obx){
     const codeWithSpaces=(obx.testName||obx.testCode||'').trim().toUpperCase();
     const code=codeWithSpaces.replace(/\s+/g,'');
-    const value=obx.value||'';
+    let value=obx.value||'';
     if(!code&&!value) return;
+
+    // ⭐ BS-230 فقط: حذف الكسور + النزول لأقرب ٥ (الافتراضي)، مع استثناءات
+    //    القوائم. معزول تماماً — لا يُنفَّذ لأي جهاز HL7 آخر
+    //    (Zybio / BC-5000 / CL-900i / MAGLUMI لا يمرّون من هنا إطلاقاً).
+    if(_isBS230Dev&&typeof _bs230RuleFor==='function'){
+      // المطابقة تتم على كود الجهاز (OBX-3 = رقم التحليل) وليس الاسم
+      var _dc=(obx.testCode||'').trim();
+      var _rule=_bs230RuleFor(_dc||code, deviceName);
+      var _before=value;
+      value=_c111RoundValue(value,_rule);
+      var _rn=(_rule==='none'?'بلا تعديل':_rule==='trunc'?'حذف كسور':_rule==='hba1c1dp'?'HbA1c مرتبة واحدة':'تقريب ٥');
+      lisAddLog('astm','⚙️ BS-230 ['+(_dc||code)+'] '+_rn+': '+_before+
+        (value!==_before?(' → '+value):' (بلا تغيير)'));
+    }
 
     lisAddLog('astm','HL7 OBX: '+codeWithSpaces+'='+value+' '+obx.unit+' (SID:'+parsed.patientId+')');
 
@@ -31275,12 +32332,28 @@ function lisParseHL7Parsed(parsed, deviceName){
       const normFlag=(_fg==='N'||_fg==='N-N')?'':_fg.startsWith('L')?'L':_fg.startsWith('H')?'H':_fg;
       cbcAddParam(parsed.patientId||'HL7', code, value, obx.unit, obx.refRange, normFlag, parsed.patientName);
     } else {
+      // 🧫 BS-230: الربط يتم برقم التحليل (OBX-3) وليس بالاسم (OBX-4).
+      // نجرّب الرقم أولاً ثم الاسم، حتى لا تضيع النتيجة إذا كان الربط
+      // مُعرَّفاً بالرقم في جدول التعيينات.
+      var _mlc;
+      if(_isBS230Dev){
+        var _tno=(obx.testCode||'').trim();
+        _mlc = (_tno?lisResolveCode(_tno):'') || lisResolveCode(codeWithSpaces) || lisResolveCode(code);
+        if(!_mlc){
+          // ⚠️ نتيجة وصلت لكنها غير مربوطة بأي تحليل — لن تظهر للمستخدم
+          lisAddLog('warn','⚠️ BS-230: نتيجة غير مربوطة — رقم التحليل ['
+            +(_tno||'?')+'] الاسم ['+codeWithSpaces+'] = '+value
+            +' · أضف الربط من قسم «ربط التحاليل» وإلا لن تظهر النتيجة');
+        }
+      } else {
+        _mlc = lisResolveCode(codeWithSpaces)||lisResolveCode(code);
+      }
       lisIngestResult({
         id:'lr'+Date.now()+Math.random().toString(36).slice(2,5),
         sampleId:   parsed.patientId||'HL7',
         patName:    parsed.patientName||'',
         deviceCode: codeWithSpaces,
-        medlabCode: lisResolveCode(codeWithSpaces)||lisResolveCode(code),
+        medlabCode: _mlc,
         value, unit:obx.unit||'', refRange:obx.refRange||'', flags:obx.flag||'',
         status:'final', device:deviceName, protocol:'HL7',
         datetime:new Date().toISOString(), transferred:false,
@@ -32112,8 +33185,10 @@ function lisLoadSettingsUI(){
   // روابط الحاسبات المحفوظة (LAN)
   if(typeof _lanLoadSaved==='function'){ _lanLoadSaved(); }
   if(typeof lisLanRenderSaved==='function'){ lisLanRenderSaved(); }
-  // 🔢 شرائح قواعد تعديل نتائج c111
+  // 🔢 شرائح قواعد تعديل النتائج (c111 · BS-230)
   if(typeof c111RenderLists==='function'){ try{ c111RenderLists(); }catch(e){} }
+  if(typeof bs230RenderLists==='function'){ try{ bs230RenderLists(); }catch(e){} }
+  if(typeof roundUpdateCounts==='function'){ try{ roundUpdateCounts(); }catch(e){} }
 }
 function lisUpdateLinkMode(){
   const mode=document.getElementById('lis-link-mode')?.value||'localstorage';
@@ -32149,6 +33224,7 @@ function c111RenderLists(){
         +'</span>';
     }).join('');
   });
+  if(typeof roundUpdateCounts==='function') roundUpdateCounts();
 }
 function c111RemoveTest(which, code){
   var k=_c111ListKey(which);
@@ -32242,6 +33318,144 @@ function c111TogglePick(which, code){
   lisSaveState();
   c111RenderPicker(which, document.getElementById('_c111Search')?.value||'');
   c111RenderLists();
+}
+
+// 🔢 طيّ/فتح أقسام تعديل النتائج (c111 · bs230)
+function roundToggleSection(scope){
+  var b=document.getElementById('round-body-'+scope);
+  var a=document.getElementById('round-arrow-'+scope);
+  if(!b) return;
+  var open=(b.style.display!=='none');
+  b.style.display=open?'none':'block';
+  if(a) a.style.transform=open?'rotate(0deg)':'rotate(180deg)';
+}
+// عدّاد التحاليل المستثناة بجانب اسم كل جهاز
+function roundUpdateCounts(){
+  [['c111','c111NoChange','c111TruncOnly'],
+   ['bs230','bs230NoChange','bs230TruncOnly']].forEach(function(r){
+    var el=document.getElementById('round-count-'+r[0]); if(!el) return;
+    var n=((_lisSettings[r[1]]||[]).length)+((_lisSettings[r[2]]||[]).length);
+    el.textContent=n?(n+' مستثنى'):'الافتراضي: تقريب ٥';
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 🧫 BS-230 — واجهة اختيار التحاليل المستثناة (مستقلة عن c111)
+// ═══════════════════════════════════════════════════════════════
+function _bs230ListKey(which){ return which==='noChange'?'bs230NoChange':'bs230TruncOnly'; }
+function _bs230OtherKey(which){ return which==='noChange'?'bs230TruncOnly':'bs230NoChange'; }
+
+function bs230RenderLists(){
+  ['noChange','truncOnly'].forEach(function(which){
+    var box=document.getElementById('bs230-list-'+which);
+    if(!box) return;
+    var arr=_lisSettings[_bs230ListKey(which)]||[];
+    if(!arr.length){
+      box.innerHTML='<div style="font-size:10px;color:var(--text2);opacity:.6;padding:4px">— لا شيء (الافتراضي: تقريب ٥) —</div>';
+      return;
+    }
+    var col=which==='noChange'?'#4ade80':'#60a5fa';
+    box.innerHTML=arr.map(function(code){
+      var t=(typeof tests!=='undefined'?tests:[]).find(function(x){return String(x.code||'').toUpperCase()===String(code).toUpperCase();});
+      var nm=t?(t.nameEn||t.code):code;
+      return '<span style="display:inline-flex;align-items:center;gap:5px;font-size:10.5px;font-weight:800;'
+        +'background:'+col+'22;border:1px solid '+col+'66;color:'+col+';border-radius:20px;padding:3px 8px">'
+        +'<span title="'+String(nm).replace(/"/g,'')+'">'+code+'</span>'
+        +'<span onclick="bs230RemoveTest(\''+which+'\',\''+code+'\')" style="cursor:pointer;font-weight:900;opacity:.75" title="إزالة">✕</span>'
+        +'</span>';
+    }).join('');
+  });
+  roundUpdateCounts();
+}
+function bs230RemoveTest(which, code){
+  var k=_bs230ListKey(which);
+  _lisSettings[k]=(_lisSettings[k]||[]).filter(function(c){return String(c).toUpperCase()!==String(code).toUpperCase();});
+  lisSaveState(); bs230RenderLists();
+}
+function bs230OpenPicker(which){
+  var _o=document.getElementById('_bs230PickPop'); if(_o) try{_o.parentNode.removeChild(_o);}catch(e){}
+  var _b=document.getElementById('_bs230PickBd');  if(_b) try{_b.parentNode.removeChild(_b);}catch(e){}
+  var title=(which==='noChange'?'🚫 بدون أي تغيير':'✂️ حذف الكسور فقط')+' — BS-230';
+  var bd=document.createElement('div');
+  bd.id='_bs230PickBd';
+  bd.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:99998;backdrop-filter:blur(2px);';
+  bd.addEventListener('click',bs230ClosePicker);
+  document.body.appendChild(bd);
+  var pop=document.createElement('div');
+  pop.id='_bs230PickPop';
+  pop.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:99999;'
+    +'background:var(--bg-modal,#12161c);border:1px solid var(--border,rgba(255,255,255,0.12));'
+    +'border-radius:16px;padding:18px;width:min(94vw,470px);box-shadow:0 20px 60px rgba(0,0,0,0.5);direction:rtl;';
+  pop.innerHTML=
+     '<div style="font-size:14px;font-weight:900;color:var(--primary,#00d4ff);margin-bottom:10px">'+title+'</div>'
+    +'<input id="_bs230Search" placeholder="🔍 ابحث بالكود أو الاسم..." '
+    +' style="width:100%;padding:10px 12px;border-radius:10px;border:1.5px solid var(--primary,#00d4ff);'
+    +' background:rgba(0,212,255,0.07);color:var(--text,#e6edf3);font-size:12.5px;margin-bottom:10px;direction:rtl">'
+    +'<div id="_bs230Results" style="max-height:46vh;overflow:auto;display:flex;flex-direction:column;gap:4px"></div>'
+    +'<button onclick="bs230ClosePicker()" style="width:100%;margin-top:12px;padding:10px;border-radius:11px;'
+    +' border:none;background:linear-gradient(135deg,#00b4ff,#0066ff);color:#fff;font-size:13px;font-weight:900;cursor:pointer">تم</button>';
+  document.body.appendChild(pop);
+  var inp=document.getElementById('_bs230Search');
+  inp.addEventListener('input',function(){ bs230RenderPicker(which, inp.value); });
+  bs230RenderPicker(which,'');
+  setTimeout(function(){ try{inp.focus();}catch(e){} },60);
+}
+function bs230ClosePicker(){
+  var p=document.getElementById('_bs230PickPop'); if(p) try{p.parentNode.removeChild(p);}catch(e){}
+  var b=document.getElementById('_bs230PickBd');  if(b) try{b.parentNode.removeChild(b);}catch(e){}
+  bs230RenderLists();
+}
+function bs230RenderPicker(which, q){
+  var box=document.getElementById('_bs230Results'); if(!box) return;
+  var _q=String(q||'').trim().toLowerCase();
+  var all=(typeof tests!=='undefined'?tests:[]).filter(function(t){ return t && t.code; });
+  var list=all.filter(function(t){
+    if(!_q) return true;
+    return String(t.code||'').toLowerCase().includes(_q)
+        || String(t.nameEn||'').toLowerCase().includes(_q)
+        || String(t.nameShort||'').toLowerCase().includes(_q)
+        || String(t.cat||'').toLowerCase().includes(_q);
+  }).slice(0,120);
+  if(!list.length){ box.innerHTML='<div style="font-size:11px;color:var(--text2);text-align:center;padding:16px">لا نتائج</div>'; return; }
+  var mine=(_lisSettings[_bs230ListKey(which)]||[]).map(function(c){return String(c).toUpperCase();});
+  var other=(_lisSettings[_bs230OtherKey(which)]||[]).map(function(c){return String(c).toUpperCase();});
+  box.innerHTML=list.map(function(t){
+    var code=String(t.code).toUpperCase();
+    var on=mine.includes(code);
+    var inOther=other.includes(code);
+    // أظهر رقم التحليل (Test No.) في BS-230 إن كان مربوطاً
+    var ch='';
+    try{
+      var _mm=(typeof lisMappings!=='undefined'?lisMappings:[]).find(function(x){
+        return x.channel && String(x.medlabCode||'').toUpperCase()===code;
+      });
+      if(_mm) ch='<span style="font-size:9px;color:#00d4ff;font-weight:900">No '+_mm.channel+'</span>';
+    }catch(e){}
+    return '<div onclick="bs230TogglePick(\''+which+'\',\''+code+'\')" '
+      +'style="display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:pointer;'
+      +'padding:8px 10px;border-radius:9px;border:1px solid '+(on?'rgba(0,212,255,0.55)':'rgba(255,255,255,0.08)')+';'
+      +'background:'+(on?'rgba(0,212,255,0.12)':'rgba(255,255,255,0.02)')+'">'
+      +'<div style="min-width:0">'
+      +'<div style="font-size:12px;font-weight:800;color:var(--text,#e6edf3)">'+(on?'✅ ':'')+code
+      +(inOther?' <span style="font-size:9px;color:#ffcf5a">(في القائمة الأخرى)</span>':'')+'</div>'
+      +'<div style="font-size:9.5px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'
+      +String(t.nameEn||'')+'</div>'
+      +'</div>'+ch+'</div>';
+  }).join('');
+}
+function bs230TogglePick(which, code){
+  var k=_bs230ListKey(which), ok=_bs230OtherKey(which);
+  var cur=(_lisSettings[k]||[]).map(function(c){return String(c).toUpperCase();});
+  var up=String(code).toUpperCase();
+  if(cur.includes(up)){
+    _lisSettings[k]=cur.filter(function(c){return c!==up;});
+  } else {
+    _lisSettings[k]=cur.concat([up]);
+    _lisSettings[ok]=(_lisSettings[ok]||[]).filter(function(c){return String(c).toUpperCase()!==up;});
+  }
+  lisSaveState();
+  bs230RenderPicker(which, document.getElementById('_bs230Search')?.value||'');
+  bs230RenderLists();
 }
 
 function lisSaveSettings(){
@@ -36498,6 +37712,438 @@ function _lisPassConfirm(){
 // ════════════════════════════════════════════════════════════
 // LAN SYNC — ربط الحاسبات عبر الشبكة المحلية
 // ════════════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════════════════════
+// 📢 نظام المنادات الصوتية (Intercom) — مكالمة حية عبر WebRTC فوق قناة LAN
+// ───────────────────────────────────────────────────────────────────────
+//  • يعمل فوق نفس نقل الربط الموجود (_lanSendRaw / _lanHandleMessage) — بلا
+//    خادم إشارات منفصل، وبلا أي تعديل على main.js / preload.js.
+//  • ضغط زر المنادات = فتح الميكروفون فوراً وبثّه لكل الأجهزة المتصلة (mesh).
+//    الطرف الآخر يستقبل الصوت تلقائياً بدون موافقة (auto-answer).
+//  • يدعم حاسبتين أو ٣ (اتصال شبكي كامل: كل جهاز ↔ كل جهاز).
+//  • ترك الزر = إغلاق الميكروفون وإنهاء البثّ (Push-to-Talk).
+//  • رسائل الإشارة (offer/answer/ice/announce/bye) توسم بـ type:'ic:*'
+//    وتُوجّه بمعرّف الجهاز (from/to) فلا تُطبّق كبيانات مزامنة.
+// ═══════════════════════════════════════════════════════════════════════
+var Intercom = (function(){
+  'use strict';
+
+  // ── إعداد WebRTC — LAN فقط (لا حاجة STUN/TURN) ──────────────────────
+  var RTC_CONFIG = { iceServers: [] };
+
+  // نموذج أحادي الاتجاه لكل جلسة تحدّث (يمنع الصدى والتكرار):
+  //   • «out» = اتصال نُرسِل عبره صوتنا لجهاز آخر (نحن المتكلّم).
+  //   • «in»  = اتصال نستقبل عبره صوت جهاز آخر (نحن المستمع).
+  //   هكذا لا يتفاوض الطرفان بنفس الوقت (لا glare) ولا يعود صوتنا إلينا.
+  var _out        = {};     // remoteId → { pc }              (نبثّ نحوه)
+  var _in         = {};     // remoteId → { pc, audioEl }     (نستقبل منه)
+  var _localStream= null;   // ميكروفوننا أثناء التحدث
+  var _active     = false;  // هل نضغط الزر الآن (نتكلّم)؟
+  var _remoteActive = {};   // remoteId → true إذا يبثّ لنا صوتاً
+  var _btnId      = 'intercom-btn';
+
+  function _me(){ return (typeof _lanDeviceId!=='undefined') ? _lanDeviceId : 'me'; }
+
+  function _sig(obj){
+    obj.from = _me();
+    if(typeof _lanSendRaw==='function') _lanSendRaw(obj);
+  }
+
+  function _lanReady(){
+    return (typeof _lanMode!=='undefined') && (_lanMode==='server' || _lanMode==='client');
+  }
+
+  // ── اتصال صادر (نحن المتكلّم) نحو جهاز مستمع ─────────────────────────
+  function _makeOut(remoteId){
+    if(_out[remoteId]) return _out[remoteId];
+    var pc = new RTCPeerConnection(RTC_CONFIG);
+    var entry = { pc: pc };
+    _out[remoteId] = entry;
+
+    pc.onicecandidate = function(e){
+      if(e.candidate) _sig({ type:'ic:ice', dir:'out', to:remoteId, candidate:e.candidate });
+    };
+    pc.onconnectionstatechange = function(){
+      var st = pc.connectionState;
+      if(st==='failed'||st==='closed'||st==='disconnected') _closeOut(remoteId);
+    };
+    // أضف مسارنا الصوتي (نبثّ فقط — لا نستقبل على هذا الاتصال)
+    if(_localStream){
+      _localStream.getTracks().forEach(function(t){ try{ pc.addTrack(t, _localStream); }catch(_){} });
+    }
+    // نحن مَن يبدأ العرض على الاتصال الصادر
+    pc.createOffer({ offerToReceiveAudio:false })
+      .then(function(o){ return pc.setLocalDescription(o); })
+      .then(function(){ _sig({ type:'ic:offer', to:remoteId, sdp:pc.localDescription }); })
+      .catch(function(e){ console.warn('[Intercom] out offer',e); });
+    return entry;
+  }
+
+  // ── اتصال وارد (نحن المستمع) من جهاز متكلّم ─────────────────────────
+  function _makeIn(remoteId){
+    if(_in[remoteId]) return _in[remoteId];
+    var pc = new RTCPeerConnection(RTC_CONFIG);
+    var audioEl = document.createElement('audio');
+    audioEl.autoplay = true;
+    audioEl.setAttribute('playsinline','');
+    audioEl.style.display = 'none';
+    audioEl.volume = 1.0;
+    audioEl.muted = _active; // إن كنا نتحدّث الآن، لا تُسمع الوارد حتى نتوقّف
+    document.body.appendChild(audioEl);
+
+    var entry = { pc: pc, audioEl: audioEl };
+    _in[remoteId] = entry;
+
+    pc.onicecandidate = function(e){
+      if(e.candidate) _sig({ type:'ic:ice', dir:'in', to:remoteId, candidate:e.candidate });
+    };
+    pc.ontrack = function(e){
+      if(e.streams && e.streams[0]){
+        audioEl.srcObject = e.streams[0];
+        _remoteActive[remoteId] = true;
+        _refreshBtn();
+        try{ audioEl.play().catch(function(){}); }catch(_){}
+      }
+    };
+    pc.onconnectionstatechange = function(){
+      var st = pc.connectionState;
+      if(st==='failed'||st==='closed'||st==='disconnected'){
+        _remoteActive[remoteId] = false; _closeIn(remoteId); _refreshBtn();
+      }
+    };
+    return entry;
+  }
+
+  function _closeOut(remoteId){
+    var p = _out[remoteId]; if(!p) return;
+    try{ p.pc.close(); }catch(_){}
+    delete _out[remoteId];
+  }
+  function _closeIn(remoteId){
+    var p = _in[remoteId]; if(!p) return;
+    try{ p.pc.close(); }catch(_){}
+    try{ if(p.audioEl){ p.audioEl.pause(); p.audioEl.srcObject=null; p.audioEl.remove(); } }catch(_){}
+    delete _in[remoteId];
+    delete _remoteActive[remoteId];
+  }
+  function _closeAll(){
+    Object.keys(_out).forEach(_closeOut);
+    Object.keys(_in).forEach(_closeIn);
+    _refreshBtn();
+  }
+
+  function _muteIncoming(mute){
+    Object.keys(_in).forEach(function(rid){
+      var a = _in[rid] && _in[rid].audioEl;
+      if(a) a.muted = !!mute;
+    });
+  }
+
+  // ── بدء التحدث (ضغط الزر) ──────────────────────────────────────────
+  function start(){
+    if(_active) return;
+    if(!_lanReady()){
+      if(typeof showNotif==='function') showNotif('📢 المنادات','فعّل الربط بين الحاسبات أولاً من قسم «الربط»','warning');
+      return;
+    }
+    if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+      if(typeof showNotif==='function') showNotif('📢 المنادات','الميكروفون غير مدعوم هنا','error');
+      return;
+    }
+    // قيود قوية لإلغاء الصدى والضوضاء (مهمة جداً عند استخدام السماعات بدل السمّاعة)
+    var constraints = { audio: {
+      echoCancellation: { ideal:true },
+      noiseSuppression: { ideal:true },
+      autoGainControl:  { ideal:true },
+      channelCount: 1
+    }, video:false };
+    navigator.mediaDevices.getUserMedia(constraints)
+      .then(function(stream){
+        _localStream = stream;
+        _active = true;
+        _muteIncoming(true);  // نصف مزدوج: أوقف سماع الوارد أثناء تحدّثنا (يمنع الصدى الصوتي)
+        _refreshBtn();
+        // أعلن أننا سنتحدّث — كل جهاز آخر يجهّز اتصالاً وارداً (in) لاستقبال صوتنا،
+        // ونحن نُنشئ اتصالاً صادراً (out) لكل جهاز معروف لدينا حالياً.
+        _sig({ type:'ic:talk_start' });
+        if(typeof showNotif==='function') showNotif('📢 المنادات','🎙️ تتحدّث الآن — الصوت يُبثّ للحاسبات المتصلة','success');
+      })
+      .catch(function(e){
+        if(typeof showNotif==='function') showNotif('📢 المنادات','لم يُسمح بالوصول للميكروفون','error');
+        console.warn('[Intercom] mic',e);
+      });
+  }
+
+  // ── إيقاف التحدث (ترك الزر) ────────────────────────────────────────
+  function stop(){
+    if(!_active) return;
+    _active = false;
+    _muteIncoming(false); // أعد تشغيل سماع الوارد بعد توقّفنا
+    _sig({ type:'ic:talk_stop' });
+    // أغلق كل الاتصالات الصادرة وأوقف الميكروفون
+    Object.keys(_out).forEach(_closeOut);
+    if(_localStream){
+      _localStream.getTracks().forEach(function(t){ try{ t.stop(); }catch(_){} });
+      _localStream = null;
+    }
+    _refreshBtn();
+  }
+
+  function toggle(){ if(_active) stop(); else start(); }
+
+  // ── استقبال رسائل الإشارة (من _lanHandleMessage) ────────────────────
+  function onSignal(msg){
+    if(!msg || typeof msg.type!=='string' || msg.type.indexOf('ic:')!==0) return false;
+    var from = msg.from;
+    if(!from || from === _me()) return true;                 // تجاهل صدانا
+    if(msg.to && msg.to !== _me()) return true;              // موجّهة لجهاز آخر
+
+    if(msg.type==='ic:talk_start'){
+      // جهاز آخر بدأ يتكلّم → جهّز اتصالاً وارداً لاستقبال صوته، وأعلمه أننا جاهزون
+      _makeIn(from);
+      _sig({ type:'ic:ready', to:from });
+      // لو كنا نتكلّم نحن أيضاً في نفس اللحظة → أنشئ اتصالاً صادراً نحوه ليسمعنا
+      if(_active) _makeOut(from);
+    }
+    else if(msg.type==='ic:ready'){
+      // مستمع أعلن جاهزيته لاستقبال صوتنا → أنشئ الاتصال الصادر واعرض عليه
+      if(_active) _makeOut(from);
+    }
+    else if(msg.type==='ic:talk_stop'){
+      // توقّف عن الكلام → أغلق اتصال الاستقبال منه
+      _remoteActive[from] = false;
+      _closeIn(from);
+      _refreshBtn();
+    }
+    else if(msg.type==='ic:offer'){
+      // عرض وارد = المرسِل هو المتكلّم ونحن المستمع (اتصال in)
+      var ein = _makeIn(from);
+      var pc = ein.pc;
+      pc.setRemoteDescription(new RTCSessionDescription(msg.sdp))
+        .then(function(){ return pc.createAnswer(); })
+        .then(function(a){ return pc.setLocalDescription(a); })
+        .then(function(){ _sig({ type:'ic:answer', to:from, sdp:pc.localDescription }); })
+        .catch(function(e){ console.warn('[Intercom] answer',e); });
+    }
+    else if(msg.type==='ic:answer'){
+      // ردّ وارد على عرضنا الصادر (اتصال out)
+      var eo = _out[from];
+      if(eo){
+        eo.pc.setRemoteDescription(new RTCSessionDescription(msg.sdp))
+          .catch(function(e){ console.warn('[Intercom] setAnswer',e); });
+      }
+    }
+    else if(msg.type==='ic:ice'){
+      // dir من منظور المرسِل: لو أرسلها على اتصاله «out» فهي تخصّ اتصالنا «in» والعكس
+      var target = (msg.dir==='out') ? (_in[from] && _in[from].pc)
+                 : (msg.dir==='in')  ? (_out[from] && _out[from].pc)
+                 : null;
+      if(target && msg.candidate){
+        target.addIceCandidate(new RTCIceCandidate(msg.candidate)).catch(function(){});
+      }
+    }
+    return true;
+  }
+
+  // ── مؤشر الزر ───────────────────────────────────────────────────────
+  function _anyRemote(){ return Object.keys(_remoteActive).some(function(k){ return _remoteActive[k]; }); }
+  function _refreshBtn(){
+    var b = document.getElementById(_btnId);
+    if(!b) return;
+    if(_active){
+      b.classList.add('ic-talking'); b.classList.remove('ic-incoming');
+      b.title = 'تتحدّث الآن — اترك للإيقاف';
+    } else if(_anyRemote()){
+      b.classList.add('ic-incoming'); b.classList.remove('ic-talking');
+      b.title = 'مكالمة واردة';
+    } else {
+      b.classList.remove('ic-talking','ic-incoming');
+      b.title = 'المنادات الصوتية (اضغط للتحدث)';
+    }
+  }
+
+  // ── ربط أحداث الزر: Push-to-Talk (ضغط مستمر) ───────────────────────
+  function bindButton(){
+    var b = document.getElementById(_btnId);
+    if(!b || b._icBound) return;
+    b._icBound = true;
+    b.addEventListener('mousedown', function(e){ e.preventDefault(); start(); });
+    b.addEventListener('mouseup',   function(e){ e.preventDefault(); stop();  });
+    b.addEventListener('mouseleave',function(){ if(_active) stop(); });
+    b.addEventListener('touchstart',function(e){ e.preventDefault(); start(); }, {passive:false});
+    b.addEventListener('touchend',  function(e){ e.preventDefault(); stop();  }, {passive:false});
+    b.addEventListener('touchcancel',function(){ if(_active) stop(); });
+  }
+
+  return {
+    toggle: toggle, start: start, stop: stop,
+    onSignal: onSignal, bindButton: bindButton,
+    isActive: function(){ return _active; },
+    closeAll: _closeAll
+  };
+}());
+window.Intercom = Intercom;
+
+// ⌨️ اختصار لوحة المفاتيح للمنادات: ضغط مسطرة المسافة مرتين بسرعة = بدء التحدّث،
+//    ثم مسطرة المسافة أو Esc = إيقاف. لا يعمل أثناء الكتابة في حقل إدخال.
+var _icLastSpace = 0;
+var _icKbTalking = false;
+function _icTypingTarget(el){
+  if(!el) return false;
+  var tag = (el.tagName||'').toLowerCase();
+  if(tag==='input' || tag==='textarea' || tag==='select') return true;
+  if(el.isContentEditable) return true;
+  return false;
+}
+function _bindIntercomHotkey(){
+  if(window._icHotkeyBound) return;
+  window._icHotkeyBound = true;
+  document.addEventListener('keydown', function(e){
+    var code = e.code || '';
+    var isSpace = (code==='Space' || e.key===' ' || e.keyCode===32);
+    // أثناء التحدّث بالمنادات: المسافة أو Esc توقف
+    if(_icKbTalking){
+      if(isSpace || e.key==='Escape' || e.keyCode===27){
+        e.preventDefault();
+        _icKbTalking = false;
+        try{ if(window.Intercom) Intercom.stop(); }catch(_){}
+      }
+      return;
+    }
+    if(!isSpace) return;
+    if(_icTypingTarget(e.target)) return; // لا تتدخّل أثناء الكتابة
+    var now = Date.now();
+    if(now - _icLastSpace < 450){
+      // ضغطة مزدوجة سريعة → ابدأ التحدّث
+      e.preventDefault();
+      _icLastSpace = 0;
+      try{
+        if(window.Intercom){ Intercom.start(); _icKbTalking = true; }
+      }catch(_){}
+    } else {
+      _icLastSpace = now;
+    }
+  }, true);
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// 🖨️ الطباعة المتزامنة عبر الشبكة + وضع الطباعة (3 خيارات حصرية)
+// ───────────────────────────────────────────────────────────────────────
+//  إعداد settings.printScope يأخذ إحدى القيم:
+//    'both'   → طباعة في الحاسبتين (المحلية + المتصلة)   [الافتراضي]
+//    'remote' → طباعة فقط في الحاسبة الأخرى المتصلة (ليس عندي)
+//    'local'  → طباعة فقط في حاسبتي (السلوك الكلاسيكي)
+//
+//  التنفيذ يركب على قناة الربط الموجودة (_lanSendRaw / _lanHandleMessage):
+//    عند الطباعة نرسل أمر type:'print:remote' يحمل reqId → الأجهزة الأخرى
+//    تعيد بناء نفس التقرير محلياً وتطبعه بطابعتها الخاصة.
+//    نمرّر reqId فقط (لا HTML) حتى يستخدم كل جهاز إعداداته وطابعته ونماذجه.
+// ═══════════════════════════════════════════════════════════════════════
+
+// قراءة الوضع الحالي بأمان
+function _printScope(){
+  try{
+    if(typeof settings==='object' && settings.printScope) return settings.printScope;
+  }catch(e){}
+  return 'both';
+}
+
+// هل يجب الطباعة محلياً حسب الوضع؟
+function _shouldPrintLocal(){
+  return _printScope() !== 'remote'; // remote = لا تطبع عندي
+}
+// هل يجب إرسال أمر طباعة للأجهزة الأخرى؟
+function _shouldPrintRemote(){
+  var s = _printScope();
+  if(s === 'local') return false;                 // حاسبتي فقط
+  // both أو remote → أرسل للأجهزة الأخرى إن كان الربط مفعّلاً
+  return (typeof _lanMode!=='undefined') && (_lanMode==='server' || _lanMode==='client');
+}
+
+// إرسال أمر الطباعة عن بُعد (يُستدعى من doPrint المحلي)
+function _sendRemotePrint(reqId){
+  if(!_shouldPrintRemote()) return;
+  try{
+    _lanSendRaw({
+      type: 'print:remote',
+      reqId: reqId,
+      from: (typeof _lanDeviceId!=='undefined') ? _lanDeviceId : 'me',
+      ts: Date.now()
+    });
+  }catch(e){ console.warn('[RemotePrint] send',e); }
+}
+
+// استقبال أمر طباعة وارد من جهاز آخر → اطبع نفس الطلب محلياً بصمت
+function _handleRemotePrint(msg){
+  try{
+    if(!msg || !msg.reqId) return;
+    if(msg.from && msg.from === ((typeof _lanDeviceId!=='undefined')?_lanDeviceId:'me')) return; // صدى
+    var req = (typeof requests!=='undefined')
+      ? requests.find(function(r){ return r.id===msg.reqId; }) : null;
+    if(!req){
+      // الطلب لم يصل بعد عبر المزامنة — أعد المحاولة بعد قليل مرة واحدة
+      setTimeout(function(){
+        var r2 = (typeof requests!=='undefined')
+          ? requests.find(function(r){ return r.id===msg.reqId; }) : null;
+        if(r2) _remotePrintNow(r2);
+      }, 1500);
+      return;
+    }
+    _remotePrintNow(req);
+  }catch(e){ console.warn('[RemotePrint] handle',e); }
+}
+
+// الطباعة الفعلية للطلب الوارد — بدون إعادة بثّ (تفادي حلقة لانهائية)
+function _remotePrintNow(req){
+  try{
+    window._remotePrintApplying = true; // علم يمنع doPrint من إعادة الإرسال
+    if(typeof currentReqId!=='undefined') currentReqId = req.id;
+    window._dcPrintApproved = true;      // تخطّي بوابة دلتا على الجهاز المستقبِل
+    try{ if(typeof doPrint==='function') doPrint(req.id); }
+    finally{ window._dcPrintApproved = false; }
+    if(typeof showNotif==='function') showNotif('🖨️ طباعة عن بُعد','طُبع طلب من حاسبة أخرى','info');
+  }finally{
+    setTimeout(function(){ window._remotePrintApplying = false; }, 100);
+  }
+}
+
+// ── واجهة الإعداد: اختيار وضع واحد حصري ─────────────────────────────
+function _setPrintScope(scope){
+  try{
+    if(['both','remote','local'].indexOf(scope)===-1) scope='both';
+    if(typeof settings==='object'){
+      settings.printScope = scope;
+      if(typeof save==='function') save('settings', settings);
+    }
+    _syncPrintScopeUI();
+    var lbl = scope==='both' ? 'الطباعة في الحاسبتين'
+            : scope==='remote' ? 'الطباعة في الحاسبة المتصلة فقط'
+            : 'الطباعة في حاسبتي فقط';
+    if(typeof showNotif==='function') showNotif('🖨️ وضع الطباعة',lbl,'success');
+  }catch(e){ console.warn('[PrintScope] set',e); }
+}
+
+// تحديث مظهر الأزرار الثلاثة (تفعيل واحد فقط)
+function _syncPrintScopeUI(){
+  var scope = _printScope();
+  ['both','remote','local'].forEach(function(s){
+    var el = document.getElementById('pscope-'+s);
+    if(!el) return;
+    var chk = el.querySelector('.pscope-check');
+    if(s===scope){
+      el.classList.add('on');
+      el.style.borderColor = '#2b9bff';
+      el.style.background   = 'rgba(0,140,255,0.10)';
+      if(chk){ chk.textContent = '●'; chk.style.color = '#2b9bff'; }
+    } else {
+      el.classList.remove('on');
+      el.style.borderColor = 'var(--border)';
+      el.style.background   = 'transparent';
+      if(chk){ chk.textContent = '○'; chk.style.color = 'var(--text2)'; }
+    }
+  });
+}
+
 var _lanWS        = null;   // WebSocket (عميل) أو null
 var _lanClients   = new Set(); // WebSocket clients (سيرفير)
 var _lanMode      = null;   // 'server' | 'client' | null
@@ -36762,6 +38408,15 @@ function lanBroadcast(key, data){
 function _lanHandleMessage(raw){
   try{
     var msg = JSON.parse(raw);
+    // 📢 رسائل المنادات الصوتية (WebRTC signaling) — تُعالَج مبكراً ولا تُبثّ كمزامنة
+    if(typeof msg.type==='string' && msg.type.indexOf('ic:')===0){
+      if(window.Intercom && Intercom.onSignal(msg)) return;
+    }
+    // 🖨️ أمر طباعة عن بُعد وارد من حاسبة أخرى
+    if(msg.type==='print:remote'){
+      if(typeof _handleRemotePrint==='function') _handleRemotePrint(msg);
+      return;
+    }
     if(msg.type==='sync' && _LAN_SYNC_KEYS.indexOf(msg.key)!==-1){
       // ⭐ دمج بدل الاستبدال — لا تُفقد السجلات المحلية أبداً
       if(msg.from && msg.from === _lanDeviceId) return; // تجاهل صدى رسائلنا
@@ -36997,6 +38652,7 @@ function lisLanDisconnect(){
     window.electronAPI.lanStopServer().catch(function(){});
   }
   _lanMode=null; _lanClients.clear(); _lanOpenGate(); _lanUpdateStatus();
+  try{ if(window.Intercom){ Intercom.stop(); Intercom.closeAll(); } }catch(e){}
   showNotif('LAN','تم قطع الشبكة المحلية ✓','info');
 }
 
